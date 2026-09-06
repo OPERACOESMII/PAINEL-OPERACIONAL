@@ -1,0 +1,15 @@
+{
+  "name": "painel-minas-ii",
+  "version": "1.0.0",
+  "description": "Painel operacional MINAS II",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "echo 'Build complete'",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

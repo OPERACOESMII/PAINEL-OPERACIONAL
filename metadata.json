@@ -1,0 +1,6 @@
+{
+  "name": "Painel MINAS II",
+  "description": "Painel operacional e de controle do MINAS II",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
