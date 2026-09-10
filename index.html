@@ -5251,6 +5251,45 @@ function renderPresenca(){
     </div>`;
   }).join('');
 }
+function formatarTituloFuncao(funcao) {
+  if (!funcao) return 'Outras Funções';
+  const f = funcao.trim();
+  const fLower = f.toLowerCase();
+  if (fLower === 'encarregado' || fLower === 'encarregados') return 'Encarregados';
+  if (fLower === 'asg' || fLower === 'serviços gerais' || fLower === 'servicos gerais' || fLower === 'auxiliar de servicos gerais' || fLower === 'auxiliar de serviços gerais') return 'ASG';
+  if (fLower === 'guarda vidas' || fLower === 'guarda-vidas') return 'Guarda-vidas';
+  if (fLower === 'apoio') return 'Apoio';
+  if (fLower === 'portaria' || fLower === 'porteiro' || fLower === 'atendente de portaria') return 'Portaria';
+  if (fLower === 'sauna') return 'Sauna';
+  if (fLower === 'limpeza') return 'Limpeza';
+  if (fLower === 'jardinagem' || fLower === 'jardineiro') return 'Jardinagem';
+  return f.charAt(0).toUpperCase() + f.slice(1);
+}
+
+function agruparColaboradoresPorFuncao(lista) {
+  const map = new Map();
+  lista.forEach(item => {
+    const rawFuncao = (item.funcao || 'Outras Funções').trim();
+    const titulo = formatarTituloFuncao(rawFuncao);
+    const key = titulo.toLowerCase();
+    if (!map.has(key)) {
+      map.set(key, { titulo, itens: [] });
+    }
+    map.get(key).itens.push(item);
+  });
+
+  const ordemPrioritaria = ['encarregados', 'liderança', 'supervisão', 'asg', 'guarda-vidas', 'apoio', 'portaria', 'sauna', 'limpeza', 'jardinagem'];
+  
+  return Array.from(map.values()).sort((a, b) => {
+    const idxA = ordemPrioritaria.indexOf(a.titulo.toLowerCase());
+    const idxB = ordemPrioritaria.indexOf(b.titulo.toLowerCase());
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.titulo.localeCompare(b.titulo);
+  });
+}
+
 function montarResumoPresenca(){
   const hoje = dataPresencaAtual();
   const registrosHoje = carregarPresenca()[hoje] || {};
@@ -5268,84 +5307,76 @@ function montarResumoPresenca(){
   
   let texto = `*RELATÓRIO DE PRESENÇA — ${dataFormatada}*\n\n`;
 
-  // 1. Seção Colaboradores DEM2
-  texto += `👥 *EQUIPE DEM2*\n`;
-  texto += `• Total: ${todosValidos.length} colaboradores\n`;
-  texto += `• Presentes: ${presentes.length}\n`;
-  texto += `• Faltas: ${faltas.length}\n`;
-  if(naoRegistrados > 0){
-    texto += `• Não registrados: ${naoRegistrados}\n`;
+  // Resumo estatístico rápido no topo
+  texto += `📊 *RESUMO DO PLANTÃO:*\n`;
+  texto += `• Equipe DEM2: ${presentes.length} presente(s)${faltas.length > 0 ? ' | ' + faltas.length + ' falta(s)' : ''}\n`;
+  if(terceirizados.length > 0){
+    texto += `• Terceirizados: ${tercPresentes.length} presente(s)${tercFaltas.length > 0 ? ' | ' + tercFaltas.length + ' falta(s)' : ''}\n`;
+  }
+  const totalGeralPresentes = presentes.length + tercPresentes.length;
+  const totalGeralFaltas = faltas.length + tercFaltas.length;
+  texto += `• Total Geral: ${totalGeralPresentes} presente(s)${totalGeralFaltas > 0 ? ' | ' + totalGeralFaltas + ' falta(s)' : ''}\n`;
+
+  // 1. SEÇÃO EQUIPE DEM2 — SEPARADOS PELA FUNÇÃO
+  texto += `\n─────────────────────\n`;
+  texto += `👥 *EQUIPE DEM2 (POR FUNÇÃO):*\n`;
+
+  const listaParaExibir = presentes.length > 0 ? presentes : (faltas.length === 0 ? todosValidos : []);
+  if(listaParaExibir.length > 0){
+    const grupos = agruparColaboradoresPorFuncao(listaParaExibir);
+    grupos.forEach(g => {
+      texto += `\n*${g.titulo}:*\n`;
+      g.itens.forEach(c => {
+        texto += `• ${c.nome}\n`;
+      });
+    });
+  } else if(presentes.length === 0 && faltas.length > 0) {
+    texto += `\n(Nenhum colaborador registrado como presente nesta data)\n`;
   }
 
-  if(presentes.length > 0){
-    texto += `\n*Presentes (DEM2):*\n`;
-    presentes.forEach(c => { 
-      texto += `• ${c.nome} — ${c.funcao || '—'}${c.turno ? ' (' + c.turno + ')' : ''}\n`; 
-    });
-  }
+  // Faltas DEM2 (se houver) separadas por função
   if(faltas.length > 0){
-    texto += `\n*Faltas (DEM2):*\n`;
-    faltas.forEach(c => { 
-      const mot = motivoPresencaDe(registrosHoje[c.id]) || 'não informado';
-      texto += `• ${c.nome} — Motivo: ${mot}\n`; 
+    texto += `\n─────────────────────\n`;
+    texto += `⚠️ *FALTAS (DEM2):*\n`;
+    const gruposFaltas = agruparColaboradoresPorFuncao(faltas);
+    gruposFaltas.forEach(g => {
+      texto += `\n*${g.titulo}:*\n`;
+      g.itens.forEach(c => {
+        const mot = motivoPresencaDe(registrosHoje[c.id]) || 'não informado';
+        texto += `• ${c.nome} — Motivo: ${mot}\n`;
+      });
     });
   }
 
-  // 2. Seção Terceirizados
-  texto += `\n─────────────────────\n`;
-  texto += `🏢 *EQUIPE TERCEIRIZADA*\n`;
-  if(terceirizados.length === 0){
-    texto += `• Nenhum colaborador terceirizado cadastrado.\n`;
-  } else {
-    texto += `• Total cadastrado: ${terceirizados.length}\n`;
-    texto += `• Presentes: ${tercPresentes.length}\n`;
-    texto += `• Faltas: ${tercFaltas.length}\n`;
-    if(tercNaoRegistrados > 0){
-      texto += `• Não registrados: ${tercNaoRegistrados}\n`;
-    }
+  // 2. SEÇÃO TERCEIRIZADOS — SEPARADOS PELA FUNÇÃO
+  if(terceirizados.length > 0){
+    texto += `\n─────────────────────\n`;
+    texto += `🏢 *EQUIPE TERCEIRIZADA (POR FUNÇÃO):*\n`;
 
-    if(tercPresentes.length > 0){
-      texto += `\n*Terceirizados — Presentes:*
-`;
-      tercPresentes.forEach(t => {
-        texto += `• ${t.nome}\n`;
-        texto += `  Empresa: ${t.empresa || '—'} | Função: ${t.funcao || '—'}\n`;
-        texto += `  Horário: ${t.horario || '—'} | Local: ${t.local || '—'}\n`;
+    const listaTercExibir = tercPresentes.length > 0 ? tercPresentes : (tercFaltas.length === 0 ? terceirizados : []);
+    if(listaTercExibir.length > 0){
+      const gruposTerc = agruparColaboradoresPorFuncao(listaTercExibir);
+      gruposTerc.forEach(g => {
+        texto += `\n*${g.titulo}:*\n`;
+        g.itens.forEach(t => {
+          texto += `• ${t.nome} (${t.empresa || 'Terceirizado'})${t.horario ? ' — ' + t.horario : ''}${t.local ? ' [' + t.local + ']' : ''}\n`;
+        });
       });
     }
 
+    // Faltas Terceirizados (se houver)
     if(tercFaltas.length > 0){
-      texto += `\n*Terceirizados — Faltas:*
-`;
-      tercFaltas.forEach(t => {
-        const mot = motivoPresencaDe(registrosHoje[t.id]) || 'não informado';
-        texto += `• ${t.nome}\n`;
-        texto += `  Empresa: ${t.empresa || '—'} | Função: ${t.funcao || '—'}\n`;
-        texto += `  Horário: ${t.horario || '—'} | Local: ${t.local || '—'}\n`;
-        texto += `  Motivo: ${mot}\n`;
-      });
-    }
-
-    if(tercNaoRegistrados > 0){
-      texto += `\n*Terceirizados — Não Registrados:*\n`;
-      terceirizados.filter(t => !statusPresencaDe(registrosHoje[t.id])).forEach(t => {
-        texto += `• ${t.nome}\n`;
-        texto += `  Empresa: ${t.empresa || '—'} | Função: ${t.funcao || '—'}\n`;
-        texto += `  Horário: ${t.horario || '—'} | Local: ${t.local || '—'}\n`;
+      texto += `\n⚠️ *Faltas Terceirizados:*\n`;
+      const gruposTercFaltas = agruparColaboradoresPorFuncao(tercFaltas);
+      gruposTercFaltas.forEach(g => {
+        texto += `\n*${g.titulo}:*\n`;
+        g.itens.forEach(t => {
+          const mot = motivoPresencaDe(registrosHoje[t.id]) || 'não informado';
+          texto += `• ${t.nome} (${t.empresa || 'Terceirizado'}) — Motivo: ${mot}\n`;
+        });
       });
     }
   }
-
-  // Resumo Consolidado
-  const totalGeral = todosValidos.length + terceirizados.length;
-  const totalPresentesGeral = presentes.length + tercPresentes.length;
-  const totalFaltasGeral = faltas.length + tercFaltas.length;
-
-  texto += `\n─────────────────────\n`;
-  texto += `📊 *CONSOLIDADO GERAL:*\n`;
-  texto += `• Total de pessoas: ${totalGeral}\n`;
-  texto += `• Total de presentes: ${totalPresentesGeral}\n`;
-  texto += `• Total de faltas: ${totalFaltasGeral}\n`;
 
   return { texto, dataFormatada };
 }
@@ -5357,7 +5388,7 @@ function compartilharPresencaWhatsApp(){
 
 function compartilharPresencaEmail(){
   const { texto, dataFormatada } = montarResumoPresenca();
-  const assunto = 'Relatório de Presença (DEM2 e Terceirizados) — ' + dataFormatada;
+  const assunto = 'Relatório de Presença por Função — ' + dataFormatada;
   window.location.href = 'mailto:?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(texto);
 }
 
