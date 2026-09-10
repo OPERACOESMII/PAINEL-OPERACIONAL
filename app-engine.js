@@ -3552,30 +3552,106 @@ function montarResumoPresenca(){
   const presentes = todosValidos.filter(c => statusPresencaDe(registrosHoje[c.id]) === 'Presente');
   const faltas = todosValidos.filter(c => statusPresencaDe(registrosHoje[c.id]) === 'Falta');
   const naoRegistrados = todosValidos.length - presentes.length - faltas.length;
-  const dataFormatada = new Date(hoje+'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric'});
 
-  let texto = `*Presença DEM2 — ${dataFormatada}*\n\n`;
-  texto += `Total de colaboradores: ${todosValidos.length}\n`;
-  texto += `Presentes: ${presentes.length}\n`;
-  texto += `Faltas: ${faltas.length}\n`;
-  texto += `Não registrados: ${naoRegistrados}\n`;
+  const terceirizados = carregarTerceirizados();
+  const tercPresentes = terceirizados.filter(t => statusPresencaDe(registrosHoje[t.id]) === 'Presente');
+  const tercFaltas = terceirizados.filter(t => statusPresencaDe(registrosHoje[t.id]) === 'Falta');
+  const tercNaoRegistrados = terceirizados.length - tercPresentes.length - tercFaltas.length;
+
+  const dataFormatada = new Date(hoje+'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric'});
+  
+  let texto = `*RELATÓRIO DE PRESENÇA — ${dataFormatada}*\n\n`;
+
+  // 1. Seção Colaboradores DEM2
+  texto += `👥 *EQUIPE DEM2*\n`;
+  texto += `• Total: ${todosValidos.length} colaboradores\n`;
+  texto += `• Presentes: ${presentes.length}\n`;
+  texto += `• Faltas: ${faltas.length}\n`;
+  if(naoRegistrados > 0){
+    texto += `• Não registrados: ${naoRegistrados}\n`;
+  }
+
   if(presentes.length > 0){
-    texto += `\n*Presentes hoje:*\n`;
-    presentes.forEach(c => { texto += `• ${c.nome} — ${c.funcao||'—'}\n`; });
+    texto += `\n*Presentes (DEM2):*\n`;
+    presentes.forEach(c => { 
+      texto += `• ${c.nome} — ${c.funcao || '—'}${c.turno ? ' (' + c.turno + ')' : ''}\n`; 
+    });
   }
   if(faltas.length > 0){
-    texto += `\n*Faltas de hoje:*\n`;
-    faltas.forEach(c => { texto += `• ${c.nome} — Motivo: ${motivoPresencaDe(registrosHoje[c.id]) || 'não informado'}\n`; });
+    texto += `\n*Faltas (DEM2):*\n`;
+    faltas.forEach(c => { 
+      const mot = motivoPresencaDe(registrosHoje[c.id]) || 'não informado';
+      texto += `• ${c.nome} — Motivo: ${mot}\n`; 
+    });
   }
+
+  // 2. Seção Terceirizados
+  texto += `\n─────────────────────\n`;
+  texto += `🏢 *EQUIPE TERCEIRIZADA*\n`;
+  if(terceirizados.length === 0){
+    texto += `• Nenhum colaborador terceirizado cadastrado.\n`;
+  } else {
+    texto += `• Total cadastrado: ${terceirizados.length}\n`;
+    texto += `• Presentes: ${tercPresentes.length}\n`;
+    texto += `• Faltas: ${tercFaltas.length}\n`;
+    if(tercNaoRegistrados > 0){
+      texto += `• Não registrados: ${tercNaoRegistrados}\n`;
+    }
+
+    if(tercPresentes.length > 0){
+      texto += `\n*Terceirizados — Presentes:*
+`;
+      tercPresentes.forEach(t => {
+        texto += `• ${t.nome}\n`;
+        texto += `  Empresa: ${t.empresa || '—'} | Função: ${t.funcao || '—'}\n`;
+        texto += `  Horário: ${t.horario || '—'} | Local: ${t.local || '—'}\n`;
+      });
+    }
+
+    if(tercFaltas.length > 0){
+      texto += `\n*Terceirizados — Faltas:*
+`;
+      tercFaltas.forEach(t => {
+        const mot = motivoPresencaDe(registrosHoje[t.id]) || 'não informado';
+        texto += `• ${t.nome}\n`;
+        texto += `  Empresa: ${t.empresa || '—'} | Função: ${t.funcao || '—'}\n`;
+        texto += `  Horário: ${t.horario || '—'} | Local: ${t.local || '—'}\n`;
+        texto += `  Motivo: ${mot}\n`;
+      });
+    }
+
+    if(tercNaoRegistrados > 0){
+      texto += `\n*Terceirizados — Não Registrados:*\n`;
+      terceirizados.filter(t => !statusPresencaDe(registrosHoje[t.id])).forEach(t => {
+        texto += `• ${t.nome}\n`;
+        texto += `  Empresa: ${t.empresa || '—'} | Função: ${t.funcao || '—'}\n`;
+        texto += `  Horário: ${t.horario || '—'} | Local: ${t.local || '—'}\n`;
+      });
+    }
+  }
+
+  // Resumo Consolidado
+  const totalGeral = todosValidos.length + terceirizados.length;
+  const totalPresentesGeral = presentes.length + tercPresentes.length;
+  const totalFaltasGeral = faltas.length + tercFaltas.length;
+
+  texto += `\n─────────────────────\n`;
+  texto += `📊 *CONSOLIDADO GERAL:*\n`;
+  texto += `• Total de pessoas: ${totalGeral}\n`;
+  texto += `• Total de presentes: ${totalPresentesGeral}\n`;
+  texto += `• Total de faltas: ${totalFaltasGeral}\n`;
+
   return { texto, dataFormatada };
 }
+
 function compartilharPresencaWhatsApp(){
   const { texto } = montarResumoPresenca();
   window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
 }
+
 function compartilharPresencaEmail(){
   const { texto, dataFormatada } = montarResumoPresenca();
-  const assunto = 'Presença DEM2 — ' + dataFormatada;
+  const assunto = 'Relatório de Presença (DEM2 e Terceirizados) — ' + dataFormatada;
   window.location.href = 'mailto:?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(texto);
 }
 
