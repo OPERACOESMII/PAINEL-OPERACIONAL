@@ -33,7 +33,7 @@
   var NOMES_AMIGAVEIS = [
     ['mtc_equipe_dem2', 'Equipe DEM2'],
     ['mtc_equipe_versao', 'Equipe DEM2'],
-    ['mtc_presenca', 'Presença/Frequência'],
+    ['mtc_presenca', 'Presença/Frequência'],    ['mtc_terceirizados', 'Cadastro de Terceirizados'],
     ['mtc_chaves', 'Controle de Chaves'],
     ['mtc_contatos', 'Contatos'],
     ['mtc_agenda', 'Agenda'],
@@ -1064,7 +1064,12 @@ function restaurarManualNuvem(){
       <p class="subtitulo-login-google">Divisão de Serviços e Suporte Operacional (DEM2)</p>
     </div>
     <div class="corpo-login-google">
-      <p class="desc-login-google">Faça login com sua conta Google para liberar acesso à utilização do aplicativo e a todos os módulos operacionais.</p>
+      <div id="avisoAmbienteLocal" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;padding:10px 14px;border-radius:10px;font-size:12.5px;margin-bottom:14px;text-align:left;line-height:1.45;">
+        <strong>📁 Arquivo Local no Computador (Offline):</strong><br>
+        O login Google via pop-up é restrito pelos navegadores quando executado diretamente do computador (protocolo <code>file://</code>).<br>
+        Clique no botão destacado abaixo para liberar imediatamente o painel completo.
+      </div>
+      <p class="desc-login-google">Faça login com sua conta Google ou utilize o Acesso Rápido para liberar a utilização do aplicativo e de todos os módulos.</p>
       <button type="button" class="btn-google-login-acao" id="btnGoogleLoginPrincipal" onclick="LoginGoogleApp.login()">
         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" style="width:20px;height:20px;display:block;">
           <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
@@ -1074,9 +1079,9 @@ function restaurarManualNuvem(){
         </svg>
         <span id="txtBtnGoogleLogin">Entrar com o Google</span>
       </button>
-      <button type="button" class="btn-rapido-login" onclick="LoginGoogleApp.loginRapido()">
+      <button type="button" class="btn-rapido-login" id="btnAcessoRapidoLogin" onclick="LoginGoogleApp.loginRapido()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
-        <span>Acesso Rápido de Plantão (DEM2)</span>
+        <span id="txtBtnRapidoLogin">Acesso Rápido de Plantão (DEM2)</span>
       </button>
       <div id="avisoLoginGoogle" class="aviso-login-status"></div>
     </div>
@@ -1657,6 +1662,61 @@ function restaurarManualNuvem(){
       <button class="btn btn-primario" style="flex:1; justify-content:center;" onclick="adicionarEquipamentoDoTipo()">+ Adicionar equipamento</button>
     </div>
     <div class="lista-cartoes" id="lista-tipo-equipamento"></div>
+  </div>
+</div>
+
+<div class="modal-fundo" id="modalCadastroTerceirizados" onclick="if(event.target===this) fecharCadastroTerceirizados()">
+  <div class="modal-caixa" style="max-width: 680px; width: 95%;">
+    <div class="modal-cabecalho">
+      <h3 id="tituloModalTerceirizados" style="display:flex; align-items:center; gap:8px;">
+        <span>🏢 Cadastro de Terceirizados</span>
+      </h3>
+      <button class="modal-fechar" onclick="fecharCadastroTerceirizados()">✕</button>
+    </div>
+
+    <!-- Formulário de Cadastro -->
+    <div class="painel-form aberto" style="margin-bottom: 16px; background: var(--fundo-suave, #f8fafc); border: 1px solid var(--linha, #e2e8f0); border-radius: 12px; padding: 14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h4 id="tituloFormTerceirizado" style="margin:0; font-size:14px; font-weight:700; color:var(--texto-forte);">Novo Terceirizado</h4>
+        <span id="badgeModoEdicao" style="display:none; font-size:11px; background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:10px; font-weight:600;">Modo Edição</span>
+      </div>
+      <input type="hidden" id="terceirizado-id">
+      <div class="grade-form" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+        <div class="campo-largo" style="grid-column: 1 / -1;">
+          <label for="terceirizado-nome" style="font-weight:600; font-size:12.5px;">Nome Completo *</label>
+          <input type="text" id="terceirizado-nome" placeholder="Nome completo do terceirizado">
+        </div>
+        <div>
+          <label for="terceirizado-empresa" style="font-weight:600; font-size:12.5px;">Empresa *</label>
+          <input type="text" id="terceirizado-empresa" placeholder="Ex.: Gocil, Manserv, GPS...">
+        </div>
+        <div>
+          <label for="terceirizado-horario" style="font-weight:600; font-size:12.5px;">Horário *</label>
+          <input type="text" id="terceirizado-horario" placeholder="Ex.: 07:00 às 16:00, 12x36...">
+        </div>
+        <div>
+          <label for="terceirizado-funcao" style="font-weight:600; font-size:12.5px;">Função *</label>
+          <input type="text" id="terceirizado-funcao" placeholder="Ex.: Limpeza, Portaria, Jardinagem...">
+        </div>
+        <div>
+          <label for="terceirizado-local" style="font-weight:600; font-size:12.5px;">Local *</label>
+          <input type="text" id="terceirizado-local" placeholder="Ex.: Portaria Ivaí, Doca, Piscinas, Salão...">
+        </div>
+      </div>
+      <div class="acoes-form" style="display:flex; gap:8px; justify-content:flex-end; margin-top:14px;">
+        <button type="button" class="btn btn-secundario" id="btnCancelarEdicaoTerceirizado" style="display:none;" onclick="cancelarEdicaoTerceirizado()">Cancelar Edição</button>
+        <button type="button" class="btn btn-primario" id="btnSalvarTerceirizado" onclick="salvarTerceirizado()">Cadastrar Terceirizado</button>
+      </div>
+    </div>
+
+    <!-- Listagem de Terceirizados Cadastrados -->
+    <div style="border-top: 1px solid var(--linha, #e2e8f0); padding-top: 14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:8px; flex-wrap:wrap;">
+        <h4 style="margin:0; font-size:13.5px; font-weight:700;">Terceirizados Cadastrados (<span id="contagemTerceirizados">0</span>)</h4>
+        <input type="search" id="buscaModalTerceirizados" placeholder="Filtrar por nome, empresa, função ou local..." style="max-width:240px; font-size:12.5px; padding:6px 10px;" oninput="renderListaModalTerceirizados()">
+      </div>
+      <div class="lista-cartoes" id="lista-modal-terceirizados" style="max-height: 280px; overflow-y: auto; padding-right: 4px;"></div>
+    </div>
   </div>
 </div>
 
@@ -2252,10 +2312,15 @@ function restaurarManualNuvem(){
     </div>
 
     <div class="barra-acoes">
-      <div class="campo-busca"><input type="search" id="buscaPresenca" placeholder="Buscar colaborador..." oninput="renderPresenca()"></div>
-      <select id="filtroFuncaoPresenca" onchange="renderPresenca()">
+      <div class="campo-busca"><input type="search" id="buscaPresenca" placeholder="Buscar colaborador ou terceirizado..." oninput="renderPresenca()"></div>
+      <select id="filtroFuncaoPresenca" onchange="aoMudarFiltroFuncaoPresenca(this.value)">
         <option value="">Todas as funções</option>
+        <option value="__terceirizados__">🏢 Terceirizados</option>
       </select>
+      <button type="button" class="btn btn-secundario" style="white-space:nowrap; padding:6px 12px; font-size:12.5px; display:inline-flex; align-items:center; gap:6px;" onclick="abrirCadastroTerceirizados()" title="Cadastrar e gerenciar terceirizados">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        <span>Terceirizados</span>
+      </button>
     </div>
     <div id="dataPresencaHoje" style="font-size:12px; color:var(--texto-suave); margin-bottom:10px;"></div>
     <div class="lista-cartoes" id="lista-presenca"></div>
@@ -2291,7 +2356,7 @@ const MODULOS = {
   uniformesCatalogo: { chave:'mtc_uniformes_catalogo', titulo:'Catálogo de Uniformes' },
   escritorioCatalogo: { chave:'mtc_escritorio_catalogo', titulo:'Catálogo de Material de Escritório' },
   atividade: { chave:'mtc_atividade_semanal_placeholder', titulo:'Atividade Semanal' },
-  presenca: { chave:'mtc_presenca_placeholder', titulo:'Presença' },
+  presenca: { chave:'mtc_presenca_placeholder', titulo:'Presença' },  terceirizados: { chave:'mtc_terceirizados', titulo:'Terceirizados' },
   agenda: { chave:'mtc_agenda', titulo:'Agenda' },
   ssmpo: { chave:'mtc_ssmpo', titulo:'SSMPO' }
 };
@@ -4780,6 +4845,9 @@ function abrirMotivoFalta(id){
   const atual = mapa[hoje] ? mapa[hoje][id] : null;
   const tiposPadrao = ['Falta não justificada','Ausência programada','Atestado médico','Afastamento INSS','Licença maternidade/paternidade','Licença falecimento'];
   document.getElementById('motivoFalta-colaboradorId').value = id;
+  const pessoaMotivo = colaboradoresValidos().find(c => c.id === id) || carregarTerceirizados().find(t => t.id === id);
+  const titMotivo = document.getElementById('tituloMotivoFalta');
+  if(titMotivo) titMotivo.textContent = 'Registrar falta' + (pessoaMotivo ? ' — ' + pessoaMotivo.nome : '');
   const motivoAtual = motivoPresencaDe(atual);
   const sel = document.getElementById('motivoFalta-tipo');
   if(motivoAtual && tiposPadrao.includes(motivoAtual)){
@@ -4821,15 +4889,242 @@ function confirmarMotivoFalta(){
   try{ renderFaltasHoje(); }catch(e){}
   try{ renderPresentesHoje(); }catch(e){}
 }
+function carregarTerceirizados(){
+  try{ return carregar('terceirizados') || []; }catch(e){ return []; }
+}
+function salvarListaTerceirizados(lista){
+  salvarLista('terceirizados', lista);
+}
+function abrirCadastroTerceirizados(idParaEditar){
+  const modal = document.getElementById('modalCadastroTerceirizados');
+  if(modal) modal.classList.add('aberto');
+  if(idParaEditar){
+    editarTerceirizado(idParaEditar);
+  } else {
+    limparFormTerceirizados();
+    renderListaModalTerceirizados();
+  }
+}
+function fecharCadastroTerceirizados(){
+  const modal = document.getElementById('modalCadastroTerceirizados');
+  if(modal) modal.classList.remove('aberto');
+  limparFormTerceirizados();
+  renderPresenca();
+}
+function limparFormTerceirizados(){
+  const idEl = document.getElementById('terceirizado-id');
+  const nomeEl = document.getElementById('terceirizado-nome');
+  const empresaEl = document.getElementById('terceirizado-empresa');
+  const horarioEl = document.getElementById('terceirizado-horario');
+  const funcaoEl = document.getElementById('terceirizado-funcao');
+  const localEl = document.getElementById('terceirizado-local');
+  const btnSalvar = document.getElementById('btnSalvarTerceirizado');
+  const btnCancelar = document.getElementById('btnCancelarEdicaoTerceirizado');
+  const tituloForm = document.getElementById('tituloFormTerceirizado');
+  const badgeModo = document.getElementById('badgeModoEdicao');
+
+  if(idEl) idEl.value = '';
+  if(nomeEl) nomeEl.value = '';
+  if(empresaEl) empresaEl.value = '';
+  if(horarioEl) horarioEl.value = '';
+  if(funcaoEl) funcaoEl.value = '';
+  if(localEl) localEl.value = '';
+  if(btnSalvar) btnSalvar.textContent = 'Cadastrar Terceirizado';
+  if(btnCancelar) btnCancelar.style.display = 'none';
+  if(tituloForm) tituloForm.textContent = 'Novo Terceirizado';
+  if(badgeModo) badgeModo.style.display = 'none';
+}
+function salvarTerceirizado(){
+  const idEl = document.getElementById('terceirizado-id');
+  const nomeEl = document.getElementById('terceirizado-nome');
+  const empresaEl = document.getElementById('terceirizado-empresa');
+  const horarioEl = document.getElementById('terceirizado-horario');
+  const funcaoEl = document.getElementById('terceirizado-funcao');
+  const localEl = document.getElementById('terceirizado-local');
+
+  const id = idEl ? idEl.value.trim() : '';
+  const nome = nomeEl ? nomeEl.value.trim() : '';
+  const empresa = empresaEl ? empresaEl.value.trim() : '';
+  const horario = horarioEl ? horarioEl.value.trim() : '';
+  const funcao = funcaoEl ? funcaoEl.value.trim() : '';
+  const local = localEl ? localEl.value.trim() : '';
+
+  if(!nome){
+    alert('Por favor, informe o Nome do terceirizado.');
+    if(nomeEl) nomeEl.focus();
+    return;
+  }
+  if(!empresa){
+    alert('Por favor, informe a Empresa do terceirizado.');
+    if(empresaEl) empresaEl.focus();
+    return;
+  }
+  if(!funcao){
+    alert('Por favor, informe a Função do terceirizado.');
+    if(funcaoEl) funcaoEl.focus();
+    return;
+  }
+  if(!horario){
+    alert('Por favor, informe o Horário do terceirizado.');
+    if(horarioEl) horarioEl.focus();
+    return;
+  }
+  if(!local){
+    alert('Por favor, informe o Local do terceirizado.');
+    if(localEl) localEl.focus();
+    return;
+  }
+
+  let lista = carregarTerceirizados();
+  if(id){
+    const idx = lista.findIndex(t => t.id === id);
+    if(idx !== -1){
+      lista[idx] = {
+        ...lista[idx],
+        nome,
+        empresa,
+        horario,
+        funcao,
+        local,
+        atualizadoEm: new Date().toISOString()
+      };
+    }
+  } else {
+    const novo = {
+      id: 'terc_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      nome,
+      empresa,
+      horario,
+      funcao,
+      local,
+      criadoEm: new Date().toISOString()
+    };
+    lista.push(novo);
+  }
+
+  salvarListaTerceirizados(lista);
+  limparFormTerceirizados();
+  renderListaModalTerceirizados();
+  renderPresenca();
+}
+function editarTerceirizado(id){
+  const lista = carregarTerceirizados();
+  const t = lista.find(item => item.id === id);
+  if(!t) return;
+
+  const modal = document.getElementById('modalCadastroTerceirizados');
+  if(modal && !modal.classList.contains('aberto')) {
+    modal.classList.add('aberto');
+  }
+
+  const idEl = document.getElementById('terceirizado-id');
+  const nomeEl = document.getElementById('terceirizado-nome');
+  const empresaEl = document.getElementById('terceirizado-empresa');
+  const horarioEl = document.getElementById('terceirizado-horario');
+  const funcaoEl = document.getElementById('terceirizado-funcao');
+  const localEl = document.getElementById('terceirizado-local');
+  const btnSalvar = document.getElementById('btnSalvarTerceirizado');
+  const btnCancelar = document.getElementById('btnCancelarEdicaoTerceirizado');
+  const tituloForm = document.getElementById('tituloFormTerceirizado');
+  const badgeModo = document.getElementById('badgeModoEdicao');
+
+  if(idEl) idEl.value = t.id;
+  if(nomeEl) nomeEl.value = t.nome || '';
+  if(empresaEl) empresaEl.value = t.empresa || '';
+  if(horarioEl) horarioEl.value = t.horario || '';
+  if(funcaoEl) funcaoEl.value = t.funcao || '';
+  if(localEl) localEl.value = t.local || '';
+
+  if(btnSalvar) btnSalvar.textContent = 'Salvar Alterações';
+  if(btnCancelar) btnCancelar.style.display = 'inline-block';
+  if(tituloForm) tituloForm.textContent = 'Editar Terceirizado';
+  if(badgeModo) badgeModo.style.display = 'inline-block';
+
+  if(nomeEl) {
+    nomeEl.focus();
+    nomeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+function cancelarEdicaoTerceirizado(){
+  limparFormTerceirizados();
+}
+function excluirTerceirizado(id){
+  const lista = carregarTerceirizados();
+  const t = lista.find(item => item.id === id);
+  if(!t) return;
+
+  if(!confirm('Deseja realmente excluir o cadastro de "' + t.nome + '"?')) return;
+
+  const novaLista = lista.filter(item => item.id !== id);
+  salvarListaTerceirizados(novaLista);
+
+  const idEl = document.getElementById('terceirizado-id');
+  if(idEl && idEl.value === id){
+    limparFormTerceirizados();
+  }
+
+  renderListaModalTerceirizados();
+  renderPresenca();
+}
+function renderListaModalTerceirizados(){
+  const lista = carregarTerceirizados();
+  const cont = document.getElementById('lista-modal-terceirizados');
+  const contagem = document.getElementById('contagemTerceirizados');
+  const buscaEl = document.getElementById('buscaModalTerceirizados');
+  const busca = (buscaEl ? buscaEl.value : '').toLowerCase().trim();
+
+  if(contagem) contagem.textContent = lista.length;
+  if(!cont) return;
+
+  const filtrados = lista.filter(t => 
+    (t.nome||'').toLowerCase().includes(busca) ||
+    (t.empresa||'').toLowerCase().includes(busca) ||
+    (t.funcao||'').toLowerCase().includes(busca) ||
+    (t.local||'').toLowerCase().includes(busca) ||
+    (t.horario||'').toLowerCase().includes(busca)
+  ).sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
+
+  if(filtrados.length === 0){
+    cont.innerHTML = telaVazia(busca ? 'Nenhum terceirizado com os termos buscados.' : 'Nenhum terceirizado cadastrado ainda.<br>Preencha o formulário acima para cadastrar.');
+    return;
+  }
+
+  cont.innerHTML = filtrados.map(t => `
+    <div class="item-cartao" style="margin-bottom:8px; border:1px solid var(--linha, #e2e8f0); border-radius:10px; padding:10px 12px; background:var(--fundo-card, #ffffff);">
+      <div class="item-corpo" style="width:100%;">
+        <div class="item-titulo" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; gap:8px;">
+          <div>
+            <strong style="font-size:13.5px; color:var(--texto-forte);">${escapeHtml(t.nome)}</strong>
+            <span class="tag-status neutro" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:11px; padding:2px 7px; border-radius:10px; margin-left:6px;">${escapeHtml(t.empresa || 'Empresa')}</span>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button type="button" class="btn btn-secundario" style="padding:4px 8px; font-size:11.5px; line-height:1;" onclick="editarTerceirizado('${t.id}')" title="Editar dados">✏️</button>
+            <button type="button" class="btn btn-secundario" style="padding:4px 8px; font-size:11.5px; line-height:1; color:#dc2626;" onclick="excluirTerceirizado('${t.id}')" title="Excluir cadastro">🗑️</button>
+          </div>
+        </div>
+        <div class="item-meta" style="font-size:12px; color:var(--texto-suave); line-height:1.5;">
+          <strong>Função:</strong> ${escapeHtml(t.funcao || '—')} &nbsp;|&nbsp; 
+          <strong>Horário:</strong> ${escapeHtml(t.horario || '—')} &nbsp;|&nbsp; 
+          <strong>Local:</strong> ${escapeHtml(t.local || '—')}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+function aoMudarFiltroFuncaoPresenca(val){
+  if(val === '__terceirizados__'){
+    abrirCadastroTerceirizados();
+  }
+  renderPresenca();
+}
+
 function renderPresenca(){
   const hoje = dataPresencaAtual();
   const ehHoje = hoje === dataHojeISO();
   const dataFormatadaLonga = new Date(hoje+'T12:00:00').toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'2-digit', year:'numeric'});
   document.getElementById('dataPresencaHoje').textContent = (ehHoje ? 'Registro de hoje: ' : 'Registro do dia selecionado: ') + dataFormatadaLonga;
-
   const campoData = document.getElementById('presenca-data-selecionada');
   if(document.activeElement !== campoData) campoData.value = hoje;
-
   const aviso = document.getElementById('avisoDataPresenca');
   if(!ehHoje){
     aviso.style.display = 'block';
@@ -4837,34 +5132,102 @@ function renderPresenca(){
   } else {
     aviso.style.display = 'none';
   }
-
   const mapa = carregarPresenca();
   const registrosHoje = mapa[hoje] || {};
   const todosValidos = colaboradoresValidos();
   const totalPresentesGeral = todosValidos.filter(c => statusPresencaDe(registrosHoje[c.id]) === 'Presente').length;
   const totalFaltasGeral = todosValidos.filter(c => statusPresencaDe(registrosHoje[c.id]) === 'Falta').length;
+  
+  const busca = (document.getElementById('buscaPresenca').value || '').toLowerCase();
+  const equipeCompleta = colaboradoresPorEquipe(equipeAtivaPresenca);
+  const funcoesDisponiveis = Array.from(new Set(equipeCompleta.map(c => c.funcao).filter(Boolean))).sort((a,b) => a.localeCompare(b));
+  const selectFuncao = document.getElementById('filtroFuncaoPresenca');
+  const funcaoSelecionadaAtual = selectFuncao.value;
+  selectFuncao.innerHTML = '<option value="">Todas as funções</option>' +
+    `<option value="__terceirizados__" ${funcaoSelecionadaAtual === '__terceirizados__' ? 'selected' : ''}>🏢 Terceirizados</option>` +
+    funcoesDisponiveis.map(f => `<option value="${escapeHtml(f)}" ${f === funcaoSelecionadaAtual ? 'selected' : ''}>${escapeHtml(f)}</option>`).join('');
+  const funcaoFiltro = selectFuncao.value;
 
+  // Se o filtro selecionado for Terceirizados
+  if(funcaoFiltro === '__terceirizados__'){
+    const listaTerc = carregarTerceirizados();
+    const filtrados = listaTerc.filter(t => 
+      (t.nome||'').toLowerCase().includes(busca) || 
+      (t.empresa||'').toLowerCase().includes(busca) || 
+      (t.funcao||'').toLowerCase().includes(busca) || 
+      (t.local||'').toLowerCase().includes(busca) || 
+      (t.horario||'').toLowerCase().includes(busca)
+    ).sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
+
+    const totalPresentesTerc = filtrados.filter(t => statusPresencaDe(registrosHoje[t.id]) === 'Presente').length;
+    const totalFaltasTerc = filtrados.filter(t => statusPresencaDe(registrosHoje[t.id]) === 'Falta').length;
+
+    document.getElementById('kpiPresencaTotal').textContent = listaTerc.length;
+    document.getElementById('kpiPresencaPresentes').textContent = totalPresentesTerc;
+    document.getElementById('kpiPresencaFaltas').textContent = totalFaltasTerc;
+    document.getElementById('seloPresenca').textContent = totalPresentesTerc + ' presentes (terceirizados)';
+    document.getElementById('seloPresenca').className = 'selo ok';
+
+    const cont = document.getElementById('lista-presenca');
+    const barraTerceirizados = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding:10px 14px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; gap:8px; flex-wrap:wrap;">
+        <div>
+          <strong style="color:#1e40af; font-size:13.5px;">🏢 Equipe Terceirizada (${filtrados.length})</strong>
+          <div style="font-size:12px; color:#3b82f6;">Prestadores de serviços e empresas parceiras</div>
+        </div>
+        <button type="button" class="btn btn-primario" style="font-size:12px; padding:7px 14px; display:inline-flex; align-items:center; gap:6px;" onclick="abrirCadastroTerceirizados()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          <span>Cadastrar Terceirizado</span>
+        </button>
+      </div>`;
+
+    if(filtrados.length === 0){
+      cont.innerHTML = barraTerceirizados + telaVazia('Nenhum terceirizado cadastrado ou encontrado com essa busca.<br><br><button type="button" class="btn btn-primario" onclick="abrirCadastroTerceirizados()">➕ Cadastrar Terceirizado</button>');
+      return;
+    }
+
+    cont.innerHTML = barraTerceirizados + filtrados.map(t => {
+      const status = statusPresencaDe(registrosHoje[t.id]);
+      const motivo = motivoPresencaDe(registrosHoje[t.id]);
+      return `
+      <div class="item-cartao ${status === 'Falta' ? 'alerta' : (status === 'Presente' ? 'ok' : '')}">
+        <div class="franja"></div>
+        <div class="item-corpo">
+          <div class="item-titulo">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <strong>${escapeHtml(t.nome)}</strong>
+              <span class="tag-status neutro" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:11px; padding:2px 7px; border-radius:10px;">${escapeHtml(t.empresa || 'Terceirizado')}</span>
+            </div>
+            <span class="tag-status ${status === 'Falta' ? 'alerta' : (status === 'Presente' ? 'ok' : 'neutro')}">${status || 'Não registrado'}</span>
+          </div>
+          <div class="item-meta">
+            <strong>Função:</strong> ${escapeHtml(t.funcao||'—')} &nbsp;|&nbsp; 
+            <strong>Horário:</strong> ${escapeHtml(t.horario||'—')} &nbsp;|&nbsp; 
+            <strong>Local:</strong> ${escapeHtml(t.local||'—')}
+            ${status === 'Falta' && motivo ? '<br><span style="color:var(--alerta, #dc2626); font-weight:600;">Motivo da falta: ' + escapeHtml(motivo) + '</span>' : ''}
+          </div>
+          <div class="item-acoes">
+            <button onclick="marcarPresenca('${t.id}', 'Presente')" style="${status==='Presente' ? 'background:var(--ok-bg); color:var(--ok);' : ''}">Presente</button>
+            <button onclick="marcarPresenca('${t.id}', 'Falta')" style="${status==='Falta' ? 'background:var(--alerta-bg); color:var(--alerta);' : ''}">Falta</button>
+            <button onclick="editarTerceirizado('${t.id}')" style="background:var(--fundo-suave); color:var(--texto-forte); border:1px solid var(--linha);">✏️ Editar</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    return;
+  }
+
+  // Comportamento normal CLT
   document.getElementById('kpiPresencaTotal').textContent = todosValidos.length;
   document.getElementById('kpiPresencaPresentes').textContent = totalPresentesGeral;
   document.getElementById('kpiPresencaFaltas').textContent = totalFaltasGeral;
   document.getElementById('seloPresenca').textContent = totalPresentesGeral + ' presentes';
   document.getElementById('seloPresenca').className = 'selo ok';
 
-  const busca = (document.getElementById('buscaPresenca').value || '').toLowerCase();
-  const equipeCompleta = colaboradoresPorEquipe(equipeAtivaPresenca);
-
-  const funcoesDisponiveis = Array.from(new Set(equipeCompleta.map(c => c.funcao).filter(Boolean))).sort((a,b) => a.localeCompare(b));
-  const selectFuncao = document.getElementById('filtroFuncaoPresenca');
-  const funcaoSelecionadaAtual = selectFuncao.value;
-  selectFuncao.innerHTML = '<option value="">Todas as funções</option>' +
-    funcoesDisponiveis.map(f => `<option value="${escapeHtml(f)}" ${f === funcaoSelecionadaAtual ? 'selected' : ''}>${escapeHtml(f)}</option>`).join('');
-  const funcaoFiltro = selectFuncao.value;
-
   const lista = equipeCompleta
     .filter(c => (c.nome||'').toLowerCase().includes(busca) || (c.funcao||'').toLowerCase().includes(busca))
     .filter(c => !funcaoFiltro || c.funcao === funcaoFiltro)
     .sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
-
   const cont = document.getElementById('lista-presenca');
   if(lista.length === 0){ cont.innerHTML = telaVazia('Nenhum colaborador cadastrado com turno na Equipe ' + equipeAtivaPresenca + '.'); return; }
   cont.innerHTML = lista.map(c => {
@@ -4934,7 +5297,7 @@ function renderPresentesHoje(){
   const tit = document.getElementById('tituloPresentesHoje');
   if(tit) tit.textContent = hoje === dataHojeISO() ? 'Presentes hoje' : 'Presentes em ' + new Date(hoje+'T12:00:00').toLocaleDateString('pt-BR');
   const registrosHoje = carregarPresenca()[hoje] || {};
-  const presentes = colaboradoresValidos().filter(c => statusPresencaDe(registrosHoje[c.id]) === 'Presente')
+  const presentes = [...colaboradoresValidos(), ...carregarTerceirizados()].filter(c => statusPresencaDe(registrosHoje[c.id]) === 'Presente')
     .sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
   const cont = document.getElementById('lista-presentes-hoje');
   if(presentes.length === 0){ cont.innerHTML = telaVazia('Nenhuma presença registrada nesta data ainda.'); return; }
@@ -4966,7 +5329,7 @@ function renderFaltasHoje(){
   const tit = document.getElementById('tituloFaltasHoje');
   if(tit) tit.textContent = hoje === dataHojeISO() ? 'Faltas de hoje' : 'Faltas em ' + new Date(hoje+'T12:00:00').toLocaleDateString('pt-BR');
   const registrosHoje = carregarPresenca()[hoje] || {};
-  const faltosos = colaboradoresValidos().filter(c => statusPresencaDe(registrosHoje[c.id]) === 'Falta');
+  const faltosos = [...colaboradoresValidos(), ...carregarTerceirizados()].filter(c => statusPresencaDe(registrosHoje[c.id]) === 'Falta');
   const cont = document.getElementById('lista-faltas-hoje');
   if(faltosos.length === 0){ cont.innerHTML = telaVazia('Nenhuma falta registrada nesta data.'); return; }
   cont.innerHTML = faltosos.map(c => `
@@ -5058,7 +5421,7 @@ function buscarConsultaPresenca(){
   document.getElementById('tituloConsultaPresencaData').textContent = 'Cadastros registrados em ' + dataFormatada;
 
   const registros = carregarPresenca()[data] || {};
-  const todosValidos = colaboradoresValidos().slice().sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
+  const todosValidos = [...colaboradoresValidos(), ...carregarTerceirizados()].slice().sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
   const presentes = todosValidos.filter(c => statusPresencaDe(registros[c.id]) === 'Presente');
   const faltas = todosValidos.filter(c => statusPresencaDe(registros[c.id]) === 'Falta');
 
@@ -8158,6 +8521,10 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
       let currentUser = null;
       let firebaseInit = false;
 
+      function ehAmbienteLocal() {
+        return window.location.protocol === "file:" || !window.location.protocol.startsWith("http");
+      }
+
       function obterSessaoSalva() {
         try {
           const salvo = localStorage.getItem(CHAVE_SESSAO);
@@ -8167,15 +8534,21 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
       }
 
       function salvarSessao(u) {
-        if (u) {
-          localStorage.setItem(CHAVE_SESSAO, JSON.stringify(u));
-        } else {
-          localStorage.removeItem(CHAVE_SESSAO);
-        }
+        try {
+          if (u) {
+            localStorage.setItem(CHAVE_SESSAO, JSON.stringify(u));
+          } else {
+            localStorage.removeItem(CHAVE_SESSAO);
+          }
+        } catch (e) {}
       }
 
       async function initFirebase() {
         if (firebaseInit) return;
+        if (ehAmbienteLocal()) {
+          firebaseInit = true;
+          return;
+        }
         try {
           let config = {
             projectId: "heroic-icon-gf6jr",
@@ -8189,7 +8562,6 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
             const resp = await fetch("/firebase-applet-config.json");
             if (resp.ok) config = await resp.json();
           } catch (e) {}
-
           if (window.firebase && (!window.firebase.apps || !window.firebase.apps.length)) {
             window.firebase.initializeApp(config);
           }
@@ -8203,7 +8575,6 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
         const tela = document.getElementById("telaLoginGoogle");
         const topoBadge = document.getElementById("usuarioGoogleTopo");
         const topoNome = document.getElementById("usuarioGoogleNome");
-
         if (currentUser) {
           if (tela) {
             tela.style.opacity = "0";
@@ -8235,6 +8606,17 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
         const txt = document.getElementById("txtBtnGoogleLogin");
         const aviso = document.getElementById("avisoLoginGoogle");
         const originalText = txt ? txt.textContent : "Entrar com o Google";
+
+        // Se estiver rodando como arquivo local (file://), o popup do Firebase/Google é bloqueado pela segurança do navegador.
+        if (ehAmbienteLocal()) {
+          if (aviso) {
+            aviso.innerHTML = '<span style="color:#0A2647;font-weight:600;">Modo Arquivo Local detectado (file://):</span><br>Autenticação Google com pop-up é restrita a servidores web (HTTP/HTTPS).<br>Liberando acesso pelo <strong>Modo Local (DEM2)</strong>...';
+          }
+          setTimeout(() => {
+            loginRapido();
+          }, 600);
+          return;
+        }
 
         try {
           if (btn) {
@@ -8268,6 +8650,13 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
             if (aviso) aviso.textContent = "Janela fechada antes de concluir.";
           } else if (error.code === "auth/popup-blocked") {
             if (aviso) aviso.textContent = "Pop-up bloqueado. Use o Acesso Rápido abaixo.";
+          } else if (error.code === "auth/operation-not-supported-in-this-environment" || (error.message && error.message.includes("operation-not-supported-in-this-environment"))) {
+            if (aviso) {
+              aviso.innerHTML = '<span style="color:#d97706;font-weight:600;">Acesso Local:</span> Login Google via pop-up indisponível em <code>file://</code>.<br>Liberando acesso pelo <strong>Modo Local de Plantão</strong>...';
+            }
+            setTimeout(() => {
+              loginRapido();
+            }, 700);
           } else {
             if (aviso) aviso.textContent = "Erro: " + (error.message || "Não foi possível conectar.");
           }
@@ -8293,9 +8682,11 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 
       async function logout() {
         try {
-          await initFirebase();
-          if (window.firebase && window.firebase.auth && window.firebase.auth().currentUser) {
-            await window.firebase.auth().signOut();
+          if (!ehAmbienteLocal()) {
+            await initFirebase();
+            if (window.firebase && window.firebase.auth && window.firebase.auth().currentUser) {
+              await window.firebase.auth().signOut();
+            }
           }
         } catch (e) {}
         currentUser = null;
@@ -8307,20 +8698,39 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
         currentUser = obterSessaoSalva();
         atualizarUI();
 
+        // Se estiver rodando como arquivo local no PC (file://)
+        if (ehAmbienteLocal()) {
+          const avisoLocal = document.getElementById("avisoAmbienteLocal");
+          if (avisoLocal) avisoLocal.style.display = "block";
+          const btnRapido = document.getElementById("btnAcessoRapidoLogin");
+          if (btnRapido) {
+            btnRapido.style.background = "#0A2647";
+            btnRapido.style.color = "#ffffff";
+            btnRapido.style.borderColor = "#0A2647";
+            btnRapido.style.padding = "12px 18px";
+            btnRapido.style.fontSize = "13.5px";
+            btnRapido.style.fontWeight = "700";
+            btnRapido.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg> <span>Entrar no Sistema (Modo Local DEM2)</span>`;
+          }
+          return;
+        }
+
         initFirebase().then(() => {
           if (window.firebase && window.firebase.auth) {
-            window.firebase.auth().onAuthStateChanged((user) => {
-              if (user) {
-                currentUser = {
-                  uid: user.uid,
-                  email: user.email || "",
-                  displayName: user.displayName || user.email || "Operador",
-                  photoURL: user.photoURL || ""
-                };
-                salvarSessao(currentUser);
-                atualizarUI();
-              }
-            });
+            try {
+              window.firebase.auth().onAuthStateChanged((user) => {
+                if (user) {
+                  currentUser = {
+                    uid: user.uid,
+                    email: user.email || "",
+                    displayName: user.displayName || user.email || "Operador",
+                    photoURL: user.photoURL || ""
+                  };
+                  salvarSessao(currentUser);
+                  atualizarUI();
+                }
+              });
+            } catch (e) {}
           }
         });
       }
