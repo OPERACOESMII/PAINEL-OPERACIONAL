@@ -1703,9 +1703,15 @@ function restaurarManualNuvem(){
           <input type="text" id="terceirizado-local" placeholder="Ex.: Portaria Ivaí, Doca, Piscinas, Salão...">
         </div>
       </div>
-      <div class="acoes-form" style="display:flex; gap:8px; justify-content:flex-end; margin-top:14px;">
-        <button type="button" class="btn btn-secundario" id="btnCancelarEdicaoTerceirizado" style="display:none;" onclick="cancelarEdicaoTerceirizado()">Cancelar Edição</button>
-        <button type="button" class="btn btn-primario" id="btnSalvarTerceirizado" onclick="salvarTerceirizado()">Cadastrar Terceirizado</button>
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-top:14px;">
+        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer; color:var(--texto-forte); user-select:none;">
+          <input type="checkbox" id="terceirizado-marcar-presente" checked style="width:16px; height:16px; accent-color:var(--ok);">
+          <span>✅ Marcar como <strong>Presente</strong> no plantão do dia</span>
+        </label>
+        <div class="acoes-form" style="display:flex; gap:8px; justify-content:flex-end;">
+          <button type="button" class="btn btn-secundario" id="btnCancelarEdicaoTerceirizado" style="display:none;" onclick="cancelarEdicaoTerceirizado()">Cancelar Edição</button>
+          <button type="button" class="btn btn-primario" id="btnSalvarTerceirizado" onclick="salvarTerceirizado()">Cadastrar Terceirizado</button>
+        </div>
       </div>
     </div>
 
@@ -1713,7 +1719,12 @@ function restaurarManualNuvem(){
     <div style="border-top: 1px solid var(--linha, #e2e8f0); padding-top: 14px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:8px; flex-wrap:wrap;">
         <h4 style="margin:0; font-size:13.5px; font-weight:700;">Terceirizados Cadastrados (<span id="contagemTerceirizados">0</span>)</h4>
-        <input type="search" id="buscaModalTerceirizados" placeholder="Filtrar por nome, empresa, função ou local..." style="max-width:240px; font-size:12.5px; padding:6px 10px;" oninput="renderListaModalTerceirizados()">
+        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+          <button type="button" class="btn btn-secundario" style="font-size:11.5px; padding:4px 10px; display:inline-flex; align-items:center; gap:4px;" onclick="marcarTodosTerceirizadosPresentes()" title="Marcar todos terceirizados como presentes hoje">
+            ✅ Marcar todos presentes
+          </button>
+          <input type="search" id="buscaModalTerceirizados" placeholder="Filtrar por nome, empresa..." style="max-width:180px; font-size:12px; padding:5px 8px;" oninput="renderListaModalTerceirizados()">
+        </div>
       </div>
       <div class="lista-cartoes" id="lista-modal-terceirizados" style="max-height: 280px; overflow-y: auto; padding-right: 4px;"></div>
     </div>
@@ -2293,7 +2304,7 @@ function restaurarManualNuvem(){
       <button class="btn btn-secundario" style="flex:1; justify-content:center;" onclick="compartilharPresencaEmail()">✉️ E-mail</button>
     </div>
     <div style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">
-      <input type="date" id="presenca-data-selecionada" style="flex:1;">
+      <input type="date" id="presenca-data-selecionada" style="flex:1;" onchange="aplicarDataPresenca()">
       <button class="btn btn-secundario" onclick="aplicarDataPresenca()">Aplicar no dia</button>
     </div>
     <div id="avisoDataPresenca" style="display:none; font-size:12.5px; margin:-2px 0 12px;"></div>
@@ -2309,6 +2320,7 @@ function restaurarManualNuvem(){
     <div style="display:flex; gap:8px; margin-bottom:14px;">
       <button id="btnEquipePresencaA" class="btn btn-primario" style="flex:1; justify-content:center;" onclick="selecionarEquipePresenca('A')">Equipe A</button>
       <button id="btnEquipePresencaB" class="btn btn-secundario" style="flex:1; justify-content:center;" onclick="selecionarEquipePresenca('B')">Equipe B</button>
+      <button id="btnEquipePresencaTerc" class="btn btn-secundario" style="flex:1; justify-content:center;" onclick="selecionarEquipePresenca('TERCEIRIZADOS')">🏢 Terceirizados</button>
     </div>
 
     <div class="barra-acoes">
@@ -4806,29 +4818,78 @@ function colaboradoresPorEquipe(letra){
 }
 function selecionarEquipePresenca(letra){
   equipeAtivaPresenca = letra;
-  document.getElementById('btnEquipePresencaA').className = letra === 'A' ? 'btn btn-primario' : 'btn btn-secundario';
-  document.getElementById('btnEquipePresencaB').className = letra === 'B' ? 'btn btn-primario' : 'btn btn-secundario';
+  const btnA = document.getElementById('btnEquipePresencaA');
+  const btnB = document.getElementById('btnEquipePresencaB');
+  const btnTerc = document.getElementById('btnEquipePresencaTerc');
+  if(btnA) btnA.className = letra === 'A' ? 'btn btn-primario' : 'btn btn-secundario';
+  if(btnB) btnB.className = letra === 'B' ? 'btn btn-primario' : 'btn btn-secundario';
+  if(btnTerc) btnTerc.className = letra === 'TERCEIRIZADOS' ? 'btn btn-primario' : 'btn btn-secundario';
+
+  const selFuncao = document.getElementById('filtroFuncaoPresenca');
+  if(selFuncao){
+    if(letra === 'TERCEIRIZADOS'){
+      selFuncao.value = '__terceirizados__';
+    } else if(selFuncao.value === '__terceirizados__'){
+      selFuncao.value = '';
+    }
+  }
   renderPresenca();
 }
 function statusPresencaDe(entrada){
   if(!entrada) return null;
-  return typeof entrada === 'string' ? entrada : entrada.status;
+  const s = typeof entrada === 'string' ? entrada : entrada.status;
+  if(!s) return null;
+  const sNorm = s.trim();
+  if(sNorm.toLowerCase() === 'presente') return 'Presente';
+  if(sNorm.toLowerCase() === 'falta') return 'Falta';
+  return sNorm;
 }
 function motivoPresencaDe(entrada){
   if(!entrada || typeof entrada === 'string') return '';
   return entrada.motivo || '';
 }
+function obterStatusColaborador(registrosHoje, id, nome){
+  if(!registrosHoje) return null;
+  if(id && registrosHoje[id]) return statusPresencaDe(registrosHoje[id]);
+  if(nome && registrosHoje[nome]) return statusPresencaDe(registrosHoje[nome]);
+  if(id){
+    const achado = Object.entries(registrosHoje).find(([k, v]) => k === id || (v && (v.id === id || v.colaboradorId === id)));
+    if(achado) return statusPresencaDe(achado[1]);
+  }
+  if(nome){
+    const target = nome.trim().toLowerCase();
+    const achadoNome = Object.entries(registrosHoje).find(([k, v]) => {
+      const n1 = (k || '').trim().toLowerCase();
+      const n2 = v && v.nome ? (v.nome || '').trim().toLowerCase() : '';
+      return n1 === target || n2 === target;
+    });
+    if(achadoNome) return statusPresencaDe(achadoNome[1]);
+  }
+  return null;
+}
+function obterMotivoColaborador(registrosHoje, id, nome){
+  if(!registrosHoje) return '';
+  let entrada = null;
+  if(id && registrosHoje[id]) entrada = registrosHoje[id];
+  else if(nome && registrosHoje[nome]) entrada = registrosHoje[nome];
+  else if(id){
+    const achado = Object.entries(registrosHoje).find(([k, v]) => k === id || (v && (v.id === id || v.colaboradorId === id)));
+    if(achado) entrada = achado[1];
+  }
+  return motivoPresencaDe(entrada);
+}
 function marcarPresenca(id, status){
   const hoje = dataPresencaAtual();
   const mapa = carregarPresenca();
   if(!mapa[hoje]) mapa[hoje] = {};
-  const statusAtual = statusPresencaDe(mapa[hoje][id]);
+  const statusAtual = statusPresencaDe(obterStatusColaborador(mapa[hoje], id, null));
   if(statusAtual === status){
     delete mapa[hoje][id];
     salvarPresenca(mapa);
     renderPresenca();
     try{ renderFaltasHoje(); }catch(e){}
     try{ renderPresentesHoje(); }catch(e){}
+    try{ renderListaModalTerceirizados(); }catch(e){}
     return;
   }
   if(status === 'Falta'){
@@ -4838,6 +4899,9 @@ function marcarPresenca(id, status){
   mapa[hoje][id] = { status: 'Presente' };
   salvarPresenca(mapa);
   renderPresenca();
+  try{ renderFaltasHoje(); }catch(e){}
+  try{ renderPresentesHoje(); }catch(e){}
+  try{ renderListaModalTerceirizados(); }catch(e){}
 }
 function abrirMotivoFalta(id){
   const hoje = dataPresencaAtual();
@@ -4890,10 +4954,44 @@ function confirmarMotivoFalta(){
   try{ renderPresentesHoje(); }catch(e){}
 }
 function carregarTerceirizados(){
-  try{ return carregar('terceirizados') || []; }catch(e){ return []; }
+  try{
+    const lista = carregar('terceirizados') || [];
+    let modificado = false;
+    lista.forEach((t, i) => {
+      if(!t.id){
+        t.id = 'terc_' + Date.now() + '_' + i + '_' + Math.random().toString(36).substring(2, 6);
+        modificado = true;
+      }
+    });
+    if(modificado){
+      salvarListaTerceirizados(lista);
+    }
+    return lista;
+  }catch(e){
+    return [];
+  }
 }
 function salvarListaTerceirizados(lista){
   salvarLista('terceirizados', lista);
+}
+function marcarTodosTerceirizadosPresentes(){
+  const hoje = dataPresencaAtual();
+  const mapa = carregarPresenca();
+  if(!mapa[hoje]) mapa[hoje] = {};
+  const listaTerc = carregarTerceirizados();
+  if(listaTerc.length === 0){
+    alert('Nenhum terceirizado cadastrado.');
+    return;
+  }
+  listaTerc.forEach(t => {
+    mapa[hoje][t.id] = { status: 'Presente' };
+  });
+  salvarPresenca(mapa);
+  renderPresenca();
+  try{ renderListaModalTerceirizados(); }catch(e){}
+  try{ renderPresentesHoje(); }catch(e){}
+  try{ renderFaltasHoje(); }catch(e){}
+  mostrarNotificacaoPresenca('Todos os terceirizados foram marcados como presentes hoje.');
 }
 function abrirCadastroTerceirizados(idParaEditar){
   const modal = document.getElementById('modalCadastroTerceirizados');
@@ -4918,6 +5016,7 @@ function limparFormTerceirizados(){
   const horarioEl = document.getElementById('terceirizado-horario');
   const funcaoEl = document.getElementById('terceirizado-funcao');
   const localEl = document.getElementById('terceirizado-local');
+  const chkPresente = document.getElementById('terceirizado-marcar-presente');
   const btnSalvar = document.getElementById('btnSalvarTerceirizado');
   const btnCancelar = document.getElementById('btnCancelarEdicaoTerceirizado');
   const tituloForm = document.getElementById('tituloFormTerceirizado');
@@ -4929,6 +5028,7 @@ function limparFormTerceirizados(){
   if(horarioEl) horarioEl.value = '';
   if(funcaoEl) funcaoEl.value = '';
   if(localEl) localEl.value = '';
+  if(chkPresente) chkPresente.checked = true;
   if(btnSalvar) btnSalvar.textContent = 'Cadastrar Terceirizado';
   if(btnCancelar) btnCancelar.style.display = 'none';
   if(tituloForm) tituloForm.textContent = 'Novo Terceirizado';
@@ -4941,6 +5041,7 @@ function salvarTerceirizado(){
   const horarioEl = document.getElementById('terceirizado-horario');
   const funcaoEl = document.getElementById('terceirizado-funcao');
   const localEl = document.getElementById('terceirizado-local');
+  const chkPresente = document.getElementById('terceirizado-marcar-presente');
 
   const id = idEl ? idEl.value.trim() : '';
   const nome = nomeEl ? nomeEl.value.trim() : '';
@@ -4976,6 +5077,7 @@ function salvarTerceirizado(){
   }
 
   let lista = carregarTerceirizados();
+  let idFinal = id;
   if(id){
     const idx = lista.findIndex(t => t.id === id);
     if(idx !== -1){
@@ -4990,8 +5092,9 @@ function salvarTerceirizado(){
       };
     }
   } else {
+    idFinal = 'terc_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
     const novo = {
-      id: 'terc_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      id: idFinal,
       nome,
       empresa,
       horario,
@@ -5000,12 +5103,23 @@ function salvarTerceirizado(){
       criadoEm: new Date().toISOString()
     };
     lista.push(novo);
+
+    // Se a opção de marcar presença hoje estiver marcada
+    if(!chkPresente || chkPresente.checked){
+      const hoje = dataPresencaAtual();
+      const mapa = carregarPresenca();
+      if(!mapa[hoje]) mapa[hoje] = {};
+      mapa[hoje][idFinal] = { status: 'Presente' };
+      salvarPresenca(mapa);
+    }
   }
 
   salvarListaTerceirizados(lista);
   limparFormTerceirizados();
   renderListaModalTerceirizados();
   renderPresenca();
+  try{ renderPresentesHoje(); }catch(e){}
+  mostrarNotificacaoPresenca('Terceirizado "' + nome + '" salvo com sucesso.');
 }
 function editarTerceirizado(id){
   const lista = carregarTerceirizados();
@@ -5076,6 +5190,9 @@ function renderListaModalTerceirizados(){
   if(contagem) contagem.textContent = lista.length;
   if(!cont) return;
 
+  const hoje = dataPresencaAtual();
+  const registrosHoje = (carregarPresenca()[hoje]) || {};
+
   const filtrados = lista.filter(t => 
     (t.nome||'').toLowerCase().includes(busca) ||
     (t.empresa||'').toLowerCase().includes(busca) ||
@@ -5089,13 +5206,17 @@ function renderListaModalTerceirizados(){
     return;
   }
 
-  cont.innerHTML = filtrados.map(t => `
+  cont.innerHTML = filtrados.map(t => {
+    const status = statusPresencaDe(obterStatusColaborador(registrosHoje, t.id, t.nome));
+    const motivo = obterMotivoColaborador(registrosHoje, t.id, t.nome);
+    return `
     <div class="item-cartao" style="margin-bottom:8px; border:1px solid var(--linha, #e2e8f0); border-radius:10px; padding:10px 12px; background:var(--fundo-card, #ffffff);">
       <div class="item-corpo" style="width:100%;">
         <div class="item-titulo" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; gap:8px;">
           <div>
             <strong style="font-size:13.5px; color:var(--texto-forte);">${escapeHtml(t.nome)}</strong>
             <span class="tag-status neutro" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:11px; padding:2px 7px; border-radius:10px; margin-left:6px;">${escapeHtml(t.empresa || 'Empresa')}</span>
+            <span class="tag-status ${status === 'Falta' ? 'alerta' : (status === 'Presente' ? 'ok' : 'neutro')}" style="font-size:11px; padding:2px 7px; border-radius:10px; margin-left:4px;">${status || 'Não registrado hoje'}</span>
           </div>
           <div style="display:flex; gap:6px;">
             <button type="button" class="btn btn-secundario" style="padding:4px 8px; font-size:11.5px; line-height:1;" onclick="editarTerceirizado('${t.id}')" title="Editar dados">✏️</button>
@@ -5106,16 +5227,35 @@ function renderListaModalTerceirizados(){
           <strong>Função:</strong> ${escapeHtml(t.funcao || '—')} &nbsp;|&nbsp; 
           <strong>Horário:</strong> ${escapeHtml(t.horario || '—')} &nbsp;|&nbsp; 
           <strong>Local:</strong> ${escapeHtml(t.local || '—')}
+          ${status === 'Falta' && motivo ? '<br><span style="color:var(--alerta, #dc2626); font-weight:600;">Motivo da falta: ' + escapeHtml(motivo) + '</span>' : ''}
+        </div>
+        <div style="display:flex; gap:6px; margin-top:8px;">
+          <button type="button" class="btn btn-secundario" style="font-size:11.5px; padding:3px 10px; ${status==='Presente' ? 'background:var(--ok-bg, #ecfdf5); color:var(--ok, #059669); font-weight:700; border-color:var(--ok, #059669);' : ''}" onclick="marcarPresenca('${t.id}', 'Presente')">
+            ${status === 'Presente' ? '✓ Presente' : 'Marcar Presente'}
+          </button>
+          <button type="button" class="btn btn-secundario" style="font-size:11.5px; padding:3px 10px; ${status==='Falta' ? 'background:var(--alerta-bg, #fef2f2); color:var(--alerta, #dc2626); font-weight:700; border-color:var(--alerta, #dc2626);' : ''}" onclick="marcarPresenca('${t.id}', 'Falta')">
+            ${status === 'Falta' ? '✕ Falta' : 'Marcar Falta'}
+          </button>
         </div>
       </div>
     </div>
-  `).join('');
+  `;}).join('');
 }
 function aoMudarFiltroFuncaoPresenca(val){
   if(val === '__terceirizados__'){
-    abrirCadastroTerceirizados();
+    selecionarEquipePresenca('TERCEIRIZADOS');
+  } else {
+    if(equipeAtivaPresenca === 'TERCEIRIZADOS'){
+      equipeAtivaPresenca = 'A';
+      const btnA = document.getElementById('btnEquipePresencaA');
+      const btnB = document.getElementById('btnEquipePresencaB');
+      const btnTerc = document.getElementById('btnEquipePresencaTerc');
+      if(btnA) btnA.className = 'btn btn-primario';
+      if(btnB) btnB.className = 'btn btn-secundario';
+      if(btnTerc) btnTerc.className = 'btn btn-secundario';
+    }
+    renderPresenca();
   }
-  renderPresenca();
 }
 
 function renderPresenca(){
@@ -5148,8 +5288,8 @@ function renderPresenca(){
     funcoesDisponiveis.map(f => `<option value="${escapeHtml(f)}" ${f === funcaoSelecionadaAtual ? 'selected' : ''}>${escapeHtml(f)}</option>`).join('');
   const funcaoFiltro = selectFuncao.value;
 
-  // Se o filtro selecionado for Terceirizados
-  if(funcaoFiltro === '__terceirizados__'){
+  // Se o filtro selecionado for Terceirizados ou aba de terceirizados estiver ativa
+  if(equipeAtivaPresenca === 'TERCEIRIZADOS' || funcaoFiltro === '__terceirizados__'){
     const listaTerc = carregarTerceirizados();
     const filtrados = listaTerc.filter(t => 
       (t.nome||'').toLowerCase().includes(busca) || 
@@ -5159,8 +5299,8 @@ function renderPresenca(){
       (t.horario||'').toLowerCase().includes(busca)
     ).sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
 
-    const totalPresentesTerc = filtrados.filter(t => statusPresencaDe(registrosHoje[t.id]) === 'Presente').length;
-    const totalFaltasTerc = filtrados.filter(t => statusPresencaDe(registrosHoje[t.id]) === 'Falta').length;
+    const totalPresentesTerc = listaTerc.filter(t => statusPresencaDe(obterStatusColaborador(registrosHoje, t.id, t.nome)) === 'Presente').length;
+    const totalFaltasTerc = listaTerc.filter(t => statusPresencaDe(obterStatusColaborador(registrosHoje, t.id, t.nome)) === 'Falta').length;
 
     document.getElementById('kpiPresencaTotal').textContent = listaTerc.length;
     document.getElementById('kpiPresencaPresentes').textContent = totalPresentesTerc;
@@ -5172,23 +5312,28 @@ function renderPresenca(){
     const barraTerceirizados = `
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding:10px 14px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; gap:8px; flex-wrap:wrap;">
         <div>
-          <strong style="color:#1e40af; font-size:13.5px;">🏢 Equipe Terceirizada (${filtrados.length})</strong>
-          <div style="font-size:12px; color:#3b82f6;">Prestadores de serviços e empresas parceiras</div>
+          <strong style="color:#1e40af; font-size:13.5px;">🏢 Equipe Terceirizada (${listaTerc.length})</strong>
+          <div style="font-size:12px; color:#3b82f6;">${totalPresentesTerc} presentes${totalFaltasTerc > 0 ? ' · ' + totalFaltasTerc + ' faltas' : ''} no plantão</div>
         </div>
-        <button type="button" class="btn btn-primario" style="font-size:12px; padding:7px 14px; display:inline-flex; align-items:center; gap:6px;" onclick="abrirCadastroTerceirizados()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-          <span>Cadastrar Terceirizado</span>
-        </button>
+        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+          <button type="button" class="btn btn-secundario" style="font-size:12px; padding:7px 12px; display:inline-flex; align-items:center; gap:4px;" onclick="marcarTodosTerceirizadosPresentes()">
+            ✅ Marcar todos presentes
+          </button>
+          <button type="button" class="btn btn-primario" style="font-size:12px; padding:7px 12px; display:inline-flex; align-items:center; gap:6px;" onclick="abrirCadastroTerceirizados()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            <span>Cadastrar Terceirizado</span>
+          </button>
+        </div>
       </div>`;
 
     if(filtrados.length === 0){
-      cont.innerHTML = barraTerceirizados + telaVazia('Nenhum terceirizado cadastrado ou encontrado com essa busca.<br><br><button type="button" class="btn btn-primario" onclick="abrirCadastroTerceirizados()">➕ Cadastrar Terceirizado</button>');
+      cont.innerHTML = barraTerceirizados + telaVazia(busca ? 'Nenhum terceirizado cadastrado ou encontrado com essa busca.<br><br><button type="button" class="btn btn-primario" onclick="abrirCadastroTerceirizados()">➕ Cadastrar Terceirizado</button>' : 'Nenhum terceirizado cadastrado ainda.<br><br><button type="button" class="btn btn-primario" onclick="abrirCadastroTerceirizados()">➕ Cadastrar Terceirizado</button>');
       return;
     }
 
     cont.innerHTML = barraTerceirizados + filtrados.map(t => {
-      const status = statusPresencaDe(registrosHoje[t.id]);
-      const motivo = motivoPresencaDe(registrosHoje[t.id]);
+      const status = statusPresencaDe(obterStatusColaborador(registrosHoje, t.id, t.nome));
+      const motivo = obterMotivoColaborador(registrosHoje, t.id, t.nome);
       return `
       <div class="item-cartao ${status === 'Falta' ? 'alerta' : (status === 'Presente' ? 'ok' : '')}">
         <div class="franja"></div>
@@ -5207,8 +5352,8 @@ function renderPresenca(){
             ${status === 'Falta' && motivo ? '<br><span style="color:var(--alerta, #dc2626); font-weight:600;">Motivo da falta: ' + escapeHtml(motivo) + '</span>' : ''}
           </div>
           <div class="item-acoes">
-            <button onclick="marcarPresenca('${t.id}', 'Presente')" style="${status==='Presente' ? 'background:var(--ok-bg); color:var(--ok);' : ''}">Presente</button>
-            <button onclick="marcarPresenca('${t.id}', 'Falta')" style="${status==='Falta' ? 'background:var(--alerta-bg); color:var(--alerta);' : ''}">Falta</button>
+            <button onclick="marcarPresenca('${t.id}', 'Presente')" style="${status==='Presente' ? 'background:var(--ok-bg); color:var(--ok); font-weight:700;' : ''}">Presente</button>
+            <button onclick="marcarPresenca('${t.id}', 'Falta')" style="${status==='Falta' ? 'background:var(--alerta-bg); color:var(--alerta); font-weight:700;' : ''}">Falta</button>
             <button onclick="editarTerceirizado('${t.id}')" style="background:var(--fundo-suave); color:var(--texto-forte); border:1px solid var(--linha);">✏️ Editar</button>
           </div>
         </div>
@@ -5231,7 +5376,8 @@ function renderPresenca(){
   const cont = document.getElementById('lista-presenca');
   if(lista.length === 0){ cont.innerHTML = telaVazia('Nenhum colaborador cadastrado com turno na Equipe ' + equipeAtivaPresenca + '.'); return; }
   cont.innerHTML = lista.map(c => {
-    const status = statusPresencaDe(registrosHoje[c.id]);
+    const status = statusPresencaDe(obterStatusColaborador(registrosHoje, c.id, c.nome));
+    const motivo = obterMotivoColaborador(registrosHoje, c.id, c.nome);
     return `
     <div class="item-cartao ${status === 'Falta' ? 'alerta' : (status === 'Presente' ? 'ok' : '')}">
       <div class="franja"></div>
@@ -5241,11 +5387,11 @@ function renderPresenca(){
           <span class="tag-status ${status === 'Falta' ? 'alerta' : (status === 'Presente' ? 'ok' : 'neutro')}">${status || 'Não registrado'}</span>
         </div>
         <div class="item-meta">${escapeHtml(c.funcao||'—')}${c.horario ? ' · ' + escapeHtml(c.horario) : ''}
-          ${status === 'Falta' && motivoPresencaDe(registrosHoje[c.id]) ? '<br>Motivo: ' + escapeHtml(motivoPresencaDe(registrosHoje[c.id])) : ''}
+          ${status === 'Falta' && motivo ? '<br>Motivo: ' + escapeHtml(motivo) : ''}
         </div>
         <div class="item-acoes">
-          <button onclick="marcarPresenca('${c.id}', 'Presente')" style="${status==='Presente' ? 'background:var(--ok-bg); color:var(--ok);' : ''}">Presente</button>
-          <button onclick="marcarPresenca('${c.id}', 'Falta')" style="${status==='Falta' ? 'background:var(--alerta-bg); color:var(--alerta);' : ''}">Falta</button>
+          <button onclick="marcarPresenca('${c.id}', 'Presente')" style="${status==='Presente' ? 'background:var(--ok-bg); color:var(--ok); font-weight:700;' : ''}">Presente</button>
+          <button onclick="marcarPresenca('${c.id}', 'Falta')" style="${status==='Falta' ? 'background:var(--alerta-bg); color:var(--alerta); font-weight:700;' : ''}">Falta</button>
         </div>
       </div>
     </div>`;
@@ -5255,14 +5401,17 @@ function formatarTituloFuncao(funcao) {
   if (!funcao) return 'Outras Funções';
   const f = funcao.trim();
   const fLower = f.toLowerCase();
-  if (fLower === 'encarregado' || fLower === 'encarregados') return 'Encarregados';
-  if (fLower === 'asg' || fLower === 'serviços gerais' || fLower === 'servicos gerais' || fLower === 'auxiliar de servicos gerais' || fLower === 'auxiliar de serviços gerais') return 'ASG';
-  if (fLower === 'guarda vidas' || fLower === 'guarda-vidas') return 'Guarda-vidas';
-  if (fLower === 'apoio') return 'Apoio';
-  if (fLower === 'portaria' || fLower === 'porteiro' || fLower === 'atendente de portaria') return 'Portaria';
-  if (fLower === 'sauna') return 'Sauna';
-  if (fLower === 'limpeza') return 'Limpeza';
-  if (fLower === 'jardinagem' || fLower === 'jardineiro') return 'Jardinagem';
+  if (fLower.includes('encarregad')) return 'Encarregados';
+  if (fLower === 'asg' || fLower.includes('auxiliar de servico') || fLower.includes('auxiliar de serviço') || fLower.includes('servicos gerais') || fLower.includes('serviços gerais')) return 'ASG';
+  if (fLower.includes('guarda vida') || fLower.includes('guarda-vidas') || fLower.includes('guardavida')) return 'Guarda-vidas';
+  if (fLower.includes('portaria') || fLower.includes('porteir')) return 'Portaria';
+  if (fLower.includes('limpeza') || fLower.includes('faxin')) return 'Limpeza';
+  if (fLower.includes('jardin') || fLower.includes('jardineir')) return 'Jardinagem';
+  if (fLower.includes('seguranc') || fLower.includes('seguranç') || fLower.includes('vigil')) return 'Segurança / Vigilância';
+  if (fLower.includes('gerente') || fLower.includes('coordenad') || fLower.includes('supervis')) return 'Supervisão / Gerência';
+  if (fLower.includes('apoio') || fLower.includes('operac')) return 'Apoio Operacional';
+  if (fLower.includes('manutenc') || fLower.includes('manutenç') || fLower.includes('eletric') || fLower.includes('oficial')) return 'Manutenção';
+  if (fLower.includes('sauna')) return 'Sauna';
   return f.charAt(0).toUpperCase() + f.slice(1);
 }
 
@@ -5278,7 +5427,7 @@ function agruparColaboradoresPorFuncao(lista) {
     map.get(key).itens.push(item);
   });
 
-  const ordemPrioritaria = ['encarregados', 'liderança', 'supervisão', 'asg', 'guarda-vidas', 'apoio', 'portaria', 'sauna', 'limpeza', 'jardinagem'];
+  const ordemPrioritaria = ['encarregados', 'supervisão / gerência', 'liderança', 'asg', 'guarda-vidas', 'portaria', 'limpeza', 'jardinagem', 'manutenção', 'segurança / vigilância', 'apoio operacional', 'sauna'];
   
   return Array.from(map.values()).sort((a, b) => {
     const idxA = ordemPrioritaria.indexOf(a.titulo.toLowerCase());
@@ -5294,30 +5443,63 @@ function montarResumoPresenca(){
   const hoje = dataPresencaAtual();
   const registrosHoje = carregarPresenca()[hoje] || {};
   const todosValidos = colaboradoresValidos();
-  const presentes = todosValidos.filter(c => statusPresencaDe(registrosHoje[c.id]) === 'Presente');
-  const faltas = todosValidos.filter(c => statusPresencaDe(registrosHoje[c.id]) === 'Falta');
-  const naoRegistrados = todosValidos.length - presentes.length - faltas.length;
+  const presentes = todosValidos.filter(c => statusPresencaDe(obterStatusColaborador(registrosHoje, c.id, c.nome)) === 'Presente');
+  const faltas = todosValidos.filter(c => statusPresencaDe(obterStatusColaborador(registrosHoje, c.id, c.nome)) === 'Falta');
 
   const terceirizados = carregarTerceirizados();
-  const tercPresentes = terceirizados.filter(t => statusPresencaDe(registrosHoje[t.id]) === 'Presente');
-  const tercFaltas = terceirizados.filter(t => statusPresencaDe(registrosHoje[t.id]) === 'Falta');
-  const tercNaoRegistrados = terceirizados.length - tercPresentes.length - tercFaltas.length;
+  const tercPresentes = terceirizados.filter(t => statusPresencaDe(obterStatusColaborador(registrosHoje, t.id, t.nome)) === 'Presente');
+  const tercFaltas = terceirizados.filter(t => statusPresencaDe(obterStatusColaborador(registrosHoje, t.id, t.nome)) === 'Falta');
+
+  const totalGeralPresentes = presentes.length + tercPresentes.length;
+  const totalGeralFaltas = faltas.length + tercFaltas.length;
 
   const dataFormatada = new Date(hoje+'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric'});
   
   let texto = `*RELATÓRIO DE PRESENÇA — ${dataFormatada}*\n\n`;
 
-  // Resumo estatístico rápido no topo
+  // Resumo estatístico completo e atualizado com registros diários
   texto += `📊 *RESUMO DO PLANTÃO:*\n`;
   texto += `• Equipe DEM2: ${presentes.length} presente(s)${faltas.length > 0 ? ' | ' + faltas.length + ' falta(s)' : ''}\n`;
   if(terceirizados.length > 0){
-    texto += `• Terceirizados: ${tercPresentes.length} presente(s)${tercFaltas.length > 0 ? ' | ' + tercFaltas.length + ' falta(s)' : ''}\n`;
+    texto += `• Terceirizados: ${tercPresentes.length} presente(s)${tercFaltas.length > 0 ? ' | ' + tercFaltas.length + ' falta(s)' : ''} (Total cadastrados: ${terceirizados.length})\n`;
   }
-  const totalGeralPresentes = presentes.length + tercPresentes.length;
-  const totalGeralFaltas = faltas.length + tercFaltas.length;
   texto += `• Total Geral: ${totalGeralPresentes} presente(s)${totalGeralFaltas > 0 ? ' | ' + totalGeralFaltas + ' falta(s)' : ''}\n`;
 
-  // 1. SEÇÃO EQUIPE DEM2 — SEPARADOS PELA FUNÇÃO
+  // 1. SEÇÃO TERCEIRIZADOS — SEPARADOS PELA FUNÇÃO COM DADOS DIÁRIOS ATUALIZADOS
+  if(terceirizados.length > 0){
+    texto += `\n─────────────────────\n`;
+    texto += `🏢 *TERCEIRIZADOS NO PLANTÃO (POR FUNÇÃO):*\n`;
+
+    const listaTercExibir = tercPresentes.length > 0 ? tercPresentes : (tercFaltas.length === 0 ? terceirizados : []);
+    if(listaTercExibir.length > 0){
+      const gruposTerc = agruparColaboradoresPorFuncao(listaTercExibir);
+      gruposTerc.forEach(g => {
+        texto += `\n*${g.titulo}:*\n`;
+        g.itens.forEach(t => {
+          const st = statusPresencaDe(obterStatusColaborador(registrosHoje, t.id, t.nome));
+          const stSufixo = st === 'Presente' ? ' — [Presente]' : '';
+          texto += `• ${t.nome} (${t.empresa || 'Terceirizado'})${t.horario ? ' — ' + t.horario : ''}${t.local ? ' [' + t.local + ']' : ''}${stSufixo}\n`;
+        });
+      });
+    } else if(tercPresentes.length === 0 && tercFaltas.length > 0) {
+      texto += `\n(Nenhum terceirizado com presença confirmada nesta data)\n`;
+    }
+
+    // Faltas Terceirizados (se houver)
+    if(tercFaltas.length > 0){
+      texto += `\n⚠️ *Faltas Terceirizados:*\n`;
+      const gruposTercFaltas = agruparColaboradoresPorFuncao(tercFaltas);
+      gruposTercFaltas.forEach(g => {
+        texto += `\n*${g.titulo}:*\n`;
+        g.itens.forEach(t => {
+          const mot = obterMotivoColaborador(registrosHoje, t.id, t.nome) || 'não informado';
+          texto += `• ${t.nome} (${t.empresa || 'Terceirizado'}) — Motivo: ${mot}\n`;
+        });
+      });
+    }
+  }
+
+  // 2. SEÇÃO EQUIPE DEM2 — SEPARADOS PELA FUNÇÃO
   texto += `\n─────────────────────\n`;
   texto += `👥 *EQUIPE DEM2 (POR FUNÇÃO):*\n`;
 
@@ -5342,54 +5524,52 @@ function montarResumoPresenca(){
     gruposFaltas.forEach(g => {
       texto += `\n*${g.titulo}:*\n`;
       g.itens.forEach(c => {
-        const mot = motivoPresencaDe(registrosHoje[c.id]) || 'não informado';
+        const mot = obterMotivoColaborador(registrosHoje, c.id, c.nome) || 'não informado';
         texto += `• ${c.nome} — Motivo: ${mot}\n`;
       });
     });
   }
 
-  // 2. SEÇÃO TERCEIRIZADOS — SEPARADOS PELA FUNÇÃO
-  if(terceirizados.length > 0){
-    texto += `\n─────────────────────\n`;
-    texto += `🏢 *EQUIPE TERCEIRIZADA (POR FUNÇÃO):*\n`;
-
-    const listaTercExibir = tercPresentes.length > 0 ? tercPresentes : (tercFaltas.length === 0 ? terceirizados : []);
-    if(listaTercExibir.length > 0){
-      const gruposTerc = agruparColaboradoresPorFuncao(listaTercExibir);
-      gruposTerc.forEach(g => {
-        texto += `\n*${g.titulo}:*\n`;
-        g.itens.forEach(t => {
-          texto += `• ${t.nome} (${t.empresa || 'Terceirizado'})${t.horario ? ' — ' + t.horario : ''}${t.local ? ' [' + t.local + ']' : ''}\n`;
-        });
-      });
-    }
-
-    // Faltas Terceirizados (se houver)
-    if(tercFaltas.length > 0){
-      texto += `\n⚠️ *Faltas Terceirizados:*\n`;
-      const gruposTercFaltas = agruparColaboradoresPorFuncao(tercFaltas);
-      gruposTercFaltas.forEach(g => {
-        texto += `\n*${g.titulo}:*\n`;
-        g.itens.forEach(t => {
-          const mot = motivoPresencaDe(registrosHoje[t.id]) || 'não informado';
-          texto += `• ${t.nome} (${t.empresa || 'Terceirizado'}) — Motivo: ${mot}\n`;
-        });
-      });
-    }
-  }
-
   return { texto, dataFormatada };
+}
+
+function mostrarNotificacaoPresenca(msg){
+  let aviso = document.getElementById('toast-presenca-notificacao');
+  if(!aviso){
+    aviso = document.createElement('div');
+    aviso.id = 'toast-presenca-notificacao';
+    aviso.style.cssText = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#0f172a; color:#f8fafc; padding:12px 20px; border-radius:10px; font-size:13.5px; font-weight:500; z-index:99999; box-shadow:0 10px 25px rgba(0,0,0,0.3); max-width:90%; text-align:center; transition:opacity 0.3s; opacity:0; pointer-events:none;';
+    document.body.appendChild(aviso);
+  }
+  aviso.textContent = msg;
+  aviso.style.opacity = '1';
+  if(window._toastPresencaTimeout) clearTimeout(window._toastPresencaTimeout);
+  window._toastPresencaTimeout = setTimeout(() => {
+    if(aviso) aviso.style.opacity = '0';
+  }, 4000);
 }
 
 function compartilharPresencaWhatsApp(){
   const { texto } = montarResumoPresenca();
+  try {
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(texto);
+    }
+  } catch(e){}
   window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank');
+  mostrarNotificacaoPresenca('WhatsApp aberto! O resumo do plantão foi copiado para a área de transferência.');
 }
 
 function compartilharPresencaEmail(){
   const { texto, dataFormatada } = montarResumoPresenca();
   const assunto = 'Relatório de Presença por Função — ' + dataFormatada;
+  try {
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(texto);
+    }
+  } catch(e){}
   window.location.href = 'mailto:?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(texto);
+  mostrarNotificacaoPresenca('E-mail aberto! O resumo do plantão foi copiado para a área de transferência.');
 }
 
 function abrirPresentesHoje(){
@@ -5404,7 +5584,7 @@ function renderPresentesHoje(){
   const tit = document.getElementById('tituloPresentesHoje');
   if(tit) tit.textContent = hoje === dataHojeISO() ? 'Presentes hoje' : 'Presentes em ' + new Date(hoje+'T12:00:00').toLocaleDateString('pt-BR');
   const registrosHoje = carregarPresenca()[hoje] || {};
-  const presentes = [...colaboradoresValidos(), ...carregarTerceirizados()].filter(c => statusPresencaDe(registrosHoje[c.id]) === 'Presente')
+  const presentes = [...colaboradoresValidos(), ...carregarTerceirizados()].filter(c => statusPresencaDe(obterStatusColaborador(registrosHoje, c.id, c.nome)) === 'Presente')
     .sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
   const cont = document.getElementById('lista-presentes-hoje');
   if(presentes.length === 0){ cont.innerHTML = telaVazia('Nenhuma presença registrada nesta data ainda.'); return; }
@@ -5416,7 +5596,7 @@ function renderPresentesHoje(){
           <strong>${escapeHtml(c.nome)}</strong>
           <span class="tag-status ok">Presente</span>
         </div>
-        <div class="item-meta">${escapeHtml(c.funcao||'—')}${c.horario ? ' · ' + escapeHtml(c.horario) : ''}${c.turno ? ' · ' + escapeHtml(c.turno) : ''}</div>
+        <div class="item-meta">${c.empresa ? '🏢 ' + escapeHtml(c.empresa) + ' · ' : ''}${escapeHtml(c.funcao||'—')}${c.horario ? ' · ' + escapeHtml(c.horario) : ''}${c.turno ? ' · ' + escapeHtml(c.turno) : ''}${c.local ? ' · ' + escapeHtml(c.local) : ''}</div>
         <div class="item-acoes">
           <button onclick="marcarPresenca('${c.id}', 'Falta'); renderPresentesHoje();" style="color:var(--alerta); border-color:var(--alerta-bg);">Marcar Falta</button>
         </div>
@@ -5436,10 +5616,12 @@ function renderFaltasHoje(){
   const tit = document.getElementById('tituloFaltasHoje');
   if(tit) tit.textContent = hoje === dataHojeISO() ? 'Faltas de hoje' : 'Faltas em ' + new Date(hoje+'T12:00:00').toLocaleDateString('pt-BR');
   const registrosHoje = carregarPresenca()[hoje] || {};
-  const faltosos = [...colaboradoresValidos(), ...carregarTerceirizados()].filter(c => statusPresencaDe(registrosHoje[c.id]) === 'Falta');
+  const faltosos = [...colaboradoresValidos(), ...carregarTerceirizados()].filter(c => statusPresencaDe(obterStatusColaborador(registrosHoje, c.id, c.nome)) === 'Falta');
   const cont = document.getElementById('lista-faltas-hoje');
   if(faltosos.length === 0){ cont.innerHTML = telaVazia('Nenhuma falta registrada nesta data.'); return; }
-  cont.innerHTML = faltosos.map(c => `
+  cont.innerHTML = faltosos.map(c => {
+    const motivo = obterMotivoColaborador(registrosHoje, c.id, c.nome);
+    return `
     <div class="item-cartao alerta">
       <div class="franja"></div>
       <div class="item-corpo">
@@ -5447,14 +5629,15 @@ function renderFaltasHoje(){
           <strong>${escapeHtml(c.nome)}</strong>
           <span class="tag-status alerta">Falta</span>
         </div>
-        <div class="item-meta">${escapeHtml(c.funcao||'—')}${c.turno ? ' · ' + escapeHtml(c.turno) : ''}
-          ${motivoPresencaDe(registrosHoje[c.id]) ? '<br>Motivo: ' + escapeHtml(motivoPresencaDe(registrosHoje[c.id])) : ''}
+        <div class="item-meta">${c.empresa ? '🏢 ' + escapeHtml(c.empresa) + ' · ' : ''}${escapeHtml(c.funcao||'—')}${c.turno ? ' · ' + escapeHtml(c.turno) : ''}${c.horario ? ' · ' + escapeHtml(c.horario) : ''}${c.local ? ' · ' + escapeHtml(c.local) : ''}
+          ${motivo ? '<br><span style="color:var(--alerta, #dc2626); font-weight:600;">Motivo da falta: ' + escapeHtml(motivo) + '</span>' : ''}
         </div>
         <div class="item-acoes">
           <button onclick="marcarPresenca('${c.id}', 'Presente'); renderFaltasHoje();" style="color:var(--ok); border-color:var(--ok-bg);">Marcar Presente</button>
         </div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 /* ============================================================
