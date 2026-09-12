@@ -5473,7 +5473,7 @@ function formatarTituloFuncao(funcao) {
   if (fLower.includes('jardin') || fLower.includes('jardineir')) return 'Jardinagem';
   if (fLower.includes('seguranc') || fLower.includes('seguranç') || fLower.includes('vigil')) return 'Segurança / Vigilância';
   if (fLower.includes('gerente') || fLower.includes('coordenad') || fLower.includes('supervis')) return 'Supervisão / Gerência';
-  if (fLower.includes('apoio') || fLower.includes('operac')) return 'Apoio Operacional';
+  if (fLower.includes('apoio') || fLower.includes('operac')) return 'Apoios';
   if (fLower.includes('manutenc') || fLower.includes('manutenç') || fLower.includes('eletric') || fLower.includes('oficial')) return 'Manutenção';
   if (fLower.includes('sauna')) return 'Sauna';
   return f.charAt(0).toUpperCase() + f.slice(1);
@@ -5491,7 +5491,7 @@ function agruparColaboradoresPorFuncao(lista) {
     map.get(key).itens.push(item);
   });
 
-  const ordemPrioritaria = ['encarregados', 'supervisão / gerência', 'liderança', 'asg', 'guarda-vidas', 'portaria', 'limpeza', 'jardinagem', 'manutenção', 'segurança / vigilância', 'apoio operacional', 'sauna'];
+  const ordemPrioritaria = ['encarregados', 'supervisão / gerência', 'liderança', 'asg', 'apoios', 'guarda-vidas', 'portaria', 'limpeza', 'jardinagem', 'manutenção', 'segurança / vigilância', 'sauna'];
   
   return Array.from(map.values()).sort((a, b) => {
     const idxA = ordemPrioritaria.indexOf(a.titulo.toLowerCase());
@@ -5521,15 +5521,18 @@ function montarResumoPresenca(){
   
   let texto = `*RELATÓRIO DE PRESENÇA — ${dataFormatada}*\n\n`;
 
+  const labelPres = n => n === 1 ? '1 presente' : `${n} presentes`;
+  const labelFalt = n => n === 1 ? '1 falta' : `${n} faltas`;
+
   // Resumo estatístico completo e atualizado com registros diários
   texto += `📊 *RESUMO DO PLANTÃO:*\n`;
-  texto += `• Equipe DEM2: ${presentes.length} presente(s)${faltas.length > 0 ? ' | ' + faltas.length + ' falta(s)' : ''}\n`;
+  texto += `• Equipe DEM2: ${labelPres(presentes.length)}${faltas.length > 0 ? ' | ' + labelFalt(faltas.length) : ''}\n`;
   if(terceirizados.length > 0){
-    texto += `• Terceirizados: ${tercPresentes.length} presente(s)${tercFaltas.length > 0 ? ' | ' + tercFaltas.length + ' falta(s)' : ''} (Total cadastrados: ${terceirizados.length})\n`;
+    texto += `• Terceirizados: ${labelPres(tercPresentes.length)}${tercFaltas.length > 0 ? ' | ' + labelFalt(tercFaltas.length) : ''} (Total cadastrados: ${terceirizados.length})\n`;
   }
-  texto += `• Total Geral: ${totalGeralPresentes} presente(s)${totalGeralFaltas > 0 ? ' | ' + totalGeralFaltas + ' falta(s)' : ''}\n`;
+  texto += `• Total Geral: ${labelPres(totalGeralPresentes)}${totalGeralFaltas > 0 ? ' | ' + labelFalt(totalGeralFaltas) : ''}\n`;
 
-  // 1. SEÇÃO TERCEIRIZADOS — SEPARADOS PELA FUNÇÃO COM DADOS DIÁRIOS ATUALIZADOS
+  // 1. SEÇÃO TERCEIRIZADOS — SEPARADOS PELA FUNÇÃO COM QUANTIDADE DE PRESENTES E AUSÊNCIAS
   if(terceirizados.length > 0){
     texto += `\n─────────────────────\n`;
     texto += `🏢 *TERCEIRIZADOS NO PLANTÃO (POR FUNÇÃO):*\n`;
@@ -5538,7 +5541,9 @@ function montarResumoPresenca(){
     if(listaTercExibir.length > 0){
       const gruposTerc = agruparColaboradoresPorFuncao(listaTercExibir);
       gruposTerc.forEach(g => {
-        texto += `\n*${g.titulo}:*\n`;
+        const qtd = g.itens.length;
+        const rotulo = tercPresentes.length > 0 ? (qtd === 1 ? '1 presente' : `${qtd} presentes`) : (qtd === 1 ? '1 terceirizado' : `${qtd} terceirizados`);
+        texto += `\n*${g.titulo} — ${rotulo}:*\n`;
         g.itens.forEach(t => {
           const st = statusPresencaDe(obterStatusColaborador(registrosHoje, t.id, t.nome));
           const stSufixo = st === 'Presente' ? ' — [Presente]' : '';
@@ -5549,12 +5554,14 @@ function montarResumoPresenca(){
       texto += `\n(Nenhum terceirizado com presença confirmada nesta data)\n`;
     }
 
-    // Faltas Terceirizados (se houver)
+    // Faltas / Ausências Terceirizados (se houver)
     if(tercFaltas.length > 0){
-      texto += `\n⚠️ *Faltas Terceirizados:*\n`;
+      texto += `\n⚠️ *FALTAS / AUSÊNCIAS (TERCEIRIZADOS):*\n`;
       const gruposTercFaltas = agruparColaboradoresPorFuncao(tercFaltas);
       gruposTercFaltas.forEach(g => {
-        texto += `\n*${g.titulo}:*\n`;
+        const qtd = g.itens.length;
+        const rotulo = qtd === 1 ? '1 ausência' : `${qtd} ausências`;
+        texto += `\n*${g.titulo} — ${rotulo}:*\n`;
         g.itens.forEach(t => {
           const mot = obterMotivoColaborador(registrosHoje, t.id, t.nome) || 'não informado';
           texto += `• ${t.nome} (${t.empresa || 'Terceirizado'}) — Motivo: ${mot}\n`;
@@ -5563,7 +5570,7 @@ function montarResumoPresenca(){
     }
   }
 
-  // 2. SEÇÃO EQUIPE DEM2 — SEPARADOS PELA FUNÇÃO
+  // 2. SEÇÃO EQUIPE DEM2 — SEPARADOS PELA FUNÇÃO COM QUANTIDADE DE PRESENTES
   texto += `\n─────────────────────\n`;
   texto += `👥 *EQUIPE DEM2 (POR FUNÇÃO):*\n`;
 
@@ -5571,7 +5578,9 @@ function montarResumoPresenca(){
   if(listaParaExibir.length > 0){
     const grupos = agruparColaboradoresPorFuncao(listaParaExibir);
     grupos.forEach(g => {
-      texto += `\n*${g.titulo}:*\n`;
+      const qtd = g.itens.length;
+      const rotulo = presentes.length > 0 ? (qtd === 1 ? '1 presente' : `${qtd} presentes`) : (qtd === 1 ? '1 colaborador' : `${qtd} colaboradores`);
+      texto += `\n*${g.titulo} — ${rotulo}:*\n`;
       g.itens.forEach(c => {
         texto += `• ${c.nome}\n`;
       });
@@ -5580,13 +5589,15 @@ function montarResumoPresenca(){
     texto += `\n(Nenhum colaborador registrado como presente nesta data)\n`;
   }
 
-  // Faltas DEM2 (se houver) separadas por função
+  // Faltas / Ausências DEM2 (se houver) separadas por função com quantidade
   if(faltas.length > 0){
     texto += `\n─────────────────────\n`;
-    texto += `⚠️ *FALTAS (DEM2):*\n`;
+    texto += `⚠️ *FALTAS / AUSÊNCIAS (DEM2):*\n`;
     const gruposFaltas = agruparColaboradoresPorFuncao(faltas);
     gruposFaltas.forEach(g => {
-      texto += `\n*${g.titulo}:*\n`;
+      const qtd = g.itens.length;
+      const rotulo = qtd === 1 ? '1 ausência' : `${qtd} ausências`;
+      texto += `\n*${g.titulo} — ${rotulo}:*\n`;
       g.itens.forEach(c => {
         const mot = obterMotivoColaborador(registrosHoje, c.id, c.nome) || 'não informado';
         texto += `• ${c.nome} — Motivo: ${mot}\n`;
