@@ -5665,46 +5665,23 @@ function despacharEnvioEmail({ destinatarios = '', assunto = '', corpo = '', pro
   if(ehMovel){
     // ========================================================
     // NO CELULAR: ABRIR O APLICATIVO DE E-MAIL DO APARELHO (GMAIL)
+    // O protocolo universal padrão que o Android e iOS reconhecem
+    // nativamente sem erros de página (ERR_UNKNOWN_URL_SCHEME) é o 'mailto:'.
+    // No Android, o sistema intercepta o 'mailto:' e abre diretamente
+    // o aplicativo Gmail já pronto para envio.
     // ========================================================
     const mailtoUrl = `mailto:${dest}?subject=${assuntoEnc}&body=${corpoEnc}`;
-    const ua = navigator.userAgent || '';
-    const ehAndroid = /Android/i.test(ua);
-    const ehIOS = /iPhone|iPad|iPod/i.test(ua);
 
-    if(ehAndroid){
-      // No Android: aciona diretamente o app Gmail via Intent
-      const intentGmail = `intent:#Intent;action=android.intent.action.SENDTO;data=${encodeURIComponent(mailtoUrl)};package=com.google.android.gm;S.browser_fallback_url=${encodeURIComponent(mailtoUrl)};end`;
-      try {
-        const a = document.createElement('a');
-        a.href = intentGmail;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } catch(e){
-        window.location.href = mailtoUrl;
-      }
-
-      // Fallback garantido se o app específico não assumir o intent
-      setTimeout(() => {
-        if(document.hasFocus()){
-          window.location.href = mailtoUrl;
-        }
-      }, 500);
-    } else if(ehIOS){
-      // No iPhone/iPad: tenta abrir o app do Gmail se instalado, senão cliente nativo
-      const gmailIosUrl = `googlegmail:///co?to=${encodeURIComponent(dest)}&subject=${assuntoEnc}&body=${corpoEnc}`;
+    try {
       const a = document.createElement('a');
-      a.href = gmailIosUrl;
+      a.href = mailtoUrl;
+      a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-
       setTimeout(() => {
-        if(document.hasFocus()){
-          window.location.href = mailtoUrl;
-        }
-      }, 500);
-    } else {
+        try { document.body.removeChild(a); } catch(e){}
+      }, 800);
+    } catch(e){
       window.location.href = mailtoUrl;
     }
 
