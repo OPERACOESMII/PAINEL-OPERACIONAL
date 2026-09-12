@@ -1458,13 +1458,17 @@ function restaurarManualNuvem(){
   <div class="modal-caixa" style="max-width: 500px; width: 95%;">
     <div class="modal-cabecalho">
       <h3 style="margin:0; font-size:16px; display:flex; align-items:center; gap:8px;">
-        <span>✉️</span> Enviar Relatório por E-mail (Nova Guia)
+        <span>✉️</span> Envio por E-mail (Computador & Celular)
       </h3>
       <button class="modal-fechar" onclick="fecharModalOpcoesEmailPresenca()">✕</button>
     </div>
     <div style="padding:16px; display:flex; flex-direction:column; gap:14px;">
+      <div id="statusDispositivoEmail" style="padding:10px 12px; background:var(--fundo); border:1px solid var(--linha); border-radius:8px; font-size:13px; color:var(--texto-suave); line-height:1.45;">
+        📱 <strong>No celular:</strong> abre diretamente o aplicativo do <strong>Gmail</strong> do aparelho.<br>
+        💻 <strong>No computador:</strong> abre automaticamente em uma <strong>nova guia</strong> pronta para envio.
+      </div>
       <p style="margin:0; font-size:13.5px; color:var(--texto-suave); line-height:1.5;">
-        Selecione como deseja abrir o e-mail no computador. O relatório será carregado diretamente em uma <strong>nova guia</strong> pronto para envio:
+        Selecione o serviço padrão para abertura no computador:
       </p>
 
       <div style="display:flex; flex-direction:column; gap:10px;">
@@ -2523,7 +2527,12 @@ function compartilharLinkRestritoEmail(){
   if (!dados) return;
   const assunto = 'Acesso ao painel MINAS II — ' + dados.titulo;
   const corpo = `Segue o link de acesso ao painel MINAS II, restrito ao card "${dados.titulo}":\n\n${dados.url}`;
-  window.location.href = 'mailto:?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(corpo);
+  despacharEnvioEmail({
+    destinatarios: '',
+    assunto: assunto,
+    corpo: corpo,
+    notificacaoSucesso: ehDispositivoMovel() ? 'Abrindo aplicativo Gmail com o link de acesso...' : 'Nova guia aberta com o link de acesso!'
+  });
 }
 function aplicarAcessoRestrito(){
   const params = new URLSearchParams(location.search);
@@ -3078,7 +3087,12 @@ function compartilharRadioEmail(){
   }
 
   const assunto = 'Rádio — ' + (i.setor || i.codigo || 'MINAS II');
-  window.location.href = 'mailto:?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(texto);
+  despacharEnvioEmail({
+    destinatarios: '',
+    assunto: assunto,
+    corpo: texto,
+    notificacaoSucesso: ehDispositivoMovel() ? 'Abrindo aplicativo Gmail com os dados do rádio...' : 'Nova guia aberta com os dados do rádio!'
+  });
 }
 
 /* ============================================================
@@ -5624,6 +5638,124 @@ function mostrarNotificacaoPresenca(msg){
   }, 4000);
 }
 
+function ehDispositivoMovel(){
+  const ua = (navigator.userAgent || navigator.vendor || window.opera || '').toLowerCase();
+  const matchMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|crios|fennec|windows phone/i.test(ua);
+  if(matchMobile) return true;
+  if(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) return true;
+  const temTouch = (('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
+  const larguraTela = window.innerWidth || (screen && screen.width) || 1200;
+  if(temTouch && larguraTela <= 900) return true;
+  return false;
+}
+
+function despacharEnvioEmail({ destinatarios = '', assunto = '', corpo = '', provedor = null, notificacaoSucesso = '' }){
+  // Cópia para a área de transferência como garantia de recuperação
+  try {
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(corpo);
+    }
+  } catch(e){}
+
+  const dest = (destinatarios || '').trim();
+  const assuntoEnc = encodeURIComponent(assunto || '');
+  const corpoEnc = encodeURIComponent(corpo || '');
+  const ehMovel = ehDispositivoMovel();
+
+  if(ehMovel){
+    // ========================================================
+    // NO CELULAR: ABRIR O APLICATIVO DE E-MAIL DO APARELHO (GMAIL)
+    // ========================================================
+    const mailtoUrl = `mailto:${dest}?subject=${assuntoEnc}&body=${corpoEnc}`;
+    const ua = navigator.userAgent || '';
+    const ehAndroid = /Android/i.test(ua);
+    const ehIOS = /iPhone|iPad|iPod/i.test(ua);
+
+    if(ehAndroid){
+      // No Android: aciona diretamente o app Gmail via Intent
+      const intentGmail = `intent:#Intent;action=android.intent.action.SENDTO;data=${encodeURIComponent(mailtoUrl)};package=com.google.android.gm;S.browser_fallback_url=${encodeURIComponent(mailtoUrl)};end`;
+      try {
+        const a = document.createElement('a');
+        a.href = intentGmail;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } catch(e){
+        window.location.href = mailtoUrl;
+      }
+
+      // Fallback garantido se o app específico não assumir o intent
+      setTimeout(() => {
+        if(document.hasFocus()){
+          window.location.href = mailtoUrl;
+        }
+      }, 500);
+    } else if(ehIOS){
+      // No iPhone/iPad: tenta abrir o app do Gmail se instalado, senão cliente nativo
+      const gmailIosUrl = `googlegmail:///co?to=${encodeURIComponent(dest)}&subject=${assuntoEnc}&body=${corpoEnc}`;
+      const a = document.createElement('a');
+      a.href = gmailIosUrl;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      setTimeout(() => {
+        if(document.hasFocus()){
+          window.location.href = mailtoUrl;
+        }
+      }, 500);
+    } else {
+      window.location.href = mailtoUrl;
+    }
+
+    mostrarNotificacaoPresenca(notificacaoSucesso || 'Abrindo aplicativo de e-mail (Gmail) no celular... O texto também foi copiado!');
+  } else {
+    // ========================================================
+    // NO COMPUTADOR: ABRIR EM UMA NOVA GUIA (_blank)
+    // ========================================================
+    const prov = provedor || localStorage.getItem('mtc_provedor_email') || 'gmail';
+    let url = '';
+    let nomeProvedor = '';
+
+    if(prov === 'outlook'){
+      url = `https://outlook.live.com/mail/0/deeplink/compose?to=${encodeURIComponent(dest)}&subject=${assuntoEnc}&body=${corpoEnc}`;
+      nomeProvedor = 'Outlook Web';
+    } else if(prov === 'mailto'){
+      url = `mailto:${dest}?subject=${assuntoEnc}&body=${corpoEnc}`;
+      nomeProvedor = 'Aplicativo Padrão';
+    } else {
+      // Padrão no Computador: Gmail Web em Nova Guia
+      url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(dest)}&su=${assuntoEnc}&body=${corpoEnc}`;
+      nomeProvedor = 'Gmail';
+    }
+
+    if(prov === 'mailto'){
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      mostrarNotificacaoPresenca(notificacaoSucesso || 'Aplicativo de e-mail acionado! O texto também foi copiado.');
+    } else {
+      const win = window.open(url, '_blank', 'noopener,noreferrer');
+      if(win){
+        mostrarNotificacaoPresenca(notificacaoSucesso || `Nova guia aberta no ${nomeProvedor}! O texto também foi copiado.`);
+      } else {
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        mostrarNotificacaoPresenca(notificacaoSucesso || `Tentando abrir nova guia no ${nomeProvedor}. O texto também foi copiado.`);
+      }
+    }
+  }
+}
+
 function compartilharPresencaWhatsApp(){
   const { texto } = montarResumoPresenca();
   try {
@@ -5638,13 +5770,20 @@ function compartilharPresencaWhatsApp(){
 function atualizarBotaoEmailPresenca(){
   const btn = document.getElementById('btnCompartilharPresencaEmail');
   if(!btn) return;
-  const prov = localStorage.getItem('mtc_provedor_email') || 'gmail';
-  let rotulo = '✉️ E-mail (Gmail)';
-  if(prov === 'outlook') rotulo = '✉️ E-mail (Outlook)';
-  else if(prov === 'mailto') rotulo = '✉️ E-mail (App PC)';
-  btn.textContent = rotulo;
-  btn.title = `Abrir em nova guia via ${prov === 'gmail' ? 'Gmail' : (prov === 'outlook' ? 'Outlook' : 'Aplicativo Padrão')}`;
+  const ehMovel = ehDispositivoMovel();
+  if(ehMovel){
+    btn.textContent = '✉️ E-mail (Gmail App)';
+    btn.title = 'Abrir aplicativo Gmail no celular';
+  } else {
+    const prov = localStorage.getItem('mtc_provedor_email') || 'gmail';
+    let rotulo = '✉️ E-mail (Gmail)';
+    if(prov === 'outlook') rotulo = '✉️ E-mail (Outlook)';
+    else if(prov === 'mailto') rotulo = '✉️ E-mail (App PC)';
+    btn.textContent = rotulo;
+    btn.title = `Abrir em nova guia via ${prov === 'gmail' ? 'Gmail' : (prov === 'outlook' ? 'Outlook' : 'Aplicativo Padrão')}`;
+  }
 }
+window.addEventListener('resize', atualizarBotaoEmailPresenca);
 
 function abrirModalOpcoesEmailPresenca(){
   const prov = localStorage.getItem('mtc_provedor_email') || 'gmail';
@@ -5654,6 +5793,17 @@ function abrirModalOpcoesEmailPresenca(){
   if(tagGmail) tagGmail.style.display = prov === 'gmail' ? 'inline-block' : 'none';
   if(tagOutlook) tagOutlook.style.display = prov === 'outlook' ? 'inline-block' : 'none';
   if(tagMailto) tagMailto.style.display = prov === 'mailto' ? 'inline-block' : 'none';
+
+  const statusDisp = document.getElementById('statusDispositivoEmail');
+  if(statusDisp){
+    const ehMovel = ehDispositivoMovel();
+    if(ehMovel){
+      statusDisp.innerHTML = `📱 <strong>Dispositivo móvel detectado (Celular/Tablet):</strong><br>Ao clicar em enviar, o aplicativo <strong>Gmail</strong> do aparelho será aberto diretamente.<br><span style="font-size:12px; opacity:0.85;">(Caso acesse em um computador, o e-mail será aberto automaticamente em uma nova guia).</span>`;
+    } else {
+      statusDisp.innerHTML = `💻 <strong>Computador detectado:</strong><br>O e-mail será aberto automaticamente em uma <strong>nova guia</strong> no navegador.<br><span style="font-size:12px; opacity:0.85;">(Caso acesse no celular, o aplicativo do Gmail será acionado diretamente).</span>`;
+    }
+  }
+
   const modal = document.getElementById('modalOpcoesEmailPresenca');
   if(modal) modal.classList.add('aberto');
 }
@@ -5669,7 +5819,7 @@ function escolherEExecutarProvedorEmail(provedor){
   } catch(e){}
   atualizarBotaoEmailPresenca();
   fecharModalOpcoesEmailPresenca();
-  abrirEmailEmNovaGuia(provedor);
+  compartilharPresencaEmail(provedor);
 }
 
 function copiarTextoEmailPresenca(){
@@ -5683,61 +5833,19 @@ function copiarTextoEmailPresenca(){
 }
 
 function abrirEmailEmNovaGuia(provedor){
-  const { texto, dataFormatada } = montarResumoPresenca();
-  const assunto = 'Relatório de Presença por Função — ' + dataFormatada;
-  
-  // Garantir cópia para a área de transferência
-  try {
-    if(navigator.clipboard && navigator.clipboard.writeText){
-      navigator.clipboard.writeText(texto);
-    }
-  } catch(e){}
-
-  let url = '';
-  let nomeProvedor = '';
-
-  if(provedor === 'outlook'){
-    url = 'https://outlook.live.com/mail/0/deeplink/compose?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(texto);
-    nomeProvedor = 'Outlook Web';
-  } else if(provedor === 'mailto'){
-    url = 'mailto:?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(texto);
-    nomeProvedor = 'Aplicativo de E-mail';
-  } else {
-    // Padrão: Gmail Web
-    url = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(texto);
-    nomeProvedor = 'Gmail';
-  }
-
-  if(provedor === 'mailto'){
-    const link = document.createElement('a');
-    link.href = url;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    mostrarNotificacaoPresenca('Aplicativo de e-mail acionado! O resumo também foi copiado para a área de transferência.');
-  } else {
-    const win = window.open(url, '_blank', 'noopener,noreferrer');
-    if(win){
-      mostrarNotificacaoPresenca(`Nova guia aberta no ${nomeProvedor}! O resumo também foi copiado para a área de transferência.`);
-    } else {
-      // Se o navegador bloqueou pop-up, aciona via link clicável em nova guia
-      const link = document.createElement('a');
-      link.href = url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      mostrarNotificacaoPresenca(`Tentando abrir nova guia no ${nomeProvedor}. O resumo também foi copiado.`);
-    }
-  }
+  compartilharPresencaEmail(provedor);
 }
 
-function compartilharPresencaEmail(){
-  const prov = localStorage.getItem('mtc_provedor_email') || 'gmail';
-  abrirEmailEmNovaGuia(prov);
+function compartilharPresencaEmail(provedorOpcional){
+  const { texto, dataFormatada } = montarResumoPresenca();
+  const assunto = 'Relatório de Presença por Função — ' + dataFormatada;
+  despacharEnvioEmail({
+    destinatarios: '',
+    assunto: assunto,
+    corpo: texto,
+    provedor: provedorOpcional || null,
+    notificacaoSucesso: ehDispositivoMovel() ? 'Abrindo aplicativo Gmail no celular...' : 'Nova guia aberta com o relatório de presença!'
+  });
 }
 
 function abrirPresentesHoje(){
@@ -6616,7 +6724,12 @@ function compartilharEstoqueEmail(){
 
   const assunto = 'Controle de Estoque — MINAS II';
   const destinatarios = emails.join(',');
-  window.location.href = 'mailto:' + destinatarios + '?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(texto);
+  despacharEnvioEmail({
+    destinatarios: destinatarios,
+    assunto: assunto,
+    corpo: texto,
+    notificacaoSucesso: ehDispositivoMovel() ? 'Abrindo aplicativo Gmail com o controle de estoque...' : 'Nova guia aberta com o controle de estoque!'
+  });
 }
 function compartilharConsertoEmail(){
   const conserto = carregar('radiosConserto').slice().sort((a,b) => (b.dataEnvio||'').localeCompare(a.dataEnvio||''));
@@ -6641,7 +6754,12 @@ function compartilharConsertoEmail(){
   }
 
   const assunto = 'Rádios em Conserto — MINAS II';
-  window.location.href = 'mailto:?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(texto);
+  despacharEnvioEmail({
+    destinatarios: '',
+    assunto: assunto,
+    corpo: texto,
+    notificacaoSucesso: ehDispositivoMovel() ? 'Abrindo aplicativo Gmail com os rádios em conserto...' : 'Nova guia aberta com os rádios em conserto!'
+  });
 }
 
 function compartilhar(mod){
