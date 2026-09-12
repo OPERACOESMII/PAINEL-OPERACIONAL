@@ -1454,6 +1454,66 @@ function restaurarManualNuvem(){
   </div>
 </div>
 
+<div class="modal-fundo" id="modalOpcoesEmailPresenca" onclick="if(event.target===this) fecharModalOpcoesEmailPresenca()">
+  <div class="modal-caixa" style="max-width: 500px; width: 95%;">
+    <div class="modal-cabecalho">
+      <h3 style="margin:0; font-size:16px; display:flex; align-items:center; gap:8px;">
+        <span>✉️</span> Enviar Relatório por E-mail (Nova Guia)
+      </h3>
+      <button class="modal-fechar" onclick="fecharModalOpcoesEmailPresenca()">✕</button>
+    </div>
+    <div style="padding:16px; display:flex; flex-direction:column; gap:14px;">
+      <p style="margin:0; font-size:13.5px; color:var(--texto-suave); line-height:1.5;">
+        Selecione como deseja abrir o e-mail no computador. O relatório será carregado diretamente em uma <strong>nova guia</strong> pronto para envio:
+      </p>
+
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <button type="button" class="btn" id="btnOpcaoGmail" style="padding:12px 14px; display:flex; align-items:center; justify-content:space-between; background:#fff5f5; border:1.5px solid #ea4335; border-radius:10px; color:#b91c1c; cursor:pointer;" onclick="escolherEExecutarProvedorEmail('gmail')">
+          <div style="display:flex; align-items:center; gap:10px; text-align:left;">
+            <span style="font-size:20px;">🔴</span>
+            <div>
+              <strong style="font-size:14px; color:#991b1b;">Gmail Web (Recomendado)</strong>
+              <div style="font-size:11.5px; color:#7f1d1d; opacity:0.85;">Abre uma nova guia no Gmail com assunto e relatório prontos</div>
+            </div>
+          </div>
+          <span class="tag-status ok" id="tagPadraoGmail" style="font-size:11px; padding:2px 8px; border-radius:8px;">Padrão</span>
+        </button>
+
+        <button type="button" class="btn" id="btnOpcaoOutlook" style="padding:12px 14px; display:flex; align-items:center; justify-content:space-between; background:#f0f7ff; border:1.5px solid #0078d4; border-radius:10px; color:#0369a1; cursor:pointer;" onclick="escolherEExecutarProvedorEmail('outlook')">
+          <div style="display:flex; align-items:center; gap:10px; text-align:left;">
+            <span style="font-size:20px;">🔵</span>
+            <div>
+              <strong style="font-size:14px; color:#075985;">Outlook Web / Hotmail</strong>
+              <div style="font-size:11.5px; color:#0c4a6e; opacity:0.85;">Abre uma nova guia no Outlook Web / Office 365</div>
+            </div>
+          </div>
+          <span class="tag-status neutro" id="tagPadraoOutlook" style="display:none; font-size:11px; padding:2px 8px; border-radius:8px;">Padrão</span>
+        </button>
+
+        <button type="button" class="btn btn-secundario" id="btnOpcaoMailto" style="padding:12px 14px; display:flex; align-items:center; justify-content:space-between; border-radius:10px; cursor:pointer;" onclick="escolherEExecutarProvedorEmail('mailto')">
+          <div style="display:flex; align-items:center; gap:10px; text-align:left;">
+            <span style="font-size:20px;">💻</span>
+            <div>
+              <strong style="font-size:14px;">Aplicativo Padrão do Computador</strong>
+              <div style="font-size:11.5px; color:var(--texto-suave);">Abre o programa de e-mail padrão do sistema operacional</div>
+            </div>
+          </div>
+          <span class="tag-status neutro" id="tagPadraoMailto" style="display:none; font-size:11px; padding:2px 8px; border-radius:8px;">Padrão</span>
+        </button>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top:1px solid var(--linha); gap:10px; flex-wrap:wrap;">
+        <button type="button" class="btn btn-secundario" style="font-size:12.5px; padding:7px 14px; display:inline-flex; align-items:center; gap:6px;" onclick="copiarTextoEmailPresenca()">
+          <span>📋</span> Copiar resumo para colar
+        </button>
+        <button type="button" class="btn btn-secundario" style="font-size:12.5px; padding:7px 14px;" onclick="fecharModalOpcoesEmailPresenca()">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal-fundo" id="modalCalendarioPresenca" onclick="if(event.target===this) fecharCalendarioPresenca()">
   <div class="modal-caixa">
     <div class="modal-cabecalho">
@@ -2300,8 +2360,11 @@ function restaurarManualNuvem(){
   <section class="secao" id="secao-presenca">
     <div class="cabecalho-secao"><h2>Presença</h2></div>
     <div style="display:flex; gap:8px; margin-bottom:14px;">
-      <button class="btn btn-secundario" style="flex:1; justify-content:center;" onclick="compartilharPresencaWhatsApp()">📲 WhatsApp</button>
-      <button class="btn btn-secundario" style="flex:1; justify-content:center;" onclick="compartilharPresencaEmail()">✉️ E-mail</button>
+      <button type="button" class="btn btn-secundario" style="flex:1; justify-content:center;" onclick="compartilharPresencaWhatsApp()" title="Compartilhar resumo no WhatsApp em nova guia">📲 WhatsApp</button>
+      <div style="flex:1; display:flex; gap:4px;">
+        <button type="button" class="btn btn-secundario" style="flex:1; justify-content:center;" id="btnCompartilharPresencaEmail" onclick="compartilharPresencaEmail()" title="Abrir e-mail em nova guia no computador">✉️ E-mail (Gmail)</button>
+        <button type="button" class="btn btn-secundario" style="padding:0 10px; font-size:13px;" title="Configurar provedor de e-mail (Gmail, Outlook, App)" onclick="abrirModalOpcoesEmailPresenca()">⚙️</button>
+      </div>
     </div>
     <div style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">
       <input type="date" id="presenca-data-selecionada" style="flex:1;" onchange="aplicarDataPresenca()">
@@ -5259,6 +5322,7 @@ function aoMudarFiltroFuncaoPresenca(val){
 }
 
 function renderPresenca(){
+  atualizarBotaoEmailPresenca();
   const hoje = dataPresencaAtual();
   const ehHoje = hoje === dataHojeISO();
   const dataFormatadaLonga = new Date(hoje+'T12:00:00').toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'2-digit', year:'numeric'});
@@ -5560,16 +5624,109 @@ function compartilharPresencaWhatsApp(){
   mostrarNotificacaoPresenca('WhatsApp aberto! O resumo do plantão foi copiado para a área de transferência.');
 }
 
-function compartilharPresencaEmail(){
-  const { texto, dataFormatada } = montarResumoPresenca();
-  const assunto = 'Relatório de Presença por Função — ' + dataFormatada;
+function atualizarBotaoEmailPresenca(){
+  const btn = document.getElementById('btnCompartilharPresencaEmail');
+  if(!btn) return;
+  const prov = localStorage.getItem('mtc_provedor_email') || 'gmail';
+  let rotulo = '✉️ E-mail (Gmail)';
+  if(prov === 'outlook') rotulo = '✉️ E-mail (Outlook)';
+  else if(prov === 'mailto') rotulo = '✉️ E-mail (App PC)';
+  btn.textContent = rotulo;
+  btn.title = `Abrir em nova guia via ${prov === 'gmail' ? 'Gmail' : (prov === 'outlook' ? 'Outlook' : 'Aplicativo Padrão')}`;
+}
+
+function abrirModalOpcoesEmailPresenca(){
+  const prov = localStorage.getItem('mtc_provedor_email') || 'gmail';
+  const tagGmail = document.getElementById('tagPadraoGmail');
+  const tagOutlook = document.getElementById('tagPadraoOutlook');
+  const tagMailto = document.getElementById('tagPadraoMailto');
+  if(tagGmail) tagGmail.style.display = prov === 'gmail' ? 'inline-block' : 'none';
+  if(tagOutlook) tagOutlook.style.display = prov === 'outlook' ? 'inline-block' : 'none';
+  if(tagMailto) tagMailto.style.display = prov === 'mailto' ? 'inline-block' : 'none';
+  const modal = document.getElementById('modalOpcoesEmailPresenca');
+  if(modal) modal.classList.add('aberto');
+}
+
+function fecharModalOpcoesEmailPresenca(){
+  const modal = document.getElementById('modalOpcoesEmailPresenca');
+  if(modal) modal.classList.remove('aberto');
+}
+
+function escolherEExecutarProvedorEmail(provedor){
+  try {
+    localStorage.setItem('mtc_provedor_email', provedor);
+  } catch(e){}
+  atualizarBotaoEmailPresenca();
+  fecharModalOpcoesEmailPresenca();
+  abrirEmailEmNovaGuia(provedor);
+}
+
+function copiarTextoEmailPresenca(){
+  const { texto } = montarResumoPresenca();
   try {
     if(navigator.clipboard && navigator.clipboard.writeText){
       navigator.clipboard.writeText(texto);
     }
   } catch(e){}
-  window.location.href = 'mailto:?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(texto);
-  mostrarNotificacaoPresenca('E-mail aberto! O resumo do plantão foi copiado para a área de transferência.');
+  mostrarNotificacaoPresenca('Resumo do plantão copiado para a área de transferência!');
+}
+
+function abrirEmailEmNovaGuia(provedor){
+  const { texto, dataFormatada } = montarResumoPresenca();
+  const assunto = 'Relatório de Presença por Função — ' + dataFormatada;
+  
+  // Garantir cópia para a área de transferência
+  try {
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(texto);
+    }
+  } catch(e){}
+
+  let url = '';
+  let nomeProvedor = '';
+
+  if(provedor === 'outlook'){
+    url = 'https://outlook.live.com/mail/0/deeplink/compose?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(texto);
+    nomeProvedor = 'Outlook Web';
+  } else if(provedor === 'mailto'){
+    url = 'mailto:?subject=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(texto);
+    nomeProvedor = 'Aplicativo de E-mail';
+  } else {
+    // Padrão: Gmail Web
+    url = 'https://mail.google.com/mail/?view=cm&fs=1&su=' + encodeURIComponent(assunto) + '&body=' + encodeURIComponent(texto);
+    nomeProvedor = 'Gmail';
+  }
+
+  if(provedor === 'mailto'){
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    mostrarNotificacaoPresenca('Aplicativo de e-mail acionado! O resumo também foi copiado para a área de transferência.');
+  } else {
+    const win = window.open(url, '_blank', 'noopener,noreferrer');
+    if(win){
+      mostrarNotificacaoPresenca(`Nova guia aberta no ${nomeProvedor}! O resumo também foi copiado para a área de transferência.`);
+    } else {
+      // Se o navegador bloqueou pop-up, aciona via link clicável em nova guia
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      mostrarNotificacaoPresenca(`Tentando abrir nova guia no ${nomeProvedor}. O resumo também foi copiado.`);
+    }
+  }
+}
+
+function compartilharPresencaEmail(){
+  const prov = localStorage.getItem('mtc_provedor_email') || 'gmail';
+  abrirEmailEmNovaGuia(prov);
 }
 
 function abrirPresentesHoje(){
