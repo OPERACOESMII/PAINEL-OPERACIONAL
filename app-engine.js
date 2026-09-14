@@ -669,8 +669,28 @@ function setItemSeguro(chave, valor){
     return false;
   }
 }
+function compararNumeroChave(a, b){
+  if(!a && !b) return 0;
+  if(!a) return 1;
+  if(!b) return -1;
+  const numA = String(a.numero || '').trim();
+  const numB = String(b.numero || '').trim();
+  const parsedA = parseInt(numA.replace(/\D/g, ''), 10);
+  const parsedB = parseInt(numB.replace(/\D/g, ''), 10);
+  const valA = isNaN(parsedA) ? Infinity : parsedA;
+  const valB = isNaN(parsedB) ? Infinity : parsedB;
+  if(valA !== valB) return valA - valB;
+  const strCmp = numA.localeCompare(numB, undefined, {numeric: true, sensitivity: 'base'});
+  if(strCmp !== 0) return strCmp;
+  return (a.nome || '').localeCompare(b.nome || '', undefined, {sensitivity: 'base'});
+}
+window.compararNumeroChave = compararNumeroChave;
+
 function salvarLista(mod, lista){
   try{
+    if(mod === 'chaves' && Array.isArray(lista)){
+      lista.sort(compararNumeroChave);
+    }
     localStorage.setItem(MODULOS[mod].chave, JSON.stringify(lista));
     return true;
   }catch(erro){
@@ -1040,16 +1060,10 @@ function fecharEmUso(){
   document.getElementById('modalEmUso').classList.remove('aberto');
 }
 function popularSelectChavesDisponiveis(){
+  if(typeof window.garantirCatalogoChavesCompleto === 'function') window.garantirCatalogoChavesCompleto();
   const sel = document.getElementById('emprestimo-chaveId');
   const disponiveis = carregar('chaves').filter(i => !(i.retirada && !i.devolucao))
-    .sort((a,b) => {
-      const na = parseInt((a.numero||'').replace(/\D/g,''), 10);
-      const nb = parseInt((b.numero||'').replace(/\D/g,''), 10);
-      const va = isNaN(na) ? Infinity : na;
-      const vb = isNaN(nb) ? Infinity : nb;
-      if(va !== vb) return va - vb;
-      return (a.nome||'').localeCompare(b.nome||'');
-    });
+    .sort(compararNumeroChave);
   sel.innerHTML = '<option value="">Selecione a chave...</option>' +
     disponiveis.map(i => `<option value="${i.id}">${i.numero ? 'Nº ' + escapeHtml(i.numero) + ' — ' : ''}${escapeHtml(i.nome)}</option>`).join('');
 }
@@ -1069,11 +1083,15 @@ function registrarEmprestimo(){
 }
 function renderEmUso(){
   const lista = carregar('chaves').filter(i => i.retirada && !i.devolucao)
-    .sort((a,b) => (b.retirada||'').localeCompare(a.retirada||''));
+    .sort(compararNumeroChave);
   const cont = document.getElementById('lista-emuso');
   if(lista.length === 0){ cont.innerHTML = telaVazia('Nenhuma chave emprestada no momento.'); return; }
   cont.innerHTML = lista.map(i => `
     <div class="item-cartao alerta">
+      <div class="coluna-numero-chave" title="Chave Nº ${escapeHtml(i.numero || '—')}">
+        <span class="prefixo-n">Nº</span>
+        <span class="valor-numero-chave">${escapeHtml(i.numero || '—')}</span>
+      </div>
       <div class="franja"></div>
       ${i.imagem ? `<img src="${i.imagem}" style="width:56px;height:56px;object-fit:cover;border-radius:9px;border:1px solid var(--linha);flex-shrink:0;">` : ''}
       <div class="item-corpo">
@@ -1084,7 +1102,6 @@ function renderEmUso(){
         <div class="item-meta">
           Com: <code>${escapeHtml(i.responsavel||'—')}</code><br>
           Desde: ${formatarData(i.retirada)}
-          ${i.numero ? '<br>Nº ' + escapeHtml(i.numero) : ''}
         </div>
         <div class="item-acoes">
           <button onclick="devolverChave('${i.id}'); renderEmUso(); popularSelectChavesDisponiveis();" style="color:var(--ok); border-color:var(--ok-bg);">Devolver</button>
@@ -1094,11 +1111,24 @@ function renderEmUso(){
 }
 
 function renderChaves(){
+  if(typeof window.garantirCatalogoChavesCompleto === 'function') window.garantirCatalogoChavesCompleto();
   const lista = carregar('chaves');
-  const busca = (document.getElementById('buscaChaves').value || '').toLowerCase();
-  const filtrada = lista.filter(i =>
-    (i.nome||'').toLowerCase().includes(busca) || (i.responsavel||'').toLowerCase().includes(busca) || (i.numero||'').toLowerCase().includes(busca)
-  ).sort((a,b) => { const d = (b.criadoEm||'').localeCompare(a.criadoEm||''); if(d !== 0) return d; const na = parseInt(a.numero, 10); const nb = parseInt(b.numero, 10); if(!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb; return (a.numero||'').localeCompare(b.numero||'', undefined, {numeric: true}); });
+  const busca = (document.getElementById('buscaChaves').value || '').toLowerCase().trim();
+  const filtrada = lista.filter(i => {
+    if(!busca) return true;
+    const nome = (i.nome||'').toLowerCase();
+    const resp = (i.responsavel||'').toLowerCase();
+    const num = String(i.numero||'').toLowerCase();
+    const obs = (i.obs||'').toLowerCase();
+    return nome.includes(busca) ||
+           resp.includes(busca) ||
+           num.includes(busca) ||
+           ('chave ' + num).includes(busca) ||
+           ('chave nº ' + num).includes(busca) ||
+           ('nº ' + num).includes(busca) ||
+           ('n ' + num).includes(busca) ||
+           obs.includes(busca);
+  }).sort(compararNumeroChave);
 
   const total = lista.length;
   const emUso = lista.filter(i => i.retirada && !i.devolucao).length;
@@ -1117,6 +1147,10 @@ function renderChaves(){
     const statusTexto = emUsoAgora ? 'Em uso' : (i.retirada ? 'Devolvida' : 'Disponível');
     return `
     <div class="item-cartao ${emUsoAgora ? 'alerta' : 'ok'}">
+      <div class="coluna-numero-chave" title="Chave Nº ${escapeHtml(i.numero || '—')}">
+        <span class="prefixo-n">Nº</span>
+        <span class="valor-numero-chave">${escapeHtml(i.numero || '—')}</span>
+      </div>
       <div class="franja"></div>
       ${i.imagem ? `<img src="${i.imagem}" style="width:56px;height:56px;object-fit:cover;border-radius:9px;border:1px solid var(--linha);flex-shrink:0;">` : ''}
       <div class="item-corpo">
@@ -1125,7 +1159,6 @@ function renderChaves(){
           <span class="tag-status ${emUsoAgora ? 'alerta' : 'ok'}">${statusTexto}</span>
         </div>
         <div class="item-meta">
-          ${i.numero ? 'Nº <code>' + escapeHtml(i.numero) + '</code><br>' : ''}
           ${i.responsavel ? 'Responsável: <code>' + escapeHtml(i.responsavel) + '</code><br>' : ''}
           Retirada: ${formatarData(i.retirada)} · Devolução: ${formatarData(i.devolucao)}
           ${i.obs ? '<br>Obs: ' + escapeHtml(i.obs) : ''}
@@ -5017,25 +5050,25 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_7_5",
+    "id": "chave_seed_2026_6_5",
     "nome": "PILATES – 3º ANDAR",
     "responsavel": "",
     "retirada": "",
     "devolucao": "",
     "obs": "",
     "criadoEm": "2026-07-09T12:00:00.000Z",
-    "numero": "7",
+    "numero": "6",
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_8_6",
+    "id": "chave_seed_2026_7_6",
     "nome": "ATIVIDADES COLETIVAS 1 – 3º ANDAR",
     "responsavel": "",
     "retirada": "",
     "devolucao": "",
     "obs": "",
     "criadoEm": "2026-07-09T12:00:00.000Z",
-    "numero": "8",
+    "numero": "7",
     "imagem": ""
   },
   {
@@ -5171,8 +5204,19 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_21_19",
-    "nome": "BANHEIROS GRANDES – SALÃO DE FESTAS",
+    "id": "chave_seed_2026_20_19",
+    "nome": "BANHEIRO DOS GARÇOS DO SALAO DE FESTAS",
+    "responsavel": "",
+    "retirada": "",
+    "devolucao": "",
+    "obs": "",
+    "criadoEm": "2026-07-09T12:00:00.000Z",
+    "numero": "20",
+    "imagem": ""
+  },
+  {
+    "id": "chave_seed_2026_21_20",
+    "nome": "RESERVA",
     "responsavel": "",
     "retirada": "",
     "devolucao": "",
@@ -5182,7 +5226,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_22_20",
+    "id": "chave_seed_2026_22_21",
     "nome": "SALAS DE DANÇA 01 E 02 – 2º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5193,7 +5237,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_23_21",
+    "id": "chave_seed_2026_23_22",
     "nome": "IOGA – 2º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5204,7 +5248,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_24_22",
+    "id": "chave_seed_2026_24_23",
     "nome": "VESTIÁRIO FEMININO E PNE – 2º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5215,7 +5259,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_25_23",
+    "id": "chave_seed_2026_25_24",
     "nome": "PORTA DE ACESSO DA GALERIA AO VESTIÁRIO – 2º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5226,7 +5270,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_26_24",
+    "id": "chave_seed_2026_26_25",
     "nome": "PILATES – 2º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5237,7 +5281,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_27_25",
+    "id": "chave_seed_2026_27_26",
     "nome": "BANHEIROS FEM / MAS E PNE – RESTAURANTE – 2º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5248,7 +5292,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_28_26",
+    "id": "chave_seed_2026_28_27",
     "nome": "DEPÓSITO DE MATERIAIS – 2º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5259,7 +5303,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_29_27",
+    "id": "chave_seed_2026_29_28",
     "nome": "PORTARIA SEDE RESTAURANTE – 2º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5270,7 +5314,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_30_28",
+    "id": "chave_seed_2026_30_29",
     "nome": "PORTARIA SEDE SOCIAL DEAT – 2º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5281,7 +5325,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_31_29",
+    "id": "chave_seed_2026_31_30",
     "nome": "CENTRAL DE ATENDIMENTO – 2º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5292,7 +5336,18 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_33_30",
+    "id": "chave_seed_2026_32_31",
+    "nome": "ELEVADOR DE CARGA - SALAO DE FESTAS",
+    "responsavel": "",
+    "retirada": "",
+    "devolucao": "",
+    "obs": "",
+    "criadoEm": "2026-07-09T12:00:00.000Z",
+    "numero": "32",
+    "imagem": ""
+  },
+  {
+    "id": "chave_seed_2026_33_32",
     "nome": "GRADE EXTERNA ACESSO ELEVADOR DE CARGAS",
     "responsavel": "",
     "retirada": "",
@@ -5303,7 +5358,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_34_31",
+    "id": "chave_seed_2026_34_33",
     "nome": "PORTÃO DE CARGA E DESCARGA – DOCA",
     "responsavel": "",
     "retirada": "",
@@ -5314,7 +5369,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_35_32",
+    "id": "chave_seed_2026_35_34",
     "nome": "DEPÓSITOS DE MATERIAIS – DOCA",
     "responsavel": "",
     "retirada": "",
@@ -5325,7 +5380,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_36_33",
+    "id": "chave_seed_2026_36_35",
     "nome": "CENTRAL DE DILUIÇÃO – DOCA",
     "responsavel": "",
     "retirada": "",
@@ -5336,7 +5391,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_37_34",
+    "id": "chave_seed_2026_37_36",
     "nome": "VESTIÁRIOS MASC E FEM TERCEIRIZADOS – DOCA",
     "responsavel": "",
     "retirada": "",
@@ -5347,7 +5402,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_38_35",
+    "id": "chave_seed_2026_38_37",
     "nome": "SALA DE TREINAMENTO E REUNIÃO – DOCA",
     "responsavel": "",
     "retirada": "",
@@ -5358,7 +5413,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_39_36",
+    "id": "chave_seed_2026_39_38",
     "nome": "SALA DE PREPARAÇÃO FÍSICA DOS ATLETAS",
     "responsavel": "",
     "retirada": "",
@@ -5369,7 +5424,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_40_37",
+    "id": "chave_seed_2026_40_39",
     "nome": "PORTA DE MADEIRA DA DOCA / SEDE SOCIAL – 1º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5380,7 +5435,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_41_38",
+    "id": "chave_seed_2026_41_40",
     "nome": "TECNOLOGIA DA INFORMAÇÃO – 1º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5391,8 +5446,19 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_43_39",
+    "id": "chave_seed_2026_42_41",
     "nome": "JUDÔ / KARATÊ – 1º ANDAR",
+    "responsavel": "",
+    "retirada": "",
+    "devolucao": "",
+    "obs": "",
+    "criadoEm": "2026-07-09T12:00:00.000Z",
+    "numero": "42",
+    "imagem": ""
+  },
+  {
+    "id": "chave_seed_2026_43_42",
+    "nome": "SALA DE JOGOS – SINUCA E CARTEADO – 1º ANDAR",
     "responsavel": "",
     "retirada": "",
     "devolucao": "",
@@ -5402,7 +5468,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_44_40",
+    "id": "chave_seed_2026_44_43",
     "nome": "COZINHA SALA DE JOGOS",
     "responsavel": "",
     "retirada": "",
@@ -5413,18 +5479,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_45_41",
-    "nome": "SALA DE JOGOS – SINUCA E CARTEADO – 1º ANDAR",
-    "responsavel": "",
-    "retirada": "",
-    "devolucao": "",
-    "obs": "",
-    "criadoEm": "2026-07-09T12:00:00.000Z",
-    "numero": "45",
-    "imagem": ""
-  },
-  {
-    "id": "chave_seed_2026_45_42",
+    "id": "chave_seed_2026_45_44",
     "nome": "SALA DA SUPERINTENDÊNCIA – 1º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5435,7 +5490,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_46_43",
+    "id": "chave_seed_2026_46_45",
     "nome": "SALA DE AVALIAÇÃO FISIOTERÁPICA – 1º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5446,7 +5501,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_47_44",
+    "id": "chave_seed_2026_47_46",
     "nome": "BANHEIROS MASCULINO E FEMININO – 1º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5457,7 +5512,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_48_45",
+    "id": "chave_seed_2026_48_47",
     "nome": "BANHEIROS FEMININO E MASCULINO PNE – 1º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5468,7 +5523,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_49_46",
+    "id": "chave_seed_2026_49_48",
     "nome": "JARDIM DE INVERNO – 1º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5479,7 +5534,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_50_47",
+    "id": "chave_seed_2026_50_49",
     "nome": "DEPÓSITO DE SAUNAS – 1º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5490,7 +5545,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_51_48",
+    "id": "chave_seed_2026_51_50",
     "nome": "SAUNA MASCULINA – 1º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5501,7 +5556,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_52_49",
+    "id": "chave_seed_2026_52_51",
     "nome": "SAUNA FEMININA – 1º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5512,7 +5567,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_53_50",
+    "id": "chave_seed_2026_53_52",
     "nome": "PORTA DE ENTRADA DA SEDE SOCIAL – 1º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -5523,7 +5578,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_54_51",
+    "id": "chave_seed_2026_54_53",
     "nome": "DEPÓSITO ESPAÇO MULTIUSO",
     "responsavel": "",
     "retirada": "",
@@ -5534,7 +5589,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_55_52",
+    "id": "chave_seed_2026_55_54",
     "nome": "LANCHONETE ESPAÇO MULTIUSO",
     "responsavel": "",
     "retirada": "",
@@ -5545,7 +5600,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_56_53",
+    "id": "chave_seed_2026_56_55",
     "nome": "SANITÁRIOS FEM / PNE – GRAMADO",
     "responsavel": "",
     "retirada": "",
@@ -5556,7 +5611,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_57_54",
+    "id": "chave_seed_2026_57_56",
     "nome": "SANITÁRIOS MAS / PNE – GRAMADO",
     "responsavel": "",
     "retirada": "",
@@ -5567,7 +5622,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_58_55",
+    "id": "chave_seed_2026_58_57",
     "nome": "PORTÃO CARGA E DESCARGA – GRAMADO",
     "responsavel": "",
     "retirada": "",
@@ -5578,7 +5633,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_59_56",
+    "id": "chave_seed_2026_59_58",
     "nome": "PORTARIA IVAÍ",
     "responsavel": "",
     "retirada": "",
@@ -5589,7 +5644,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_60_57",
+    "id": "chave_seed_2026_60_59",
     "nome": "PORTÃO SERVIÇOS IVAÍ",
     "responsavel": "",
     "retirada": "",
@@ -5600,7 +5655,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_61_58",
+    "id": "chave_seed_2026_61_60",
     "nome": "BANHEIROS FEM / MAS E PNE'S – OLÍMPICA",
     "responsavel": "",
     "retirada": "",
@@ -5611,7 +5666,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_62_59",
+    "id": "chave_seed_2026_62_61",
     "nome": "GALERIA TÉCNICA QUIOSQUES – OLÍMPICA",
     "responsavel": "",
     "retirada": "",
@@ -5622,7 +5677,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_63_60",
+    "id": "chave_seed_2026_63_62",
     "nome": "SALA TI / GALERIA TÉCNICA – OLÍMPICA",
     "responsavel": "",
     "retirada": "",
@@ -5633,7 +5688,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_64_61",
+    "id": "chave_seed_2026_64_63",
     "nome": "EXAUSTOR / VENTILADOR / VENTILAÇÃO TÉCNICA – OLÍMPICA",
     "responsavel": "",
     "retirada": "",
@@ -5644,7 +5699,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_65_62",
+    "id": "chave_seed_2026_65_64",
     "nome": "DEPÓSITOS A/S / GALERIA TÉCNICA – OLÍMPICA",
     "responsavel": "",
     "retirada": "",
@@ -5655,7 +5710,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_66_63",
+    "id": "chave_seed_2026_66_65",
     "nome": "SANITÁRIOS MAS E FEM – GALERIA TÉCNICA",
     "responsavel": "",
     "retirada": "",
@@ -5666,7 +5721,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_67_64",
+    "id": "chave_seed_2026_67_66",
     "nome": "SALA NATAÇÃO OLÍMPICA / CONTROLE",
     "responsavel": "",
     "retirada": "",
@@ -5677,7 +5732,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_68_65",
+    "id": "chave_seed_2026_68_67",
     "nome": "DEPÓSITO PISCINA OLÍMPICA / CONTROLE / MOTOR",
     "responsavel": "",
     "retirada": "",
@@ -5688,7 +5743,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_69_66",
+    "id": "chave_seed_2026_69_68",
     "nome": "DEPÓSITO PRÓXIMO À RAMPA OLÍMPICA / GRAMADO",
     "responsavel": "",
     "retirada": "",
@@ -5699,7 +5754,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_70_67",
+    "id": "chave_seed_2026_70_69",
     "nome": "TOBOÁGUA",
     "responsavel": "",
     "retirada": "",
@@ -5710,7 +5765,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_71_68",
+    "id": "chave_seed_2026_71_70",
     "nome": "VESTIÁRIO CENTRAL FEMININO / GALERIA / DML",
     "responsavel": "",
     "retirada": "",
@@ -5721,7 +5776,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_72_69",
+    "id": "chave_seed_2026_72_71",
     "nome": "VESTIÁRIOS PNE FEM – CORREDOR MANGABEIRAS",
     "responsavel": "",
     "retirada": "",
@@ -5732,7 +5787,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_73_70",
+    "id": "chave_seed_2026_73_72",
     "nome": "ACOMPANHAMENTO ESCOLAR",
     "responsavel": "",
     "retirada": "",
@@ -5743,7 +5798,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_74_71",
+    "id": "chave_seed_2026_74_73",
     "nome": "ENFERMARIA / DESFIBRILADOR",
     "responsavel": "",
     "retirada": "",
@@ -5754,7 +5809,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_75_72",
+    "id": "chave_seed_2026_75_74",
     "nome": "VESTIÁRIO CENTRAL MASCULINO / GALERIA / DML",
     "responsavel": "",
     "retirada": "",
@@ -5765,7 +5820,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_76_73",
+    "id": "chave_seed_2026_76_75",
     "nome": "BANHEIROS FEM / MAS E PNE – LANCHONETE CENTRAL",
     "responsavel": "",
     "retirada": "",
@@ -5776,7 +5831,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_77_74",
+    "id": "chave_seed_2026_77_76",
     "nome": "PORTARIA MANGABEIRAS",
     "responsavel": "",
     "retirada": "",
@@ -5787,7 +5842,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_78_75",
+    "id": "chave_seed_2026_78_77",
     "nome": "PERDIDOS E ACHADOS",
     "responsavel": "",
     "retirada": "",
@@ -5798,7 +5853,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_79_76",
+    "id": "chave_seed_2026_79_78",
     "nome": "SANITÁRIOS FEM / MAS E PNE – PETECAS DESCOBERTAS",
     "responsavel": "",
     "retirada": "",
@@ -5809,7 +5864,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_80_77",
+    "id": "chave_seed_2026_80_79",
     "nome": "PORTÃO SOÇAITE",
     "responsavel": "",
     "retirada": "",
@@ -5820,7 +5875,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_81_78",
+    "id": "chave_seed_2026_81_80",
     "nome": "CENTRAL DILUIÇÃO / DEPÓSITOS OPERACIONAIS",
     "responsavel": "",
     "retirada": "",
@@ -5831,7 +5886,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_82_79",
+    "id": "chave_seed_2026_82_81",
     "nome": "SALA OPERACIONAL / A&B",
     "responsavel": "",
     "retirada": "",
@@ -5842,7 +5897,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_83_80",
+    "id": "chave_seed_2026_83_82",
     "nome": "SALA DE OPERAÇÕES DM2",
     "responsavel": "",
     "retirada": "",
@@ -5853,7 +5908,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_84_81",
+    "id": "chave_seed_2026_84_83",
     "nome": "GERÊNCIA DA UNIDADE DM2",
     "responsavel": "",
     "retirada": "",
@@ -5864,7 +5919,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_85_82",
+    "id": "chave_seed_2026_85_84",
     "nome": "ESPAÇO DA CRIANÇA",
     "responsavel": "",
     "retirada": "",
@@ -5875,7 +5930,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_86_83",
+    "id": "chave_seed_2026_86_85",
     "nome": "CURSO BÁSICO ESPORTIVO (GEDU)",
     "responsavel": "",
     "retirada": "",
@@ -5886,7 +5941,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_87_84",
+    "id": "chave_seed_2026_87_86",
     "nome": "BANHEIROS FEM / MAS E PNE – PISCINAS DESCOBERTAS",
     "responsavel": "",
     "retirada": "",
@@ -5897,7 +5952,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_88_85",
+    "id": "chave_seed_2026_88_87",
     "nome": "DEPARTAMENTO DE NATAÇÃO – PISCINA CENTRAL",
     "responsavel": "",
     "retirada": "",
@@ -5908,7 +5963,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_89_86",
+    "id": "chave_seed_2026_89_88",
     "nome": "DEPÓSITO OPERACIONAL RAMPA ORIENTE",
     "responsavel": "",
     "retirada": "",
@@ -5919,7 +5974,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_90_87",
+    "id": "chave_seed_2026_90_89",
     "nome": "VESTIÁRIOS FEM E MAS DE COLABORADORES",
     "responsavel": "",
     "retirada": "",
@@ -5930,7 +5985,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_91_88",
+    "id": "chave_seed_2026_91_90",
     "nome": "PORTÃO CARGA E DESCARGA – ORIENTE",
     "responsavel": "",
     "retirada": "",
@@ -5941,7 +5996,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_92_89",
+    "id": "chave_seed_2026_92_91",
     "nome": "ESPAÇO SINUCA DE COLABORADORES",
     "responsavel": "",
     "retirada": "",
@@ -5952,7 +6007,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_93_90",
+    "id": "chave_seed_2026_93_92",
     "nome": "PORTARIA DE SERVIÇOS / HIDRANTE",
     "responsavel": "",
     "retirada": "",
@@ -5963,7 +6018,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_94_91",
+    "id": "chave_seed_2026_94_93",
     "nome": "SANITÁRIOS FEMININO E MASCULINO – PISO 4",
     "responsavel": "",
     "retirada": "",
@@ -5974,7 +6029,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_95_92",
+    "id": "chave_seed_2026_95_94",
     "nome": "SEGURANÇA DO TRABALHO (ESMIT) – PISO 3",
     "responsavel": "",
     "retirada": "",
@@ -5985,7 +6040,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_96_93",
+    "id": "chave_seed_2026_96_95",
     "nome": "PORTA DE ACESSO AO REFEITÓRIO – PISO 3",
     "responsavel": "",
     "retirada": "",
@@ -5996,7 +6051,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_97_94",
+    "id": "chave_seed_2026_97_96",
     "nome": "ESCADA ACESSO 2º PISO / ESTACIONAMENTO",
     "responsavel": "",
     "retirada": "",
@@ -6007,7 +6062,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_98_95",
+    "id": "chave_seed_2026_98_97",
     "nome": "ESCADA ACESSO 1º PISO / ESTACIONAMENTO",
     "responsavel": "",
     "retirada": "",
@@ -6018,7 +6073,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_99_96",
+    "id": "chave_seed_2026_99_98",
     "nome": "SALA ESTAPAR – PISO 2",
     "responsavel": "",
     "retirada": "",
@@ -6029,7 +6084,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_100_97",
+    "id": "chave_seed_2026_100_99",
     "nome": "SALA ESTAPAR – PISO 1",
     "responsavel": "",
     "retirada": "",
@@ -6040,7 +6095,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_101_98",
+    "id": "chave_seed_2026_101_100",
     "nome": "SALA DE TV SETOR DE TÊNIS – GINÁSIO",
     "responsavel": "",
     "retirada": "",
@@ -6051,7 +6106,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_102_99",
+    "id": "chave_seed_2026_102_101",
     "nome": "BANHEIROS MAS / FEM E PNE – SETOR TÊNIS / GINÁSIO",
     "responsavel": "",
     "retirada": "",
@@ -6062,7 +6117,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_103_100",
+    "id": "chave_seed_2026_103_102",
     "nome": "COORDENAÇÃO DEPARTAMENTO DE TÊNIS – GINÁSIO",
     "responsavel": "",
     "retirada": "",
@@ -6073,7 +6128,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_104_101",
+    "id": "chave_seed_2026_104_103",
     "nome": "BANHEIROS MAS E FEM – PETECAS COBERTAS / GINÁSIO",
     "responsavel": "",
     "retirada": "",
@@ -6084,7 +6139,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_105_102",
+    "id": "chave_seed_2026_105_104",
     "nome": "CHAVE DO PAREDÃO / DEPÓSITOS GEDU – GINÁSIO",
     "responsavel": "",
     "retirada": "",
@@ -6095,7 +6150,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_106_103",
+    "id": "chave_seed_2026_106_105",
     "nome": "COORDENAÇÃO FUTEBOL/FUTSAL – GINÁSIO",
     "responsavel": "",
     "retirada": "",
@@ -6106,7 +6161,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_107_104",
+    "id": "chave_seed_2026_107_106",
     "nome": "COORDENAÇÃO VÔLEI/BASQUETE – GINÁSIO / DEPÓSITO DE BOLAS",
     "responsavel": "",
     "retirada": "",
@@ -6117,7 +6172,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_108_105",
+    "id": "chave_seed_2026_108_107",
     "nome": "DEPÓSITO DO TÊNIS – SUBSOLO",
     "responsavel": "",
     "retirada": "",
@@ -6128,7 +6183,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_109_106",
+    "id": "chave_seed_2026_109_108",
     "nome": "DEPÓSITO / ABAIXO ELEVADOR DE CARGAS – SUBSOLO",
     "responsavel": "",
     "retirada": "",
@@ -6139,7 +6194,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_110_107",
+    "id": "chave_seed_2026_110_109",
     "nome": "SANITÁRIO FEMININO E MASCULINO – SUBSOLO",
     "responsavel": "",
     "retirada": "",
@@ -6150,7 +6205,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_111_108",
+    "id": "chave_seed_2026_111_110",
     "nome": "PORTÃO TRIFANA",
     "responsavel": "",
     "retirada": "",
@@ -6161,7 +6216,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_112_109",
+    "id": "chave_seed_2026_112_111",
     "nome": "DEPÓSITO DE RESÍDUOS – TRIFANA / SUBSOLO",
     "responsavel": "",
     "retirada": "",
@@ -6172,7 +6227,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_113_110",
+    "id": "chave_seed_2026_113_112",
     "nome": "DEPÓSITO GEDU",
     "responsavel": "",
     "retirada": "",
@@ -6183,7 +6238,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_114_111",
+    "id": "chave_seed_2026_114_113",
     "nome": "DEPÓSITO OPERACIONAL TRIFANA / SUBSOLO",
     "responsavel": "",
     "retirada": "",
@@ -6194,7 +6249,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_115_112",
+    "id": "chave_seed_2026_115_114",
     "nome": "PORTÃO DE SAÍDA DE EMERGÊNCIA – TÊNIS / TRIFANA",
     "responsavel": "",
     "retirada": "",
@@ -6205,7 +6260,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_116_113",
+    "id": "chave_seed_2026_116_115",
     "nome": "ROLETAS DAS PORTARIAS",
     "responsavel": "",
     "retirada": "",
@@ -6216,7 +6271,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_117_114",
+    "id": "chave_seed_2026_117_116",
     "nome": "RESERVA",
     "responsavel": "",
     "retirada": "",
@@ -6227,7 +6282,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_148_115",
+    "id": "chave_seed_2026_148_117",
     "nome": "ESCADA ACESSO 3º PISO / ESTACIONAMENTO",
     "responsavel": "",
     "retirada": "",
@@ -6238,7 +6293,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_149_116",
+    "id": "chave_seed_2026_149_118",
     "nome": "RESTAURANTE – 2º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -6249,7 +6304,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_150_117",
+    "id": "chave_seed_2026_150_119",
     "nome": "SALÃO DE BELEZA – 1º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -6260,7 +6315,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_151_118",
+    "id": "chave_seed_2026_151_120",
     "nome": "LOJA MINAS STORE / DEPÓSITO",
     "responsavel": "",
     "retirada": "",
@@ -6271,7 +6326,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_152_119",
+    "id": "chave_seed_2026_152_121",
     "nome": "LOJA TRACK FIELD",
     "responsavel": "",
     "retirada": "",
@@ -6282,7 +6337,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_153_120",
+    "id": "chave_seed_2026_153_122",
     "nome": "LANCHONETE PISCINAS DESCOBERTAS",
     "responsavel": "",
     "retirada": "",
@@ -6293,7 +6348,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_154_121",
+    "id": "chave_seed_2026_154_123",
     "nome": "LANCHONETE PETECAS DESCOBERTAS",
     "responsavel": "",
     "retirada": "",
@@ -6304,7 +6359,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_155_122",
+    "id": "chave_seed_2026_155_124",
     "nome": "LANCHONETE GINÁSIO",
     "responsavel": "",
     "retirada": "",
@@ -6315,7 +6370,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_156_123",
+    "id": "chave_seed_2026_156_125",
     "nome": "DEPÓSITO A&B – CONCESSIONÁRIO / CENTRAL DILUIÇÃO",
     "responsavel": "",
     "retirada": "",
@@ -6326,7 +6381,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_157_124",
+    "id": "chave_seed_2026_157_126",
     "nome": "SISTEMA DE AR-CONDICIONADO – SALÃO DE FESTAS",
     "responsavel": "",
     "retirada": "",
@@ -6337,7 +6392,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_158_125",
+    "id": "chave_seed_2026_158_127",
     "nome": "QUADRO DE ENERGIA / DETI – 2º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -6348,7 +6403,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_159_126",
+    "id": "chave_seed_2026_159_128",
     "nome": "RESERVATÓRIOS DE ÁGUA – 5º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -6359,7 +6414,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_160_127",
+    "id": "chave_seed_2026_160_129",
     "nome": "DISTRIBUIÇÃO GERAL (DG)",
     "responsavel": "",
     "retirada": "",
@@ -6370,7 +6425,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_161_128",
+    "id": "chave_seed_2026_161_130",
     "nome": "QUADRO DE ILUMINAÇÃO DE EMERGÊNCIA – PISO 3",
     "responsavel": "",
     "retirada": "",
@@ -6381,7 +6436,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_162_129",
+    "id": "chave_seed_2026_162_131",
     "nome": "QUADROS ELÉTRICOS DA AUTOMAÇÃO",
     "responsavel": "",
     "retirada": "",
@@ -6392,7 +6447,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_163_130",
+    "id": "chave_seed_2026_163_132",
     "nome": "CASA DE MÁQUINAS – ELEVADOR DE CARGAS",
     "responsavel": "",
     "retirada": "",
@@ -6403,7 +6458,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_164_131",
+    "id": "chave_seed_2026_164_133",
     "nome": "CASA DE MÁQUINAS – BOMBA DE INCÊNDIO PCA ESPORTES",
     "responsavel": "",
     "retirada": "",
@@ -6414,7 +6469,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_165_132",
+    "id": "chave_seed_2026_165_134",
     "nome": "CASA DE MÁQUINAS ETA – ORIENTE",
     "responsavel": "",
     "retirada": "",
@@ -6425,7 +6480,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_166_133",
+    "id": "chave_seed_2026_166_135",
     "nome": "DEPÓSITO DE GÁS – CAMPO SOÇAITE",
     "responsavel": "",
     "retirada": "",
@@ -6436,7 +6491,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_167_134",
+    "id": "chave_seed_2026_167_136",
     "nome": "SISTEMA DE ELEVADORES / ESCADA CARACOL – PISO 4",
     "responsavel": "",
     "retirada": "",
@@ -6447,7 +6502,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_168_135",
+    "id": "chave_seed_2026_168_137",
     "nome": "PORTA DE ACESSO HALL ELEVADORES – PISO 2",
     "responsavel": "",
     "retirada": "",
@@ -6458,7 +6513,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_169_136",
+    "id": "chave_seed_2026_169_138",
     "nome": "PORTÃO RAMPA ACESSO DMAN – PISO 1",
     "responsavel": "",
     "retirada": "",
@@ -6469,7 +6524,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_170_137",
+    "id": "chave_seed_2026_170_139",
     "nome": "PORTÕES DE ACESSO MANUTENÇÃO (DMAN) – SUBSOLO",
     "responsavel": "",
     "retirada": "",
@@ -6480,7 +6535,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_171_138",
+    "id": "chave_seed_2026_171_140",
     "nome": "SALA ENCARREGADOS MANUTENÇÃO (DMAN) – SUBSOLO",
     "responsavel": "",
     "retirada": "",
@@ -6491,7 +6546,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_172_139",
+    "id": "chave_seed_2026_172_141",
     "nome": "SALA ELETRICISTAS E BOMBEIROS (DMAN) – SUBSOLO",
     "responsavel": "",
     "retirada": "",
@@ -6502,7 +6557,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_173_140",
+    "id": "chave_seed_2026_173_142",
     "nome": "SALA JARDINAGEM/PINTURA (DMAN) – SUBSOLO",
     "responsavel": "",
     "retirada": "",
@@ -6513,7 +6568,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_174_141",
+    "id": "chave_seed_2026_174_143",
     "nome": "SALA SERRALHERIA E CARPINTARIA (DMAN) – SUBSOLO",
     "responsavel": "",
     "retirada": "",
@@ -6524,7 +6579,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_175_142",
+    "id": "chave_seed_2026_175_144",
     "nome": "DEPÓSITOS DMAN 01 E 02 / VIVEIRO – TRIFANA",
     "responsavel": "",
     "retirada": "",
@@ -6535,7 +6590,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_176_143",
+    "id": "chave_seed_2026_176_145",
     "nome": "SALA OPERACIONAL AO LADO DA SERRALHERIA",
     "responsavel": "",
     "retirada": "",
@@ -6546,7 +6601,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_177_144",
+    "id": "chave_seed_2026_177_146",
     "nome": "SALA COORDENAÇÃO MANUTENÇÃO (DMAN) – SUBSOLO",
     "responsavel": "",
     "retirada": "",
@@ -6557,7 +6612,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_178_145",
+    "id": "chave_seed_2026_178_147",
     "nome": "PORTA DE ACESSO HALL ELEVADORES – PISO 3",
     "responsavel": "",
     "retirada": "",
@@ -6568,7 +6623,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_179_146",
+    "id": "chave_seed_2026_179_148",
     "nome": "SISTEMA AQUECIMENTO SOLAR – 5º ANDAR",
     "responsavel": "",
     "retirada": "",
@@ -6579,7 +6634,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_180_147",
+    "id": "chave_seed_2026_180_149",
     "nome": "SISTEMA DE AQUECIMENTO SOLAR – GINÁSIO",
     "responsavel": "",
     "retirada": "",
@@ -6590,7 +6645,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_181_148",
+    "id": "chave_seed_2026_181_150",
     "nome": "SUBESTAÇÃO SEDE SOCIAL",
     "responsavel": "",
     "retirada": "",
@@ -6601,7 +6656,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_182_149",
+    "id": "chave_seed_2026_182_151",
     "nome": "SUBESTAÇÃO SAUNAS",
     "responsavel": "",
     "retirada": "",
@@ -6612,7 +6667,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_183_150",
+    "id": "chave_seed_2026_183_152",
     "nome": "SUBESTAÇÃO PARQUE INFANTIL (ETA) E ETA 02",
     "responsavel": "",
     "retirada": "",
@@ -6623,7 +6678,7 @@ const CHAVES_SEED = [
     "imagem": ""
   },
   {
-    "id": "chave_seed_2026_184_151",
+    "id": "chave_seed_2026_184_153",
     "nome": "SUBESTAÇÃO RAMPA ORIENTE/ CABINE DE MEDIÇÃO",
     "responsavel": "",
     "retirada": "",
@@ -6635,55 +6690,145 @@ const CHAVES_SEED = [
   }
 ];
 
+function garantirCatalogoChavesCompleto(){
+  try {
+    let lista = carregar('chaves');
+    if(!Array.isArray(lista) || lista.length === 0){
+      salvarLista('chaves', CHAVES_SEED);
+      return;
+    }
+    const numerosExistentes = new Set();
+    const nomesExistentes = new Set();
+    lista.forEach(c => {
+      if(!c) return;
+      const num = String(c.numero || '').trim();
+      if(num) numerosExistentes.add(num);
+      if(c.nome) nomesExistentes.add(c.nome.trim().toLowerCase());
+    });
+
+    let adicionou = false;
+    CHAVES_SEED.forEach(seedKey => {
+      const num = String(seedKey.numero || '').trim();
+      const nomeNorm = (seedKey.nome || '').trim().toLowerCase();
+      if(!numerosExistentes.has(num) && !nomesExistentes.has(nomeNorm)){
+        lista.push({
+          id: seedKey.id || ('chave_seed_2026_' + num + '_' + Math.random().toString(36).substring(2,6)),
+          nome: seedKey.nome,
+          responsavel: '',
+          retirada: '',
+          devolucao: '',
+          obs: '',
+          criadoEm: seedKey.criadoEm || new Date().toISOString(),
+          numero: num,
+          imagem: ''
+        });
+        numerosExistentes.add(num);
+        nomesExistentes.add(nomeNorm);
+        adicionou = true;
+      }
+    });
+
+    if(adicionou){
+      lista.sort(compararNumeroChave);
+      salvarLista('chaves', lista);
+      if(window.PainelNuvem && typeof PainelNuvem.backup === 'function'){
+        PainelNuvem.backup();
+      }
+    }
+  } catch(e) {
+    console.error('Erro ao garantir catálogo de chaves:', e);
+  }
+}
+window.garantirCatalogoChavesCompleto = garantirCatalogoChavesCompleto;
+
 (function inicializarChaves(){
   const existente = localStorage.getItem('mtc_chaves');
   if(!existente || JSON.parse(existente).length === 0){
     salvarLista('chaves', CHAVES_SEED);
+  } else {
+    garantirCatalogoChavesCompleto();
   }
 })();
 
-/* Atualização oficial 2026: sincroniza o cadastro com a nova listagem oficial (152 chaves),
+/* Atualização oficial 2026: sincroniza o cadastro com a listagem oficial atualizada (154 chaves),
    preservando o status de retiradas em andamento, observações e imagens já registradas. */
 (function atualizarChavesCatalogo2026(){
-  const VERSAO = '2026_nova_listagem_v2';
-  if(localStorage.getItem('mtc_chaves_versao') === VERSAO) return;
+  const VERSAO = '2026_nova_listagem_v5_ordem_numerica_lado_barra';
+  if(localStorage.getItem('mtc_chaves_versao') === VERSAO){
+    garantirCatalogoChavesCompleto();
+    return;
+  }
 
   const atuais = carregar('chaves');
   const emUsoPorNumero = {};
+  const emUsoPorNome = {};
   const fotosPorNumero = {};
+  const fotosPorNome = {};
   const obsPorNumero = {};
+  const obsPorNome = {};
 
   if(Array.isArray(atuais)){
     atuais.forEach(c => {
-      if(c && c.numero){
-        if(c.retirada && !c.devolucao){
-          emUsoPorNumero[c.numero] = {
-            responsavel: c.responsavel || '',
-            retirada: c.retirada || '',
-            devolucao: c.devolucao || ''
-          };
-        }
-        if(c.imagem) fotosPorNumero[c.numero] = c.imagem;
-        if(c.obs) obsPorNumero[c.numero] = c.obs;
+      if(!c) return;
+      const nomeNorm = (c.nome || '').trim().toLowerCase();
+      const num = String(c.numero || '').trim();
+      if(c.retirada && !c.devolucao){
+        const uso = {
+          responsavel: c.responsavel || '',
+          retirada: c.retirada || '',
+          devolucao: c.devolucao || ''
+        };
+        if(num) emUsoPorNumero[num] = uso;
+        if(nomeNorm) emUsoPorNome[nomeNorm] = uso;
+      }
+      if(c.imagem){
+        if(num) fotosPorNumero[num] = c.imagem;
+        if(nomeNorm) fotosPorNome[nomeNorm] = c.imagem;
+      }
+      if(c.obs){
+        if(num) obsPorNumero[num] = c.obs;
+        if(nomeNorm) obsPorNome[nomeNorm] = c.obs;
       }
     });
   }
 
   const novaLista = CHAVES_SEED.map(c => {
-    const uso = emUsoPorNumero[c.numero];
+    const num = String(c.numero || '').trim();
+    const nomeNorm = (c.nome || '').trim().toLowerCase();
+    const uso = emUsoPorNome[nomeNorm] || emUsoPorNumero[num];
     return {
       ...c,
       responsavel: uso ? uso.responsavel : (c.responsavel || ''),
       retirada: uso ? uso.retirada : (c.retirada || ''),
       devolucao: uso ? uso.devolucao : (c.devolucao || ''),
-      imagem: fotosPorNumero[c.numero] || c.imagem || '',
-      obs: obsPorNumero[c.numero] || c.obs || ''
+      imagem: fotosPorNome[nomeNorm] || fotosPorNumero[num] || c.imagem || '',
+      obs: obsPorNome[nomeNorm] || obsPorNumero[num] || c.obs || ''
     };
   });
+
+  // Preserva eventuais chaves customizadas adicionadas manualmente
+  if(Array.isArray(atuais)){
+    const numerosOficiais = new Set(CHAVES_SEED.map(c => String(c.numero).trim()));
+    const nomesOficiais = new Set(CHAVES_SEED.map(c => (c.nome || '').trim().toLowerCase()));
+    atuais.forEach(c => {
+      if(c && c.id && !c.id.startsWith('chave_seed_')){
+        const num = String(c.numero || '').trim();
+        const nomeNorm = (c.nome || '').trim().toLowerCase();
+        if(!numerosOficiais.has(num) && !nomesOficiais.has(nomeNorm)){
+          novaLista.push(c);
+        }
+      }
+    });
+  }
+
+  novaLista.sort(compararNumeroChave);
 
   const salvou = salvarLista('chaves', novaLista);
   if(salvou){
     localStorage.setItem('mtc_chaves_versao', VERSAO);
+    if(window.PainelNuvem && typeof PainelNuvem.backup === 'function'){
+      PainelNuvem.backup();
+    }
   }
 })();
 
