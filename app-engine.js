@@ -1503,21 +1503,95 @@ function renderMateriais(){
       </div>
     </div>`).join('') + (filtrada.length > 150 ? `<div class="vazio">Mostrando 150 de ${filtrada.length} resultados. Refine a busca para ver mais.</div>` : '');
 }
-function adicionarSolicitacao(nome, categoria, unidade){
+function obterCodigoSolicitacao(item){
+  if(!item) return '—';
+  if(item.codigo && String(item.codigo).trim()) return String(item.codigo).trim();
+
+  const nome = (item.nome || '').trim().toLowerCase();
+  if(!nome) return '—';
+
+  // 1. Tenta em materiaisCatalogo
+  try {
+    const listaM = carregar('materiaisCatalogo');
+    const m = listaM.find(x => ((x.descricaoCompleta||'').trim().toLowerCase() === nome) || ((x.descricao||'').trim().toLowerCase() === nome));
+    if(m && m.codigo) return String(m.codigo).trim();
+  }catch(e){}
+
+  // 2. Tenta em escritorioCatalogo
+  try {
+    const listaE = carregar('escritorioCatalogo');
+    const e = listaE.find(x => ((x.descricaoCompleta||'').trim().toLowerCase() === nome) || ((x.descricao||'').trim().toLowerCase() === nome));
+    if(e && e.codigo) return String(e.codigo).trim();
+  }catch(e){}
+
+  // 3. Tenta em uniformesCatalogo
+  try {
+    const listaU = carregar('uniformesCatalogo');
+    const u = listaU.find(x => ((x.descricaoCompleta||'').trim().toLowerCase() === nome) || ((x.descricao||'').trim().toLowerCase() === nome));
+    if(u && u.codigo) return String(u.codigo).trim();
+  }catch(e){}
+
+  // 4. Tenta em alimentos
+  try {
+    if(typeof listaAlimentosCompleta === 'function'){
+      const al = listaAlimentosCompleta().find(r => (r[1]||'').trim().toLowerCase() === nome);
+      if(al && al[0]) return String(al[0]).trim();
+    }
+  }catch(e){}
+
+  // 5. Tenta em OUTROS_SEED
+  try {
+    if(typeof OUTROS_SEED !== 'undefined'){
+      const out = OUTROS_SEED.find(r => (r[1]||'').trim().toLowerCase() === nome);
+      if(out && out[0]) return String(out[0]).trim();
+    }
+  }catch(e){}
+
+  // 6. Tenta em categorias customizadas
+  try {
+    if(typeof carregarCategoriasCustom === 'function' && typeof carregarItensCustom === 'function'){
+      const cats = carregarCategoriasCustom();
+      for(const cat of cats){
+        const itens = carregarItensCustom(cat.id);
+        const achou = itens.find(r => (r[1]||'').trim().toLowerCase() === nome);
+        if(achou && achou[0]) return String(achou[0]).trim();
+      }
+    }
+  }catch(e){}
+
+  // 7. Tenta no estoque
+  try {
+    const est = carregar('estoque').find(x => (x.nome||'').trim().toLowerCase() === nome && x.codigo);
+    if(est && est.codigo) return String(est.codigo).trim();
+  }catch(e){}
+
+  return '—';
+}
+window.obterCodigoSolicitacao = obterCodigoSolicitacao;
+
+function adicionarSolicitacao(nome, categoria, unidade, codigo){
   if(!nome) return;
   const lista = carregar('solicitacoes');
   if(lista.some(i => (i.nome||'').toLowerCase() === nome.toLowerCase())){
     alert('"' + nome + '" já está na lista de Solicitações de materiais.');
     return;
   }
-  lista.push({ id: gerarId(), nome, categoria: categoria || '—', unidade: unidade || 'un', criadoEm: new Date().toISOString() });
+  const codFinal = codigo || (typeof obterCodigoSolicitacao === 'function' ? obterCodigoSolicitacao({ nome, categoria }) : '') || '';
+  lista.push({
+    id: gerarId(),
+    nome,
+    categoria: categoria || '—',
+    unidade: unidade || 'un',
+    codigo: (codFinal === '—' ? '' : codFinal),
+    criadoEm: new Date().toISOString()
+  });
   salvarLista('solicitacoes', lista);
   alert('"' + nome + '" adicionado às Solicitações de materiais.');
 }
 function usarMaterialNoEstoque(id){
   const item = carregar('materiaisCatalogo').find(i => i.id === id);
   if(!item) return;
-  adicionarSolicitacao(item.descricaoCompleta || item.descricao, 'Material de Limpeza', (({ UN:'un', CX:'cx', L:'L', KG:'kg', GL:'un', PC:'un', PT:'un' })[item.unidade]) || item.unidade || 'un');
+  adicionarSolicitacao(item.descricaoCompleta || item.descricao, 'Material de Limpeza', (({ UN:'un', CX:'cx', L:'L', KG:'kg', GL:'un', PC:'un', PT:'un' })[item.unidade]) || item.unidade || 'un', item.codigo);
 }
 
 function abrirUniformes(){
@@ -1583,7 +1657,7 @@ function renderUniformes(){
 function usarUniformeNoEstoque(id){
   const item = carregar('uniformesCatalogo').find(i => i.id === id);
   if(!item) return;
-  adicionarSolicitacao(item.descricaoCompleta || item.descricao, 'Uniforme', 'un');
+  adicionarSolicitacao(item.descricaoCompleta || item.descricao, 'Uniforme', 'un', item.codigo);
 }
 
 function abrirEscritorio(){
@@ -1641,7 +1715,7 @@ function renderEscritorio(){
 function usarEscritorioNoEstoque(id){
   const item = carregar('escritorioCatalogo').find(i => i.id === id);
   if(!item) return;
-  adicionarSolicitacao(item.descricaoCompleta || item.descricao, 'Escritório', (({ UN:'un', CX:'cx', L:'L', KG:'kg', GL:'un', PC:'un', PT:'un', RL:'un' })[item.unidade]) || item.unidade || 'un');
+  adicionarSolicitacao(item.descricaoCompleta || item.descricao, 'Escritório', (({ UN:'un', CX:'cx', L:'L', KG:'kg', GL:'un', PC:'un', PT:'un', RL:'un' })[item.unidade]) || item.unidade || 'un', item.codigo);
 }
 
 let _gruposOutrosPopulados = false;
@@ -1681,7 +1755,7 @@ function renderAlimentos(){
 function usarAlimentoNoEstoque(codigo){
   const item = listaAlimentosCompleta().find(r => r[0] === codigo);
   if(!item) return;
-  adicionarSolicitacao(item[1], 'Alimentos', (({ UN:'un', CX:'cx', L:'L', KG:'kg', GL:'un', PC:'un', PT:'un', RL:'un' })[item[3]]) || item[3] || 'un');
+  adicionarSolicitacao(item[1], 'Alimentos', (({ UN:'un', CX:'cx', L:'L', KG:'kg', GL:'un', PC:'un', PT:'un', RL:'un' })[item[3]]) || item[3] || 'un', codigo);
 }
 
 function popularGruposOutros(){
@@ -1821,7 +1895,7 @@ function atualizarContadorSelecaoOutros(){
 function usarOutroNoEstoque(codigo){
   const item = OUTROS_SEED.find(r => r[0] === codigo);
   if(!item) return;
-  adicionarSolicitacao(item[1], 'Outros', (({ UN:'un', CX:'cx', L:'L', KG:'kg', GL:'un', PC:'un', PT:'un', RL:'un' })[item[3]]) || item[3] || 'un');
+  adicionarSolicitacao(item[1], 'Outros', (({ UN:'un', CX:'cx', L:'L', KG:'kg', GL:'un', PC:'un', PT:'un', RL:'un' })[item[3]]) || item[3] || 'un', codigo);
 }
 
 /* ============================================================
@@ -1922,7 +1996,7 @@ function usarCategoriaCustomNoEstoque(codigo){
   const id = document.getElementById('modalCategoriaCustom').dataset.categoriaId;
   const item = carregarItensCustom(id).find(r => r[0] === codigo);
   if(!item) return;
-  adicionarSolicitacao(item[1], 'Personalizado', (({ UN:'un', CX:'cx', L:'L', KG:'kg', GL:'un', PC:'un', PT:'un', RL:'un' })[item[3]]) || item[3] || 'un');
+  adicionarSolicitacao(item[1], 'Personalizado', (({ UN:'un', CX:'cx', L:'L', KG:'kg', GL:'un', PC:'un', PT:'un', RL:'un' })[item[3]]) || item[3] || 'un', codigo);
 }
 function removerItemCategoriaCustom(codigo){
   const id = document.getElementById('modalCategoriaCustom').dataset.categoriaId;
@@ -2067,6 +2141,21 @@ function renderEstoqueBaixo(){
     indicador.style.display = 'none';
   }
 
+  // Preenche automaticamente o código em itens antigos que ainda não tinham o código gravado
+  let mudouCodigos = false;
+  todas.forEach(i => {
+    if(!i.codigo){
+      const c = obterCodigoSolicitacao(i);
+      if(c && c !== '—'){
+        i.codigo = c;
+        mudouCodigos = true;
+      }
+    }
+  });
+  if(mudouCodigos){
+    salvarLista('solicitacoes', todas);
+  }
+
   const base = filtro ? todas.filter(i => i.categoria === filtro) : todas;
   const lista = base.slice().sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
   const cont = document.getElementById('lista-estoque-baixo');
@@ -2074,8 +2163,15 @@ function renderEstoqueBaixo(){
     cont.innerHTML = telaVazia(filtro ? 'Nenhum material nessa categoria ainda.' : 'Nenhuma solicitação de material ainda. Selecione materiais nas categorias abaixo do Controle de Estoque.');
     return;
   }
-  cont.innerHTML = lista.map(i => `
+  cont.innerHTML = lista.map(i => {
+    const cod = (typeof obterCodigoSolicitacao === 'function' ? obterCodigoSolicitacao(i) : (i.codigo || '—'));
+    const classeTamanho = (cod && cod.length > 5) ? 'codigo-longo' : '';
+    return `
     <div class="item-cartao" style="cursor:pointer;" onclick="abrirOrganizarSolicitacao('${i.id}')">
+      <div class="coluna-numero-chave" title="Código ${escapeHtml(cod || '—')}">
+        <span class="prefixo-n">CÓD</span>
+        <span class="valor-numero-chave ${classeTamanho}">${escapeHtml(cod || '—')}</span>
+      </div>
       <div class="franja"></div>
       <div class="item-corpo">
         <div class="item-titulo">
@@ -2089,7 +2185,8 @@ function renderEstoqueBaixo(){
           <button class="excluir" onclick="removerSolicitacao('${i.id}')">Remover</button>
         </div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 function abrirOrganizarSolicitacao(id){
   window.solicitacaoOrganizarId = id;
