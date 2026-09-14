@@ -2996,6 +2996,10 @@ function alterarStatusAtividade(id, novoStatus){
   try{ renderConcluidasHoje(); }catch(e){}
   try{ renderAtividadeSemanal(); }catch(e){}
 }
+function alternarConclusaoAtividade(id, statusAtual){
+  const novoStatus = (statusAtual === 'Concluída') ? 'Pendente' : 'Concluída';
+  alterarStatusAtividade(id, novoStatus);
+}
 function classeStatusAtividade(status){
   if(status === 'Concluída') return 'ok';
   if(status === 'Em andamento') return 'neutro';
@@ -3063,10 +3067,17 @@ function renderAtividadeSemanal(){
     const obsTexto = editado ? editado.obs : (i.obs || '');
     const status = statusDeEntrada(mapaStatus[i.id]) || statusOriginal(i.realizado);
     const classe = classeStatusAtividade(status);
+    const isConcluida = status === 'Concluída';
     const nomeEscapadoJs = escapeHtml(atividadeTexto).replace(/'/g, "\\'");
     const obsEscapadoJs = escapeHtml(obsTexto||'').replace(/'/g, "\\'");
     return `
     <div class="item-cartao ${classe}">
+      <div class="coluna-marcador-atividade"
+           title="${isConcluida ? 'Concluída (Clique para marcar como Pendente)' : 'Clique para marcar como Concluída'}"
+           onclick="alternarConclusaoAtividade('${i.id}', '${status}')">
+        <span class="prefixo-marcador">${isConcluida ? 'FEITO' : 'CHECK'}</span>
+        <div class="botao-marcador-check">✓</div>
+      </div>
       <div class="franja"></div>
       <div class="item-corpo">
         <div class="item-titulo">
@@ -3141,6 +3152,10 @@ function alterarStatusSetor(setor, hora, status){
   salvarDadosSetor(mapa);
   renderSetor();
 }
+function alternarConclusaoSetor(setor, hora, statusAtual){
+  const novoStatus = (statusAtual === 'Concluída') ? 'Pendente' : 'Concluída';
+  alterarStatusSetor(setor, hora, novoStatus);
+}
 function renderSetor(){
   const dados = carregarDadosSetor();
   const dadosSetor = dados[setorAtivo] || {};
@@ -3155,8 +3170,17 @@ function renderSetor(){
     else if(status === 'Em andamento') andamento++;
     else pendentes++;
     const classe = classeStatusAtividade(status);
+    const isConcluida = status === 'Concluída';
+    const setorEscapadoJs = setorAtivo.replace(/'/g, "\\'");
+    const horaEscapadoJs = String(item.hora).replace(/'/g, "\\'");
     return `
     <div class="item-cartao ${classe}">
+      <div class="coluna-marcador-atividade"
+           title="${isConcluida ? 'Concluída (Clique para marcar como Pendente)' : 'Clique para marcar como Concluída'}"
+           onclick="alterarConclusaoSetor('${setorEscapadoJs}', '${horaEscapadoJs}', '${status}')">
+        <span class="prefixo-marcador">${isConcluida ? 'FEITO' : 'CHECK'}</span>
+        <div class="botao-marcador-check">✓</div>
+      </div>
       <div class="franja"></div>
       <div class="item-corpo">
         <div class="item-titulo">

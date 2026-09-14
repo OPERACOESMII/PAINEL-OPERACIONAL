@@ -829,6 +829,9 @@ function restaurarManualNuvem(){
   .item-cartao.ok .coluna-numero-chave{
     background:var(--ok-bg); border-color:#c3decb;
   }
+  .item-cartao.neutro .coluna-numero-chave{
+    background:#EDF2F7; border-color:#CBD5E1;
+  }
   .item-cartao.alerta .coluna-numero-chave{
     background:var(--alerta-bg); border-color:#f6cbc2;
   }
@@ -847,8 +850,70 @@ function restaurarManualNuvem(){
   .item-cartao.ok .coluna-numero-chave .valor-numero-chave{
     color:var(--ok);
   }
+  .item-cartao.neutro .coluna-numero-chave .valor-numero-chave{
+    color:var(--neutro);
+  }
   .item-cartao.alerta .coluna-numero-chave .valor-numero-chave{
     color:var(--alerta);
+  }
+
+  /* Botão de marcação para sinalizar atividade concluída ao lado esquerdo da barra */
+  .coluna-marcador-atividade{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    align-self:stretch; min-width:54px; max-width:62px; padding:6px 4px;
+    background:#F8FAFC; border:1px solid var(--linha); border-radius:9px;
+    flex-shrink:0; text-align:center; user-select:none; box-sizing:border-box;
+    cursor:pointer; transition:all .18s ease;
+  }
+  .coluna-marcador-atividade:hover{
+    transform:translateY(-1px);
+    box-shadow:0 2px 6px rgba(0,0,0,0.06);
+  }
+  .coluna-marcador-atividade:active{
+    transform:scale(0.95);
+  }
+  .item-cartao.ok .coluna-marcador-atividade{
+    background:var(--ok-bg); border-color:#c3decb;
+  }
+  .item-cartao.neutro .coluna-marcador-atividade{
+    background:#EDF2F7; border-color:#CBD5E1;
+  }
+  .item-cartao.alerta .coluna-marcador-atividade{
+    background:var(--alerta-bg); border-color:#f6cbc2;
+  }
+  .coluna-marcador-atividade .prefixo-marcador{
+    font-size:8.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px;
+    color:var(--texto-suave); line-height:1; margin-bottom:4px;
+    font-family:'JetBrains Mono',monospace;
+  }
+  .item-cartao.ok .coluna-marcador-atividade .prefixo-marcador{
+    color:var(--ok); font-weight:800;
+  }
+  .item-cartao.neutro .coluna-marcador-atividade .prefixo-marcador{
+    color:var(--neutro);
+  }
+  .item-cartao.alerta .coluna-marcador-atividade .prefixo-marcador{
+    color:var(--alerta);
+  }
+  .coluna-marcador-atividade .botao-marcador-check{
+    width:28px; height:28px; border-radius:50%; display:flex;
+    align-items:center; justify-content:center;
+    border:2px solid var(--linha); background:#fff;
+    color:transparent; font-size:15px; font-weight:900; line-height:1;
+    transition:all .18s ease; flex-shrink:0;
+  }
+  .item-cartao.ok .coluna-marcador-atividade .botao-marcador-check{
+    background:var(--ok); border-color:var(--ok); color:#fff;
+    box-shadow:0 2px 5px rgba(27,94,69,0.28);
+  }
+  .item-cartao.neutro .coluna-marcador-atividade .botao-marcador-check{
+    border-color:var(--neutro); color:var(--neutro); background:#F1F5F9;
+  }
+  .item-cartao.alerta .coluna-marcador-atividade .botao-marcador-check{
+    border-color:#e4a99d; color:transparent; background:#fff;
+  }
+  .coluna-marcador-atividade:hover .botao-marcador-check{
+    border-color:var(--ok);
   }
   .item-corpo{flex:1; min-width:0;}
   .item-titulo{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:3px;}
@@ -4838,6 +4903,10 @@ function alterarStatusAtividade(id, novoStatus){
   try{ renderConcluidasHoje(); }catch(e){}
   try{ renderAtividadeSemanal(); }catch(e){}
 }
+function alternarConclusaoAtividade(id, statusAtual){
+  const novoStatus = (statusAtual === 'Concluída') ? 'Pendente' : 'Concluída';
+  alterarStatusAtividade(id, novoStatus);
+}
 function classeStatusAtividade(status){
   if(status === 'Concluída') return 'ok';
   if(status === 'Em andamento') return 'neutro';
@@ -4905,10 +4974,17 @@ function renderAtividadeSemanal(){
     const obsTexto = editado ? editado.obs : (i.obs || '');
     const status = statusDeEntrada(mapaStatus[i.id]) || statusOriginal(i.realizado);
     const classe = classeStatusAtividade(status);
+    const isConcluida = status === 'Concluída';
     const nomeEscapadoJs = escapeHtml(atividadeTexto).replace(/'/g, "\\'");
     const obsEscapadoJs = escapeHtml(obsTexto||'').replace(/'/g, "\\'");
     return `
     <div class="item-cartao ${classe}">
+      <div class="coluna-marcador-atividade"
+           title="${isConcluida ? 'Concluída (Clique para marcar como Pendente)' : 'Clique para marcar como Concluída'}"
+           onclick="alternarConclusaoAtividade('${i.id}', '${status}')">
+        <span class="prefixo-marcador">${isConcluida ? 'FEITO' : 'CHECK'}</span>
+        <div class="botao-marcador-check">✓</div>
+      </div>
       <div class="franja"></div>
       <div class="item-corpo">
         <div class="item-titulo">
@@ -4983,6 +5059,10 @@ function alterarStatusSetor(setor, hora, status){
   salvarDadosSetor(mapa);
   renderSetor();
 }
+function alternarConclusaoSetor(setor, hora, statusAtual){
+  const novoStatus = (statusAtual === 'Concluída') ? 'Pendente' : 'Concluída';
+  alterarStatusSetor(setor, hora, novoStatus);
+}
 function renderSetor(){
   const dados = carregarDadosSetor();
   const dadosSetor = dados[setorAtivo] || {};
@@ -4997,8 +5077,17 @@ function renderSetor(){
     else if(status === 'Em andamento') andamento++;
     else pendentes++;
     const classe = classeStatusAtividade(status);
+    const isConcluida = status === 'Concluída';
+    const setorEscapadoJs = setorAtivo.replace(/'/g, "\\'");
+    const horaEscapadoJs = String(item.hora).replace(/'/g, "\\'");
     return `
     <div class="item-cartao ${classe}">
+      <div class="coluna-marcador-atividade"
+           title="${isConcluida ? 'Concluída (Clique para marcar como Pendente)' : 'Clique para marcar como Concluída'}"
+           onclick="alternarConclusaoSetor('${setorEscapadoJs}', '${horaEscapadoJs}', '${status}')">
+        <span class="prefixo-marcador">${isConcluida ? 'FEITO' : 'CHECK'}</span>
+        <div class="botao-marcador-check">✓</div>
+      </div>
       <div class="franja"></div>
       <div class="item-corpo">
         <div class="item-titulo">
