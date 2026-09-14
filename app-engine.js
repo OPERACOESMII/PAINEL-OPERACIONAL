@@ -3122,13 +3122,113 @@ function selecionarSetor(nome){
   renderSetor();
 }
 function renderAbasSetores(){
-  document.getElementById('abasSetores').innerHTML = SETORES_LISTA.map(s => `
-    <button onclick="selecionarSetor('${s.replace(/'/g, "\\'")}')" style="
-      flex-shrink:0; padding:8px 14px; border-radius:20px; border:1px solid var(--linha);
-      font-family:'Inter',sans-serif; font-size:12.5px; font-weight:700; cursor:pointer; white-space:nowrap;
-      background:${s === setorAtivo ? 'var(--gradiente-suave)' : '#fff'};
-      color:${s === setorAtivo ? '#fff' : 'var(--texto-suave)'};
-    ">${escapeHtml(s)}</button>`).join('');
+  const container = document.getElementById('abasSetores');
+  if(!container) return;
+
+  const dados = carregarDadosSetor();
+  const ANDARES_LISTA = ['5º Andar', '4º Andar', '3º Andar', '2º Andar', '1º Andar'];
+  const AREAS_LISTA = SETORES_LISTA.filter(s => !ANDARES_LISTA.includes(s));
+
+  // Função auxiliar para calcular o progresso por setor
+  const contarProgresso = (setor) => {
+    const itens = SETORES_SEED[setor] || [];
+    const dadosSet = dados[setor] || {};
+    let concluidas = 0;
+    itens.forEach(it => {
+      const st = dadosSet[it.hora]?.status || (it.atividade ? 'Pendente' : 'Pendente');
+      if(st === 'Concluída') concluidas++;
+    });
+    return { concluidas, total: itens.length };
+  };
+
+  const progressoAtivo = contarProgresso(setorAtivo);
+
+  // 1. Grade responsiva com os 5 andares (cabe em qualquer largura de tela)
+  const htmlAndares = ANDARES_LISTA.map(andar => {
+    const ativo = (andar === setorAtivo);
+    const prog = contarProgresso(andar);
+    const num = andar.replace(' Andar', '');
+    return `
+      <button type="button" class="btn-andar-cartao ${ativo ? 'ativo' : ''}"
+              onclick="selecionarSetor('${andar.replace(/'/g, "\\'")}')"
+              title="${escapeHtml(andar)}: ${prog.concluidas}/${prog.total} concluídas">
+        <span class="andar-numero">${escapeHtml(num)}</span>
+        <span class="andar-rotulo">Andar</span>
+        ${prog.concluidas > 0 ? `<span class="badge-andar-mini">${prog.concluidas}/${prog.total}</span>` : ''}
+      </button>
+    `;
+  }).join('');
+
+  // 2. Chips responsivos das demais áreas que quebram linha naturalmente (flex-wrap)
+  const htmlAreas = AREAS_LISTA.map(area => {
+    const ativo = (area === setorAtivo);
+    const prog = contarProgresso(area);
+    return `
+      <button type="button" class="chip-area-btn ${ativo ? 'ativo' : ''}"
+              onclick="selecionarSetor('${area.replace(/'/g, "\\'")}')"
+              title="${escapeHtml(area)}: ${prog.concluidas}/${prog.total} concluídas">
+        <span>${escapeHtml(area)}</span>
+        ${prog.concluidas > 0 ? `<span class="badge-area-mini">${prog.concluidas}✓</span>` : ''}
+      </button>
+    `;
+  }).join('');
+
+  // 3. Opções do menu suspenso (dropdown rápido com optgroups)
+  const optAndares = ANDARES_LISTA.map(andar => {
+    const prog = contarProgresso(andar);
+    const sel = (andar === setorAtivo) ? 'selected' : '';
+    const txtProg = prog.concluidas > 0 ? ` (${prog.concluidas}/${prog.total} ✓)` : '';
+    return `<option value="${escapeHtml(andar)}" ${sel}>${escapeHtml(andar)}${txtProg}</option>`;
+  }).join('');
+
+  const optAreas = AREAS_LISTA.map(area => {
+    const prog = contarProgresso(area);
+    const sel = (area === setorAtivo) ? 'selected' : '';
+    const txtProg = prog.concluidas > 0 ? ` (${prog.concluidas}/${prog.total} ✓)` : '';
+    return `<option value="${escapeHtml(area)}" ${sel}>${escapeHtml(area)}${txtProg}</option>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="painel-setores-adaptado">
+      <div class="seletor-setores-topo">
+        <div class="setor-selecionado-info">
+          <span class="setor-rotulo-fixo">Setor atual:</span>
+          <strong class="setor-nome-destaque">${escapeHtml(setorAtivo)}</strong>
+          <span class="selo-setor-progresso">${progressoAtivo.concluidas}/${progressoAtivo.total} concluídas</span>
+        </div>
+        <div class="seletor-dropdown-wrapper">
+          <select id="selectSetorDireto" class="select-setor-dropdown" onchange="selecionarSetor(this.value)" title="Selecione um andar ou setor">
+            <optgroup label="🏢 Andares do Prédio">
+              ${optAndares}
+            </optgroup>
+            <optgroup label="📍 Áreas, Piscinas e Vestiários">
+              ${optAreas}
+            </optgroup>
+          </select>
+        </div>
+      </div>
+
+      <div class="secao-andares-bloco">
+        <div class="seletor-setores-titulo-bloco">
+          <span>🏢 Andares do Prédio</span>
+          <span style="font-size:10.5px; opacity:0.75; font-weight:600;">(5 pavimentos)</span>
+        </div>
+        <div class="grade-andares-5">
+          ${htmlAndares}
+        </div>
+      </div>
+
+      <div class="secao-areas-bloco">
+        <div class="seletor-setores-titulo-bloco">
+          <span>📍 Áreas, Piscinas e Vestiários</span>
+          <span style="font-size:10.5px; opacity:0.75; font-weight:600;">(toque para selecionar)</span>
+        </div>
+        <div class="grade-areas-chips">
+          ${htmlAreas}
+        </div>
+      </div>
+    </div>
+  `;
 }
 function carregarDadosSetor(){
   try{ return JSON.parse(localStorage.getItem('mtc_setor_checklist')) || {}; }
@@ -3151,6 +3251,7 @@ function alterarStatusSetor(setor, hora, status){
   mapa[setor][hora].status = status;
   salvarDadosSetor(mapa);
   renderSetor();
+  try{ renderAbasSetores(); }catch(e){}
 }
 function alternarConclusaoSetor(setor, hora, statusAtual){
   const novoStatus = (statusAtual === 'Concluída') ? 'Pendente' : 'Concluída';

@@ -915,6 +915,229 @@ function restaurarManualNuvem(){
   .coluna-marcador-atividade:hover .botao-marcador-check{
     border-color:var(--ok);
   }
+
+  /* ============================================================
+     SELETOR DE SETORES E ANDARES ADAPTADO À TELA
+     ============================================================ */
+  .painel-setores-adaptado {
+    background: #FFFFFF;
+    border: 1px solid var(--linha);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+  .seletor-setores-topo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .setor-selecionado-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .setor-rotulo-fixo {
+    font-size: 11.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--texto-suave);
+  }
+  .setor-nome-destaque {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--verde-900);
+  }
+  .selo-setor-progresso {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: var(--ok-bg);
+    color: var(--ok);
+  }
+  .seletor-dropdown-wrapper {
+    flex: 1;
+    min-width: 190px;
+    max-width: 320px;
+  }
+  .select-setor-dropdown {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--linha);
+    border-radius: 8px;
+    background: #FFFFFF;
+    font-family: 'Inter', sans-serif;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--texto);
+    cursor: pointer;
+    box-sizing: border-box;
+  }
+  .select-setor-dropdown:focus {
+    border-color: var(--verde-700);
+    outline: none;
+    box-shadow: 0 0 0 2px var(--verde-100);
+  }
+  .seletor-setores-titulo-bloco {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--texto-suave);
+    margin-bottom: 6px;
+  }
+  .secao-andares-bloco {
+    margin-bottom: 12px;
+  }
+  .grade-andares-5 {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    width: 100%;
+  }
+  .btn-andar-cartao {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 4px;
+    min-height: 52px;
+    border-radius: 9px;
+    border: 1px solid var(--linha);
+    background: #FAFAFA;
+    color: var(--texto);
+    cursor: pointer;
+    transition: all .18s ease;
+    user-select: none;
+    text-align: center;
+    position: relative;
+    box-sizing: border-box;
+  }
+  .btn-andar-cartao:hover {
+    background: #F1F5F9;
+    border-color: #CBD5E1;
+    transform: translateY(-1px);
+  }
+  .btn-andar-cartao.ativo {
+    background: var(--gradiente-suave);
+    border-color: var(--verde-800);
+    color: #FFFFFF !important;
+    box-shadow: 0 2px 6px rgba(15,61,102,0.28);
+  }
+  .btn-andar-cartao .andar-numero {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+  .btn-andar-cartao .andar-rotulo {
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    opacity: 0.85;
+    line-height: 1.1;
+    margin-top: 2px;
+  }
+  .badge-andar-mini {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: var(--ok-bg);
+    color: var(--ok);
+    margin-top: 3px;
+    line-height: 1;
+  }
+  .btn-andar-cartao.ativo .badge-andar-mini {
+    background: rgba(255,255,255,0.25);
+    color: #FFFFFF;
+  }
+  .grade-areas-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+  }
+  .chip-area-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--linha);
+    background: #FFFFFF;
+    color: var(--texto-suave);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s ease;
+    line-height: 1.2;
+    text-align: left;
+    box-sizing: border-box;
+  }
+  .chip-area-btn:hover {
+    background: #F8FAFC;
+    color: var(--texto);
+    border-color: #CBD5E1;
+  }
+  .chip-area-btn.ativo {
+    background: var(--gradiente-suave);
+    border-color: var(--verde-800);
+    color: #FFFFFF !important;
+    box-shadow: 0 2px 6px rgba(15,61,102,0.24);
+  }
+  .badge-area-mini {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 10px;
+    background: var(--ok-bg);
+    color: var(--ok);
+  }
+  .chip-area-btn.ativo .badge-area-mini {
+    background: rgba(255,255,255,0.25);
+    color: #FFFFFF;
+  }
+
+  @media (max-width: 480px) {
+    .grade-andares-5 {
+      gap: 4px;
+    }
+    .btn-andar-cartao {
+      padding: 5px 2px;
+      min-height: 46px;
+    }
+    .btn-andar-cartao .andar-numero {
+      font-size: 13.5px;
+    }
+    .btn-andar-cartao .andar-rotulo {
+      font-size: 8.5px;
+    }
+    .badge-andar-mini {
+      font-size: 8px;
+    }
+    .seletor-dropdown-wrapper {
+      max-width: 100%;
+    }
+    .chip-area-btn {
+      font-size: 11px;
+      padding: 5px 9px;
+    }
+  }
   .item-corpo{flex:1; min-width:0;}
   .item-titulo{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:3px;}
   .item-titulo strong{font-size:15px; color:var(--texto);}
@@ -2466,7 +2689,7 @@ function restaurarManualNuvem(){
     </div>
 
     <div id="painelModoSetor" style="display:none;">
-      <div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:8px; margin-bottom:12px;" id="abasSetores"></div>
+      <div id="abasSetores"></div>
       <div id="resumoSetor" style="display:flex; gap:8px; margin-bottom:12px;"></div>
       <div class="lista-cartoes" id="lista-setor"></div>
     </div>
@@ -5029,13 +5252,113 @@ function selecionarSetor(nome){
   renderSetor();
 }
 function renderAbasSetores(){
-  document.getElementById('abasSetores').innerHTML = SETORES_LISTA.map(s => `
-    <button onclick="selecionarSetor('${s.replace(/'/g, "\\'")}')" style="
-      flex-shrink:0; padding:8px 14px; border-radius:20px; border:1px solid var(--linha);
-      font-family:'Inter',sans-serif; font-size:12.5px; font-weight:700; cursor:pointer; white-space:nowrap;
-      background:${s === setorAtivo ? 'var(--gradiente-suave)' : '#fff'};
-      color:${s === setorAtivo ? '#fff' : 'var(--texto-suave)'};
-    ">${escapeHtml(s)}</button>`).join('');
+  const container = document.getElementById('abasSetores');
+  if(!container) return;
+
+  const dados = carregarDadosSetor();
+  const ANDARES_LISTA = ['5º Andar', '4º Andar', '3º Andar', '2º Andar', '1º Andar'];
+  const AREAS_LISTA = SETORES_LISTA.filter(s => !ANDARES_LISTA.includes(s));
+
+  // Função auxiliar para calcular o progresso por setor
+  const contarProgresso = (setor) => {
+    const itens = SETORES_SEED[setor] || [];
+    const dadosSet = dados[setor] || {};
+    let concluidas = 0;
+    itens.forEach(it => {
+      const st = dadosSet[it.hora]?.status || (it.atividade ? 'Pendente' : 'Pendente');
+      if(st === 'Concluída') concluidas++;
+    });
+    return { concluidas, total: itens.length };
+  };
+
+  const progressoAtivo = contarProgresso(setorAtivo);
+
+  // 1. Grade responsiva com os 5 andares (cabe em qualquer largura de tela)
+  const htmlAndares = ANDARES_LISTA.map(andar => {
+    const ativo = (andar === setorAtivo);
+    const prog = contarProgresso(andar);
+    const num = andar.replace(' Andar', '');
+    return `
+      <button type="button" class="btn-andar-cartao ${ativo ? 'ativo' : ''}"
+              onclick="selecionarSetor('${andar.replace(/'/g, "\\'")}')"
+              title="${escapeHtml(andar)}: ${prog.concluidas}/${prog.total} concluídas">
+        <span class="andar-numero">${escapeHtml(num)}</span>
+        <span class="andar-rotulo">Andar</span>
+        ${prog.concluidas > 0 ? `<span class="badge-andar-mini">${prog.concluidas}/${prog.total}</span>` : ''}
+      </button>
+    `;
+  }).join('');
+
+  // 2. Chips responsivos das demais áreas que quebram linha naturalmente (flex-wrap)
+  const htmlAreas = AREAS_LISTA.map(area => {
+    const ativo = (area === setorAtivo);
+    const prog = contarProgresso(area);
+    return `
+      <button type="button" class="chip-area-btn ${ativo ? 'ativo' : ''}"
+              onclick="selecionarSetor('${area.replace(/'/g, "\\'")}')"
+              title="${escapeHtml(area)}: ${prog.concluidas}/${prog.total} concluídas">
+        <span>${escapeHtml(area)}</span>
+        ${prog.concluidas > 0 ? `<span class="badge-area-mini">${prog.concluidas}✓</span>` : ''}
+      </button>
+    `;
+  }).join('');
+
+  // 3. Opções do menu suspenso (dropdown rápido com optgroups)
+  const optAndares = ANDARES_LISTA.map(andar => {
+    const prog = contarProgresso(andar);
+    const sel = (andar === setorAtivo) ? 'selected' : '';
+    const txtProg = prog.concluidas > 0 ? ` (${prog.concluidas}/${prog.total} ✓)` : '';
+    return `<option value="${escapeHtml(andar)}" ${sel}>${escapeHtml(andar)}${txtProg}</option>`;
+  }).join('');
+
+  const optAreas = AREAS_LISTA.map(area => {
+    const prog = contarProgresso(area);
+    const sel = (area === setorAtivo) ? 'selected' : '';
+    const txtProg = prog.concluidas > 0 ? ` (${prog.concluidas}/${prog.total} ✓)` : '';
+    return `<option value="${escapeHtml(area)}" ${sel}>${escapeHtml(area)}${txtProg}</option>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="painel-setores-adaptado">
+      <div class="seletor-setores-topo">
+        <div class="setor-selecionado-info">
+          <span class="setor-rotulo-fixo">Setor atual:</span>
+          <strong class="setor-nome-destaque">${escapeHtml(setorAtivo)}</strong>
+          <span class="selo-setor-progresso">${progressoAtivo.concluidas}/${progressoAtivo.total} concluídas</span>
+        </div>
+        <div class="seletor-dropdown-wrapper">
+          <select id="selectSetorDireto" class="select-setor-dropdown" onchange="selecionarSetor(this.value)" title="Selecione um andar ou setor">
+            <optgroup label="🏢 Andares do Prédio">
+              ${optAndares}
+            </optgroup>
+            <optgroup label="📍 Áreas, Piscinas e Vestiários">
+              ${optAreas}
+            </optgroup>
+          </select>
+        </div>
+      </div>
+
+      <div class="secao-andares-bloco">
+        <div class="seletor-setores-titulo-bloco">
+          <span>🏢 Andares do Prédio</span>
+          <span style="font-size:10.5px; opacity:0.75; font-weight:600;">(5 pavimentos)</span>
+        </div>
+        <div class="grade-andares-5">
+          ${htmlAndares}
+        </div>
+      </div>
+
+      <div class="secao-areas-bloco">
+        <div class="seletor-setores-titulo-bloco">
+          <span>📍 Áreas, Piscinas e Vestiários</span>
+          <span style="font-size:10.5px; opacity:0.75; font-weight:600;">(toque para selecionar)</span>
+        </div>
+        <div class="grade-areas-chips">
+          ${htmlAreas}
+        </div>
+      </div>
+    </div>
+  `;
 }
 function carregarDadosSetor(){
   try{ return JSON.parse(localStorage.getItem('mtc_setor_checklist')) || {}; }
@@ -5058,6 +5381,7 @@ function alterarStatusSetor(setor, hora, status){
   mapa[setor][hora].status = status;
   salvarDadosSetor(mapa);
   renderSetor();
+  try{ renderAbasSetores(); }catch(e){}
 }
 function alternarConclusaoSetor(setor, hora, statusAtual){
   const novoStatus = (statusAtual === 'Concluída') ? 'Pendente' : 'Concluída';
