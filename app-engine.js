@@ -2809,6 +2809,259 @@ function abrirConcluidasHoje(){
 function fecharConcluidasHoje(){
   document.getElementById('modalConcluidasHoje').classList.remove('aberto');
 }
+
+function normalizarCategoriasAtividades(){
+  try {
+    if(!localStorage.getItem('mtc_retorno_conservacao_v4')){
+      const mapa = carregarEdicoesAtividades();
+      let alterado = false;
+      Object.keys(mapa).forEach(id => {
+        if(mapa[id] && (mapa[id].categoria === 'Cursos' || mapa[id].categoria === 'Operações')){
+          mapa[id].categoria = 'Conservação e Limpeza';
+          alterado = true;
+        }
+      });
+      if(alterado) salvarEdicoesAtividades(mapa);
+
+      const extras = carregarAtividadesExtras();
+      let extrasAlteradas = false;
+      Object.keys(extras).forEach(dia => {
+        (extras[dia] || []).forEach(item => {
+          if(item.categoria === 'Cursos' || item.categoria === 'Operações'){
+            item.categoria = 'Conservação e Limpeza';
+            extrasAlteradas = true;
+          }
+        });
+      });
+      if(extrasAlteradas) salvarAtividadesExtras(extras);
+      setItemSeguro('mtc_retorno_conservacao_v4', 'true');
+    }
+  } catch(e){}
+}
+
+function classificarAtividade(nome, categoriaDefinida) {
+  if (categoriaDefinida && ['Conservação e Limpeza', 'Cursos', 'Operações'].includes(categoriaDefinida)) {
+    return categoriaDefinida;
+  }
+  // Todas as rotinas cadastradas pertencem originalmente a Conservação e Limpeza.
+  // Cursos e Operações ficam livres para adição de novas atividades específicas pelo usuário.
+  return 'Conservação e Limpeza';
+}
+
+function classeCategoriaAtividade(cat) {
+  if (cat === 'Conservação e Limpeza') return 'tag-cat-conservacao';
+  if (cat === 'Cursos') return 'tag-cat-cursos';
+  if (cat === 'Operações') return 'tag-cat-operacoes';
+  return 'tag-cat-conservacao';
+}
+
+function abrirPendentesHoje(){
+  renderPendentesHoje();
+  const modal = document.getElementById('modalPendentesHoje');
+  if(modal) modal.classList.add('aberto');
+}
+function fecharPendentesHoje(){
+  const modal = document.getElementById('modalPendentesHoje');
+  if(modal) modal.classList.remove('aberto');
+}
+function renderPendentesHoje(){
+  const diaHoje = inicializarAbaHoje();
+  const mapaStatus = carregarStatusAtividades();
+  const mapaEdicoes = carregarEdicoesAtividades();
+  const extrasHoje = (carregarAtividadesExtras()[diaHoje] || []).map(e => ({...e, extra:true, realizado:''}));
+  const removidas = new Set(carregarAtividadesRemovidas());
+  const originaisHoje = (ATIVIDADE_SEMANAL_SEED[diaHoje] || [])
+    .map((i, idx) => ({...i, id: diaHoje + '_' + idx}))
+    .filter(i => !removidas.has(i.id));
+  const todasHoje = [...originaisHoje, ...extrasHoje];
+
+  const pendentes = todasHoje.filter(i => (statusDeEntrada(mapaStatus[i.id]) || statusOriginal(i.realizado)) === 'Pendente');
+
+  const contador = document.getElementById('contadorModalPendentes');
+  if(contador) contador.textContent = `${pendentes.length} pendente(s)`;
+
+  const cont = document.getElementById('lista-pendentes-hoje');
+  if(!cont) return;
+  if(pendentes.length === 0){
+    cont.innerHTML = telaVazia('Parabéns! Todas as atividades de hoje estão concluídas.');
+    return;
+  }
+
+  cont.innerHTML = pendentes.map(i => {
+    const editado = mapaEdicoes[i.id];
+    const atividadeTexto = editado ? editado.atividade : i.atividade;
+    const horarioTexto = editado ? editado.horario : i.horario;
+    const turnoTexto = editado ? editado.turno : (i.turno || 'MANHA');
+    const obsTexto = editado ? editado.obs : (i.obs || '');
+    const cat = (editado && editado.categoria) || i.categoria || classificarAtividade(atividadeTexto);
+
+    return `
+    <div class="item-cartao alerta">
+      <div class="coluna-marcador-atividade"
+           title="Clique para marcar como Concluída"
+           onclick="alterarStatusAtividade('${i.id}', 'Concluída'); setTimeout(renderPendentesHoje, 50);">
+        <span class="prefixo-marcador">CHECK</span>
+        <div class="botao-marcador-check">✓</div>
+      </div>
+      <div class="franja"></div>
+      <div class="item-corpo">
+        <div class="item-titulo">
+          <strong>${escapeHtml(atividadeTexto)}</strong>
+          <span class="tag-categoria ${classeCategoriaAtividade(cat)}">${escapeHtml(cat)}</span>
+          <span class="tag-status alerta">Pendente</span>
+        </div>
+        <div class="item-meta">
+          Horário: <code>${escapeHtml(horarioTexto||'—')}</code>${turnoTexto ? ' · Turno: ' + escapeHtml(turnoTexto) : ''}
+          ${obsTexto ? '<br>Obs: ' + escapeHtml(obsTexto) : ''}
+        </div>
+        <div class="item-acoes">
+          <button class="btn btn-primario" style="font-size:12px; padding:6px 12px;" onclick="alterarStatusAtividade('${i.id}', 'Concluída'); setTimeout(renderPendentesHoje, 50);">
+            ✓ Marcar como Concluída
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function concluirTodasPendentesHoje(){
+  const diaHoje = inicializarAbaHoje();
+  const mapaStatus = carregarStatusAtividades();
+  const extrasHoje = (carregarAtividadesExtras()[diaHoje] || []).map(e => ({...e, extra:true, realizado:''}));
+  const removidas = new Set(carregarAtividadesRemovidas());
+  const originaisHoje = (ATIVIDADE_SEMANAL_SEED[diaHoje] || [])
+    .map((i, idx) => ({...i, id: diaHoje + '_' + idx}))
+    .filter(i => !removidas.has(i.id));
+  const todasHoje = [...originaisHoje, ...extrasHoje];
+
+  const agora = new Date().toISOString();
+  let alterados = 0;
+  todasHoje.forEach(i => {
+    const st = statusDeEntrada(mapaStatus[i.id]) || statusOriginal(i.realizado);
+    if(st === 'Pendente'){
+      mapaStatus[i.id] = { status: 'Concluída', data: agora };
+      alterados++;
+    }
+  });
+  if(alterados > 0){
+    salvarStatusAtividades(mapaStatus);
+    renderPendentesHoje();
+    try{ renderConcluidasHoje(); }catch(e){}
+    try{ renderAtividadeSemanal(); }catch(e){}
+  }
+}
+
+let categoriaModalAtiva = 'Conservação e Limpeza';
+let filtroModalCategoria = 'hoje';
+
+function abrirCategoriaAtividades(cat){
+  if(cat) categoriaModalAtiva = cat;
+  const tit = document.getElementById('tituloModalCategoria');
+  if(tit) tit.textContent = categoriaModalAtiva;
+  alternarFiltroModalCategoria(filtroModalCategoria);
+  const modal = document.getElementById('modalCategoriaAtividades');
+  if(modal) modal.classList.add('aberto');
+}
+function fecharCategoriaAtividades(){
+  const modal = document.getElementById('modalCategoriaAtividades');
+  if(modal) modal.classList.remove('aberto');
+}
+function alternarFiltroModalCategoria(filtro){
+  filtroModalCategoria = filtro;
+  const btnHoje = document.getElementById('btnCatFiltroHoje');
+  const btnSemana = document.getElementById('btnCatFiltroSemana');
+  if(btnHoje && btnSemana){
+    if(filtro === 'hoje'){
+      btnHoje.className = 'btn btn-primario';
+      btnSemana.className = 'btn btn-secundario';
+    } else {
+      btnHoje.className = 'btn btn-secundario';
+      btnSemana.className = 'btn btn-primario';
+    }
+  }
+  renderCategoriaAtividades();
+}
+
+function renderCategoriaAtividades(){
+  const diaHoje = inicializarAbaHoje();
+  const mapaStatus = carregarStatusAtividades();
+  const mapaEdicoes = carregarEdicoesAtividades();
+  const extrasTodas = carregarAtividadesExtras();
+  const removidasGeral = new Set(carregarAtividadesRemovidas());
+  const idsDe = (dia, arr) => arr.map((i, idx) => ({...i, id: dia + '_' + idx, diaNome: dia}));
+  const comExtras = (dia) => [
+    ...idsDe(dia, ATIVIDADE_SEMANAL_SEED[dia] || []).filter(i => !removidasGeral.has(i.id)),
+    ...(extrasTodas[dia] || []).map(e => ({...e, extra:true, realizado:'', diaNome: dia}))
+  ];
+
+  let listaItens = [];
+  if(filtroModalCategoria === 'hoje'){
+    listaItens = comExtras(diaHoje);
+  } else {
+    listaItens = DIAS_SEMANA.flatMap(d => comExtras(d.chave));
+  }
+
+  const itensCat = listaItens.filter(i => {
+    const editado = mapaEdicoes[i.id];
+    const nome = editado?.atividade || i.atividade;
+    const cat = (editado && editado.categoria) || i.categoria || classificarAtividade(nome);
+    return cat === categoriaModalAtiva;
+  });
+
+  const total = itensCat.length;
+  const concluidas = itensCat.filter(i => (statusDeEntrada(mapaStatus[i.id]) || statusOriginal(i.realizado)) === 'Concluída').length;
+  
+  const contador = document.getElementById('contadorModalCategoria');
+  if(contador) contador.textContent = `${concluidas}/${total} concluída(s)`;
+
+  const cont = document.getElementById('lista-categoria-atividades');
+  if(!cont) return;
+  if(itensCat.length === 0){
+    cont.innerHTML = telaVazia(`Nenhuma atividade de ${categoriaModalAtiva} para ${filtroModalCategoria === 'hoje' ? 'hoje' : 'a semana'}.`);
+    return;
+  }
+
+  cont.innerHTML = itensCat.map(i => {
+    const editado = mapaEdicoes[i.id];
+    const atividadeTexto = editado ? editado.atividade : i.atividade;
+    const horarioTexto = editado ? editado.horario : i.horario;
+    const turnoTexto = editado ? editado.turno : (i.turno || 'MANHA');
+    const obsTexto = editado ? editado.obs : (i.obs || '');
+    const status = statusDeEntrada(mapaStatus[i.id]) || statusOriginal(i.realizado);
+    const classe = classeStatusAtividade(status);
+    const isConcluida = status === 'Concluída';
+    const diaRotulo = DIAS_SEMANA.find(d => d.chave === i.diaNome)?.label || i.diaNome;
+
+    return `
+    <div class="item-cartao ${classe}">
+      <div class="coluna-marcador-atividade"
+           title="${isConcluida ? 'Concluída (Clique para marcar como Pendente)' : 'Clique para marcar como Concluída'}"
+           onclick="alternarConclusaoAtividade('${i.id}', '${status}'); setTimeout(renderCategoriaAtividades, 50);">
+        <span class="prefixo-marcador">${isConcluida ? 'FEITO' : 'CHECK'}</span>
+        <div class="botao-marcador-check">✓</div>
+      </div>
+      <div class="franja"></div>
+      <div class="item-corpo">
+        <div class="item-titulo">
+          <strong>${escapeHtml(atividadeTexto)}</strong>
+          ${filtroModalCategoria === 'semana' ? `<span class="tag-status neutro">${escapeHtml(diaRotulo)}</span>` : ''}
+          <span class="tag-status ${classe}">${status}</span>
+        </div>
+        <div class="item-meta">
+          Horário: <code>${escapeHtml(horarioTexto||'—')}</code>${turnoTexto ? ' · Turno: ' + escapeHtml(turnoTexto) : ''}
+          ${obsTexto ? '<br>Obs: ' + escapeHtml(obsTexto) : ''}
+        </div>
+        <div class="item-acoes">
+          <select onchange="alterarStatusAtividade('${i.id}', this.value); setTimeout(renderCategoriaAtividades, 50);" style="width:auto; padding:6px 10px; font-size:12px;">
+            <option value="Pendente" ${status==='Pendente'?'selected':''}>Pendente</option>
+            <option value="Em andamento" ${status==='Em andamento'?'selected':''}>Em andamento</option>
+            <option value="Concluída" ${status==='Concluída'?'selected':''}>Concluída</option>
+          </select>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
 function renderConcluidasHoje(){
   const diaHoje = inicializarAbaHoje();
   const mapaStatus = carregarStatusAtividades();
@@ -2867,13 +3120,44 @@ function selecionarDiaSemana(chave){
   renderAtividadeSemanal();
 }
 function renderAbasDiasSemana(){
-  document.getElementById('abasDiasSemana').innerHTML = DIAS_SEMANA.map(d => `
-    <button onclick="selecionarDiaSemana('${d.chave}')" style="
-      flex-shrink:0; padding:8px 14px; border-radius:20px; border:1px solid var(--linha);
+  const mapaEdicoes = carregarEdicoesAtividades();
+  const extrasTodas = carregarAtividadesExtras();
+  const removidasGeral = new Set(carregarAtividadesRemovidas());
+  const idsDe = (dia, arr) => arr.map((i, idx) => ({...i, id: dia + '_' + idx}));
+  const comExtras = (dia) => [
+    ...idsDe(dia, ATIVIDADE_SEMANAL_SEED[dia] || []).filter(i => !removidasGeral.has(i.id)),
+    ...(extrasTodas[dia] || []).map(e => ({...e, extra:true}))
+  ];
+
+  const abasEl = document.getElementById('abasDiasSemana');
+  if(!abasEl) return;
+  abasEl.innerHTML = DIAS_SEMANA.map(d => {
+    const todosDoDia = comExtras(d.chave);
+    const qtdTotal = todosDoDia.length;
+    let qtdExibida = qtdTotal;
+    if(typeof filtroCategoriaAtividadeAtiva !== 'undefined' && filtroCategoriaAtividadeAtiva && filtroCategoriaAtividadeAtiva !== 'todas'){
+      qtdExibida = todosDoDia.filter(i => {
+        const editado = mapaEdicoes[i.id];
+        const nome = editado?.atividade || i.atividade;
+        const cat = (editado && editado.categoria) || i.categoria || classificarAtividade(nome);
+        return cat === filtroCategoriaAtividadeAtiva;
+      }).length;
+    }
+    const isAtivo = d.chave === diaSemanaAtivo;
+    return `
+    <button type="button" onclick="selecionarDiaSemana('${d.chave}')" style="
+      flex-shrink:0; padding:8px 14px; border-radius:20px; border:1px solid ${isAtivo ? 'var(--verde-800)' : 'var(--linha)'};
       font-family:'Inter',sans-serif; font-size:12.5px; font-weight:700; cursor:pointer;
-      background:${d.chave === diaSemanaAtivo ? 'var(--gradiente-suave)' : '#fff'};
-      color:${d.chave === diaSemanaAtivo ? '#fff' : 'var(--texto-suave)'};
-    ">${d.label}</button>`).join('');
+      background:${isAtivo ? 'var(--gradiente-suave)' : '#fff'};
+      color:${isAtivo ? '#fff' : 'var(--texto)'};
+      display:inline-flex; align-items:center; gap:6px;
+    ">
+      <span>${d.label}</span>
+      <span style="font-size:11px; padding:1px 6px; border-radius:10px; background:${isAtivo ? 'rgba(255,255,255,0.25)' : '#F3F4F6'}; color:${isAtivo ? '#fff' : 'var(--texto-suave)'};">
+        ${qtdExibida}
+      </span>
+    </button>`;
+  }).join('');
 }
 function carregarEdicoesAtividades(){
   try{ return JSON.parse(localStorage.getItem('mtc_atividade_edicoes')) || {}; }
@@ -2889,7 +3173,7 @@ function carregarAtividadesExtras(){
 function salvarAtividadesExtras(mapa){
   setItemSeguro('mtc_atividade_extras', JSON.stringify(mapa));
 }
-function abrirEditarAtividade(id, atividade, horario, turno, obs){
+function abrirEditarAtividade(id, atividade, horario, turno, obs, categoria){
   document.getElementById('tituloModalAtividade').textContent = 'Editar atividade';
   document.getElementById('atividade-id-edicao').value = id;
   document.getElementById('atividade-dia-edicao').value = '';
@@ -2897,6 +3181,8 @@ function abrirEditarAtividade(id, atividade, horario, turno, obs){
   document.getElementById('atividade-edicao-horario').value = horario;
   document.getElementById('atividade-edicao-turno').value = turno || 'MANHA';
   document.getElementById('atividade-edicao-obs').value = obs || '';
+  const selCat = document.getElementById('atividade-edicao-categoria');
+  if(selCat) selCat.value = categoria || classificarAtividade(atividade);
   document.getElementById('modalEditarAtividade').classList.add('aberto');
 }
 function abrirNovaAtividade(){
@@ -2907,6 +3193,14 @@ function abrirNovaAtividade(){
   document.getElementById('atividade-edicao-horario').value = '';
   document.getElementById('atividade-edicao-turno').value = 'MANHA';
   document.getElementById('atividade-edicao-obs').value = '';
+  const selCat = document.getElementById('atividade-edicao-categoria');
+  if(selCat){
+    if(typeof filtroCategoriaAtividadeAtiva !== 'undefined' && filtroCategoriaAtividadeAtiva && filtroCategoriaAtividadeAtiva !== 'todas'){
+      selCat.value = filtroCategoriaAtividadeAtiva;
+    } else {
+      selCat.value = 'Conservação e Limpeza';
+    }
+  }
   document.getElementById('modalEditarAtividade').classList.add('aberto');
 }
 function fecharEditarAtividade(){
@@ -2919,6 +3213,7 @@ function salvarEdicaoAtividade(){
   const horario = document.getElementById('atividade-edicao-horario').value.trim();
   const turno = document.getElementById('atividade-edicao-turno').value;
   const obs = document.getElementById('atividade-edicao-obs').value.trim();
+  const categoria = (document.getElementById('atividade-edicao-categoria') || {}).value || classificarAtividade(atividade);
   if(!atividade){ alert('Descreva a atividade.'); return; }
 
   if(dia){
@@ -2927,13 +3222,13 @@ function salvarEdicaoAtividade(){
     if(!extras[dia]) extras[dia] = [];
     extras[dia].push({
       id: 'extra_' + gerarId(),
-      atividade, horario, turno, obs
+      atividade, horario, turno, obs, categoria
     });
     salvarAtividadesExtras(extras);
   } else {
     // Edição de atividade já existente
     const mapa = carregarEdicoesAtividades();
-    mapa[id] = { atividade, horario, turno, obs };
+    mapa[id] = { atividade, horario, turno, obs, categoria };
     salvarEdicoesAtividades(mapa);
   }
   fecharEditarAtividade();
@@ -3006,7 +3301,74 @@ function classeStatusAtividade(status){
   return 'alerta';
 }
 
+let filtroCategoriaAtividadeAtiva = 'todas';
+
+function definirFiltroCategoriaAtividade(cat){
+  filtroCategoriaAtividadeAtiva = cat;
+  atualizarBotoesFiltroCategoria();
+  renderAbasDiasSemana();
+  renderAtividadeSemanal();
+}
+
+function filtrarPorCategoria(cat){
+  if(filtroCategoriaAtividadeAtiva === cat){
+    filtroCategoriaAtividadeAtiva = 'todas';
+  } else {
+    filtroCategoriaAtividadeAtiva = cat;
+  }
+  try { alternarModoAtividade('dia'); } catch(e){}
+  atualizarBotoesFiltroCategoria();
+  renderAbasDiasSemana();
+  renderAtividadeSemanal();
+
+  const el = document.getElementById('painelModoDia');
+  if(el){
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function atualizarBotoesFiltroCategoria(){
+  const mapa = {
+    'todas': 'filtroCatTodas',
+    'Conservação e Limpeza': 'filtroCatConservacao',
+    'Cursos': 'filtroCatCursos',
+    'Operações': 'filtroCatOperacoes'
+  };
+  Object.keys(mapa).forEach(k => {
+    const el = document.getElementById(mapa[k]);
+    if(el){
+      if(k === filtroCategoriaAtividadeAtiva){
+        el.classList.add('ativo');
+      } else {
+        el.classList.remove('ativo');
+      }
+    }
+  });
+
+  const kpiCons = document.getElementById('kpiPrincipalConservacao');
+  const kpiCurs = document.getElementById('kpiCardCursos');
+  const kpiOper = document.getElementById('kpiCardOperacoes');
+  if(kpiCons) kpiCons.classList.toggle('ativo', filtroCategoriaAtividadeAtiva === 'Conservação e Limpeza');
+  if(kpiCurs) kpiCurs.classList.toggle('ativo', filtroCategoriaAtividadeAtiva === 'Cursos');
+  if(kpiOper) kpiOper.classList.toggle('ativo', filtroCategoriaAtividadeAtiva === 'Operações');
+
+  const indCons = document.getElementById('indicadorStatusConservacao');
+  if(indCons){
+    indCons.innerHTML = filtroCategoriaAtividadeAtiva === 'Conservação e Limpeza'
+      ? '✓ Filtrado (toque p/ limpar)'
+      : '👉 Toque para filtrar tarefas ▾';
+  }
+}
+
+function abrirPainelConservacaoPrincipal(){
+  filtrarPorCategoria('Conservação e Limpeza');
+}
+function fecharPainelAtividadesCadastradas(){
+  // Mantido para compatibilidade
+}
+
 function renderAtividadeSemanal(){
+  normalizarCategoriasAtividades();
   if(!diaSemanaAtivo) diaSemanaAtivo = inicializarAbaHoje();
   renderAbasDiasSemana();
 
@@ -3025,46 +3387,171 @@ function renderAtividadeSemanal(){
   const concluidasHoje = statusHoje.filter(s => s === 'Concluída').length;
   const pendentesHoje = statusHoje.filter(s => s === 'Pendente').length;
 
-  document.getElementById('kpiAtividadeTotalSemana').textContent = totalSemanal;
-  document.getElementById('kpiAtividadeConcluidas').textContent = concluidasHoje;
-  document.getElementById('kpiAtividadePendentes').textContent = pendentesHoje;
-  document.getElementById('seloAtividade').textContent = totalSemanal + ' atividades';
-  document.getElementById('seloAtividade').className = 'selo ok';
+  const mapaEdicoes = carregarEdicoesAtividades();
+
+  let totalConservacao = 0, totalCursos = 0, totalOperacoes = 0;
+  let hojeConservacao = 0, hojeCursos = 0, hojeOperacoes = 0;
+  let hojeConsConcl = 0, hojeCursConcl = 0, hojeOperConcl = 0;
+
+  todasSemana.forEach(i => {
+    const editado = mapaEdicoes[i.id];
+    const nome = editado?.atividade || i.atividade;
+    const cat = (editado && editado.categoria) || i.categoria || classificarAtividade(nome);
+    if(cat === 'Conservação e Limpeza') totalConservacao++;
+    else if(cat === 'Cursos') totalCursos++;
+    else if(cat === 'Operações') totalOperacoes++;
+  });
+
+  itensHoje.forEach(i => {
+    const editado = mapaEdicoes[i.id];
+    const nome = editado?.atividade || i.atividade;
+    const cat = (editado && editado.categoria) || i.categoria || classificarAtividade(nome);
+    const st = statusDeEntrada(mapaStatus[i.id]) || statusOriginal(i.realizado);
+    if(cat === 'Conservação e Limpeza'){
+      hojeConservacao++;
+      if(st === 'Concluída') hojeConsConcl++;
+    } else if(cat === 'Cursos'){
+      hojeCursos++;
+      if(st === 'Concluída') hojeCursConcl++;
+    } else if(cat === 'Operações'){
+      hojeOperacoes++;
+      if(st === 'Concluída') hojeOperConcl++;
+    }
+  });
+
+  const elTotal = document.getElementById('kpiAtividadeTotalSemana');
+  if(elTotal) elTotal.textContent = totalSemanal;
+  const elConc = document.getElementById('kpiAtividadeConcluidas');
+  if(elConc) elConc.textContent = concluidasHoje;
+  const elPend = document.getElementById('kpiAtividadePendentes');
+  if(elPend) elPend.textContent = pendentesHoje;
+
+  const elCons = document.getElementById('kpiAtividadeConservacao');
+  if(elCons){
+    elCons.textContent = totalConservacao;
+    elCons.parentElement.title = `Conservação e Limpeza: ${totalConservacao} na semana (${hojeConsConcl}/${hojeConservacao} concluídas hoje)`;
+  }
+  const elSubCons = document.getElementById('subRotuloConservacao');
+  if(elSubCons){
+    elSubCons.textContent = `${totalConservacao} na semana (${hojeConsConcl}/${hojeConservacao} hoje) · Toque para filtrar`;
+  }
+  const elCurs = document.getElementById('kpiAtividadeCursos');
+  if(elCurs){
+    elCurs.textContent = totalCursos;
+    elCurs.parentElement.title = `Cursos: ${totalCursos} na semana (${hojeCursConcl}/${hojeCursos} concluídas hoje)`;
+  }
+  const elSubCurs = document.getElementById('subRotuloCursos');
+  if(elSubCurs){
+    elSubCurs.textContent = totalCursos === 0
+      ? '0 na semana · Livre para novas atividades'
+      : `${totalCursos} na semana (${hojeCursConcl}/${hojeCursos} hoje) · Toque para filtrar`;
+  }
+  const elOper = document.getElementById('kpiAtividadeOperacoes');
+  if(elOper){
+    elOper.textContent = totalOperacoes;
+    elOper.parentElement.title = `Operações: ${totalOperacoes} na semana (${hojeOperConcl}/${hojeOperacoes} concluídas hoje)`;
+  }
+  const elSubOper = document.getElementById('subRotuloOperacoes');
+  if(elSubOper){
+    elSubOper.textContent = totalOperacoes === 0
+      ? '0 na semana · Livre para novas atividades'
+      : `${totalOperacoes} na semana (${hojeOperConcl}/${hojeOperacoes} hoje) · Toque para filtrar`;
+  }
+
+  const elSelo = document.getElementById('seloAtividade');
+  if(elSelo){
+    elSelo.textContent = totalSemanal + ' atividades';
+    elSelo.className = 'selo ok';
+  }
 
   const removidas = new Set(carregarAtividadesRemovidas());
   const itensOriginais = idsDe(diaSemanaAtivo, ATIVIDADE_SEMANAL_SEED[diaSemanaAtivo] || []).filter(i => !removidas.has(i.id));
   const extrasDoDia = (carregarAtividadesExtras()[diaSemanaAtivo] || []).map(e => ({...e, extra:true, realizado:''}));
-  const mapaEdicoes = carregarEdicoesAtividades();
   const horarioEfetivo = i => {
     const editado = mapaEdicoes[i.id];
     const h = (editado ? editado.horario : i.horario) || '';
     return h.trim();
   };
-  const itens = [...itensOriginais, ...extrasDoDia].sort((a, b) => {
+  const todosDoDia = [...itensOriginais, ...extrasDoDia].sort((a, b) => {
     const ha = horarioEfetivo(a), hb = horarioEfetivo(b);
     if(!ha && !hb) return 0;
     if(!ha) return 1;
     if(!hb) return -1;
     return ha.localeCompare(hb, undefined, {numeric:true});
   });
+
+  // Atualiza contadores das categorias para o dia ativo
+  let contConsDia = 0, contCursDia = 0, contOperDia = 0;
+  todosDoDia.forEach(i => {
+    const editado = mapaEdicoes[i.id];
+    const nome = editado?.atividade || i.atividade;
+    const cat = (editado && editado.categoria) || i.categoria || classificarAtividade(nome);
+    if(cat === 'Conservação e Limpeza') contConsDia++;
+    else if(cat === 'Cursos') contCursDia++;
+    else if(cat === 'Operações') contOperDia++;
+  });
+  const elContTodas = document.getElementById('contFiltroCatTodas');
+  if(elContTodas) elContTodas.textContent = todosDoDia.length;
+  const elContCons = document.getElementById('contFiltroCatConservacao');
+  if(elContCons) elContCons.textContent = contConsDia;
+  const elContCurs = document.getElementById('contFiltroCatCursos');
+  if(elContCurs) elContCurs.textContent = contCursDia;
+  const elContOper = document.getElementById('contFiltroCatOperacoes');
+  if(elContOper) elContOper.textContent = contOperDia;
+  atualizarBotoesFiltroCategoria();
+
+  const buscaTermo = (document.getElementById('buscaAtividadesPainel')?.value || '').toLowerCase().trim();
+  const itens = todosDoDia.filter(i => {
+    const editado = mapaEdicoes[i.id];
+    const nome = editado?.atividade || i.atividade;
+    const cat = (editado && editado.categoria) || i.categoria || classificarAtividade(nome);
+    if(filtroCategoriaAtividadeAtiva !== 'todas' && cat !== filtroCategoriaAtividadeAtiva){
+      return false;
+    }
+    if(buscaTermo){
+      const horarioTexto = (editado ? editado.horario : i.horario) || '';
+      const turnoTexto = (editado ? editado.turno : i.turno) || '';
+      const obsTexto = (editado ? editado.obs : i.obs) || '';
+      const textoCompleto = `${nome} ${cat} ${horarioTexto} ${turnoTexto} ${obsTexto}`.toLowerCase();
+      if(!textoCompleto.includes(buscaTermo)) return false;
+    }
+    return true;
+  });
+
   const statusDoDia = itens.map(i => statusDeEntrada(mapaStatus[i.id]) || statusOriginal(i.realizado));
   const total = itens.length;
   const concluidos = statusDoDia.filter(s => s === 'Concluída').length;
   const andamento = statusDoDia.filter(s => s === 'Em andamento').length;
   const pendentes = statusDoDia.filter(s => s === 'Pendente').length;
-  document.getElementById('resumoDiaSemana').innerHTML = `
-    <span class="selo ok">${concluidos} concluída(s)</span>
-    <span class="selo neutro">${andamento} em andamento</span>
-    <span class="selo ${pendentes > 0 ? 'alerta' : 'ok'}">${pendentes} pendente(s)</span>
-  `;
+  const rotuloFiltro = filtroCategoriaAtividadeAtiva === 'todas' ? '' : ` · ${filtroCategoriaAtividadeAtiva}`;
+  const elResumoDia = document.getElementById('resumoDiaSemana');
+  if(elResumoDia){
+    elResumoDia.innerHTML = `
+      <span class="selo ok">${concluidos} concluída(s)</span>
+      <span class="selo neutro">${andamento} em andamento</span>
+      <span class="selo ${pendentes > 0 ? 'alerta' : 'ok'}">${pendentes} pendente(s)</span>
+      <span style="font-size:12px; color:var(--texto-suave); margin-left:auto; font-weight:600;">Exibindo: ${total} atividade(s)${escapeHtml(rotuloFiltro)}</span>
+    `;
+  }
   const cont = document.getElementById('lista-atividade-semanal');
-  if(itens.length === 0){ cont.innerHTML = telaVazia('Nenhuma atividade cadastrada para este dia.'); return; }
+  if(itens.length === 0){
+    const msg = filtroCategoriaAtividadeAtiva !== 'todas'
+      ? `Nenhuma atividade de "${filtroCategoriaAtividadeAtiva}" encontrada para este dia.`
+      : 'Nenhuma atividade cadastrada para este dia.';
+    const btnNovo = filtroCategoriaAtividadeAtiva !== 'todas'
+      ? `<div style="margin-top:14px; text-align:center;"><button class="btn btn-primario" onclick="abrirNovaAtividade()">+ Cadastrar atividade em ${escapeHtml(filtroCategoriaAtividadeAtiva)}</button></div>`
+      : `<div style="margin-top:14px; text-align:center;"><button class="btn btn-primario" onclick="abrirNovaAtividade()">+ Nova atividade</button></div>`;
+    cont.innerHTML = telaVazia(msg) + btnNovo;
+    return;
+  }
   cont.innerHTML = itens.map(i => {
     const editado = mapaEdicoes[i.id];
     const atividadeTexto = editado ? editado.atividade : i.atividade;
     const horarioTexto = editado ? editado.horario : i.horario;
     const turnoTexto = editado ? editado.turno : (i.turno || 'MANHA');
     const obsTexto = editado ? editado.obs : (i.obs || '');
+    const cat = (editado && editado.categoria) || i.categoria || classificarAtividade(atividadeTexto);
+    const catEscapadoJs = escapeHtml(cat).replace(/'/g, "\\'");
     const status = statusDeEntrada(mapaStatus[i.id]) || statusOriginal(i.realizado);
     const classe = classeStatusAtividade(status);
     const isConcluida = status === 'Concluída';
@@ -3082,6 +3569,7 @@ function renderAtividadeSemanal(){
       <div class="item-corpo">
         <div class="item-titulo">
           <strong>${escapeHtml(atividadeTexto)}</strong>
+          <span class="tag-categoria ${classeCategoriaAtividade(cat)}">${escapeHtml(cat)}</span>
           ${i.extra ? '<span class="tag-status neutro">Adicionada</span>' : ''}
         </div>
         <div class="item-meta">
@@ -3094,7 +3582,7 @@ function renderAtividadeSemanal(){
             <option value="Em andamento" ${status==='Em andamento'?'selected':''}>Em andamento</option>
             <option value="Concluída" ${status==='Concluída'?'selected':''}>Concluída</option>
           </select>
-          <button onclick="abrirEditarAtividade('${i.id}', '${nomeEscapadoJs}', '${escapeHtml(horarioTexto||'')}', '${turnoTexto||'MANHA'}', '${obsEscapadoJs}')">Editar</button>
+          <button onclick="abrirEditarAtividade('${i.id}', '${nomeEscapadoJs}', '${escapeHtml(horarioTexto||'')}', '${turnoTexto||'MANHA'}', '${obsEscapadoJs}', '${catEscapadoJs}')">Editar</button>
         </div>
       </div>
     </div>`;
@@ -3110,11 +3598,16 @@ let modoAtividadeAtual = 'dia';
 
 function alternarModoAtividade(modo){
   modoAtividadeAtual = modo;
-  document.getElementById('painelModoDia').style.display = modo === 'dia' ? 'block' : 'none';
-  document.getElementById('painelModoSetor').style.display = modo === 'setor' ? 'block' : 'none';
-  document.getElementById('btnModoDia').className = modo === 'dia' ? 'btn btn-primario' : 'btn btn-secundario';
-  document.getElementById('btnModoSetor').className = modo === 'setor' ? 'btn btn-primario' : 'btn btn-secundario';
+  const painelDia = document.getElementById('painelModoDia');
+  const painelSetor = document.getElementById('painelModoSetor');
+  if(painelDia) painelDia.style.display = modo === 'dia' ? 'block' : 'none';
+  if(painelSetor) painelSetor.style.display = modo === 'setor' ? 'block' : 'none';
+  const btnDia = document.getElementById('btnModoDia');
+  const btnSetor = document.getElementById('btnModoSetor');
+  if(btnDia) btnDia.className = modo === 'dia' ? 'btn btn-primario' : 'btn btn-secundario';
+  if(btnSetor) btnSetor.className = modo === 'setor' ? 'btn btn-primario' : 'btn btn-secundario';
   if(modo === 'setor'){ renderAbasSetores(); renderSetor(); }
+  else { renderAbasDiasSemana(); renderAtividadeSemanal(); }
 }
 function selecionarSetor(nome){
   setorAtivo = nome;
