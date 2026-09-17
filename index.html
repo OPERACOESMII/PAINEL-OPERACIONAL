@@ -786,10 +786,10 @@ function restaurarManualNuvem(){
   }
 
   .kpi-card-destaque{
-    border-radius:14px; padding:14px 15px;
+    border-radius:14px; padding:12px 14px;
     cursor:pointer; transition:all 0.2s ease;
     user-select:none; display:flex; flex-direction:column; justify-content:space-between;
-    box-shadow:0 4px 14px rgba(10,38,71,0.18); text-align:left; min-height:112px;
+    box-shadow:0 4px 14px rgba(10,38,71,0.18); text-align:left; min-height:104px;
     color:#FFFFFF; position:relative; overflow:hidden;
   }
   .kpi-card-destaque:hover{
@@ -818,84 +818,147 @@ function restaurarManualNuvem(){
     filter:brightness(1.15);
   }
 
+  /* Topo do cartão: Título da categoria com 100% de largura livre */
   .kpi-destaque-topo{
-    display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:6px;
+    display:flex; align-items:center; gap:6px; margin-bottom:2px; width:100%; min-width:0;
   }
-  .badge-kpi-azul{
-    background:rgba(255,255,255,0.18); color:#FFFFFF; font-size:10px; font-weight:700;
-    padding:3px 8px; border-radius:20px; letter-spacing:0.5px; text-transform:uppercase;
-    display:inline-flex; align-items:center; gap:4px;
-    border:1px solid rgba(255,255,255,0.28); backdrop-filter:blur(4px);
+  .kpi-destaque-icone-inline{
+    font-size:16px; line-height:1; flex-shrink:0;
   }
-  .indicador-acesso-kpi{
-    font-size:11px; font-weight:600; color:#BAE6FD; display:inline-flex; align-items:center; gap:3px; white-space:nowrap;
-  }
-  .kpi-card-destaque:hover .indicador-acesso-kpi{ color:#FFFFFF; }
-
-  .kpi-destaque-corpo{
-    display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:auto;
-  }
-  .kpi-destaque-esquerda{
-    display:flex; align-items:center; gap:10px; min-width:0; flex:1;
-  }
-  .kpi-destaque-icone{
-    width:38px; height:38px; border-radius:10px;
-    background:rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.26);
-    display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;
-    color:#FFFFFF;
-  }
-
   .kpi-destaque-rotulo{
-    font-size:14.5px; font-weight:800; color:#FFFFFF; margin-bottom:1px;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    font-size:13.5px; font-weight:700; color:#FFFFFF;
+    letter-spacing:0.2px; white-space:nowrap; overflow:visible;
   }
-  .kpi-destaque-sub{
-    font-size:11px; color:#C7E2FE; line-height:1.25;
-    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  }
-  .kpi-destaque-direita{
-    text-align:right; flex-shrink:0;
+
+  /* Valor Numérico Central */
+  .kpi-destaque-valor-wrap{
+    margin:2px 0 2px 0; width:100%;
   }
   .kpi-destaque-valor{
-    font-family:'Bebas Neue',sans-serif; font-size:34px; color:#FFFFFF; line-height:1;
-    text-shadow:0 1px 3px rgba(0,0,0,0.25);
-  }
-  .kpi-destaque-sufixo{
-    font-size:9.5px; color:#BAE6FD; font-weight:700; text-transform:uppercase; letter-spacing:0.4px;
+    font-family:'Bebas Neue',sans-serif; font-size:36px; color:#FFFFFF; line-height:1;
+    text-shadow:0 1px 3px rgba(0,0,0,0.25); letter-spacing:0.5px;
   }
 
+  /* Rodapé: Subtítulo e status de filtro */
+  .kpi-destaque-rodape{
+    display:flex; align-items:center; justify-content:space-between; gap:4px;
+    margin-top:auto; width:100%; min-width:0;
+  }
+  .kpi-destaque-sub{
+    font-size:11px; color:#BAE6FD; font-weight:500; line-height:1.2;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; letter-spacing:0.15px;
+    flex:1; min-width:0;
+  }
+  .kpi-destaque-filtro{
+    flex-shrink:0; display:inline-flex; align-items:center;
+  }
+  .kpi-tag-ativo{
+    background:#22C55E; color:#FFFFFF; font-size:9px; font-weight:700;
+    padding:1px 6px; border-radius:10px; border:1px solid #86EFAC;
+    white-space:nowrap; display:inline-block; line-height:1.3;
+  }
+  .kpi-tag-filtrar{
+    font-size:9.5px; color:#BAE6FD; font-weight:600;
+    background:rgba(255,255,255,0.14); border:1px solid rgba(255,255,255,0.24);
+    padding:1px 6px; border-radius:10px; white-space:nowrap; display:inline-block; line-height:1.3;
+    transition:all 0.15s ease;
+  }
+  .kpi-card-destaque:hover .kpi-tag-filtrar{
+    background:rgba(255,255,255,0.25); color:#FFFFFF; border-color:rgba(255,255,255,0.4);
+  }
+
+  /* Responsividade Especial para Celular - Legibilidade Total dos Nomes e Layout Limpo */
   @media(max-width: 768px){
     .grade-kpis-atividade{
-      gap:6px;
+      gap:7px;
     }
     .kpi-card-destaque{
-      padding:9px 7px;
+      padding:10px 6px 8px 6px;
       min-height:92px;
-      border-radius:10px;
+      border-radius:12px;
+      text-align:center;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:space-between;
     }
-    .kpi-destaque-icone{
-      width:28px;
-      height:28px;
-      font-size:14px;
-      border-radius:7px;
+    .kpi-destaque-topo{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:2px;
+      margin-bottom:2px;
+      width:100%;
+    }
+    .kpi-destaque-icone-inline{
+      font-size:16px;
+      line-height:1;
+      display:block;
     }
     .kpi-destaque-rotulo{
       font-size:11px;
+      font-weight:700;
+      line-height:1.2;
+      letter-spacing:0.1px;
+      white-space:normal;
+      text-align:center;
+      display:block;
+      width:100%;
+      word-break:keep-all;
+    }
+    .kpi-rotulo-resto{
+      display:inline;
+    }
+    .kpi-destaque-valor-wrap{
+      margin:2px 0;
+      text-align:center;
+      width:100%;
+    }
+    .kpi-destaque-valor{
+      font-size:26px;
+      text-align:center;
+    }
+    .kpi-destaque-rodape{
+      justify-content:center;
+      text-align:center;
+      width:100%;
     }
     .kpi-destaque-sub{
-      font-size:9px;
+      font-size:9.5px;
+      letter-spacing:0;
+      text-align:center;
+      white-space:nowrap;
+    }
+    .kpi-tag-filtrar{
+      display:none;
+    }
+    .kpi-tag-ativo{
+      font-size:8px;
+      padding:1px 5px;
+    }
+  }
+
+  @media(max-width: 480px){
+    .grade-kpis-atividade{
+      gap:5px;
+    }
+    .kpi-card-destaque{
+      padding:8px 4px 6px 4px;
+      min-height:86px;
+      border-radius:10px;
+    }
+    .kpi-destaque-icone-inline{
+      font-size:15px;
+    }
+    .kpi-destaque-rotulo{
+      font-size:10px;
+      line-height:1.15;
     }
     .kpi-destaque-valor{
       font-size:22px;
     }
-    .kpi-destaque-sufixo{
-      font-size:7.5px;
-    }
-    .badge-kpi-azul{
-      font-size:8px;
-      padding:2px 5px;
-    }
-    .indicador-acesso-kpi{
+    .kpi-destaque-sub{
       font-size:8.5px;
     }
   }
@@ -1326,6 +1389,75 @@ function restaurarManualNuvem(){
   .vazio .icone-vazio{font-size:30px; margin-bottom:8px; opacity:0.5;}
   ::-webkit-scrollbar{width:8px;}
 
+  /* ---------- KPI DE AVALIAÇÃO DE DESEMPENHO (EQUIPE DEM2) ---------- */
+  .kpi-avaliacao-card{
+    margin-top:8px; padding:10px 12px; border-radius:10px;
+    background:var(--fundo-alt, #f8fafc); border:1px solid var(--borda, #e2e8f0);
+    transition:all .18s ease; cursor:pointer;
+  }
+  .kpi-avaliacao-card:hover{
+    border-color:var(--verde-800, #047857); box-shadow:0 2px 8px rgba(0,0,0,0.06);
+  }
+  .kpi-avaliacao-card-topo{
+    display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; flex-wrap:wrap;
+  }
+  .kpi-avaliacao-card-titulo{
+    font-size:11.5px; font-weight:700; color:var(--texto-suave); display:inline-flex; align-items:center; gap:5px;
+  }
+  .kpi-avaliacao-card-badge{
+    font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px; white-space:nowrap; display:inline-flex; align-items:center; gap:4px;
+  }
+  .kpi-avaliacao-card-grid{
+    display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:5px 8px;
+  }
+  @media(min-width: 640px){
+    .kpi-avaliacao-card-grid{ grid-template-columns:repeat(4, minmax(0, 1fr)); }
+  }
+  .kpi-criterio-item{
+    background:var(--cartao, #fff); border:1px solid rgba(0,0,0,0.07); border-radius:6px;
+    padding:4px 6px; display:flex; align-items:center; justify-content:space-between; gap:4px;
+    font-size:10.5px;
+  }
+  .kpi-criterio-label{
+    color:var(--texto-suave); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .kpi-criterio-nota{
+    font-weight:800; font-size:11px; border-radius:4px; padding:1px 5px; min-width:18px; text-align:center;
+  }
+  .kpi-criterio-nota.nota-1{ background:#FEF2F2; color:#DC2626; border:1px solid #FCA5A5; }
+  .kpi-criterio-nota.nota-2{ background:#FFFBEB; color:#D97706; border:1px solid #FCD34D; }
+  .kpi-criterio-nota.nota-3{ background:#F0F9FF; color:#0284C7; border:1px solid #BAE6FD; }
+  .kpi-criterio-nota.nota-4{ background:#ECFDF5; color:#059669; border:1px solid #6EE7B7; }
+  .kpi-criterio-nota.nota-vazia{ background:rgba(0,0,0,0.04); color:var(--texto-suave); }
+  
+  .btn-avaliar-kpi{
+    font-size:11px; font-weight:600; padding:4px 9px; border-radius:6px;
+    background:var(--verde-100, #e6f4ea); color:var(--verde-800, #047857);
+    border:1px solid var(--verde-200, #c6e7d2); cursor:pointer; display:inline-flex; align-items:center; gap:4px;
+  }
+  .btn-avaliar-kpi:hover{
+    background:var(--verde-200, #c6e7d2);
+  }
+  .seletor-nota-grupo{
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin-top:5px;
+  }
+  .btn-nota-opcao{
+    border:1.5px solid var(--borda, #cbd5e1); background:var(--cartao, #fff); border-radius:8px;
+    padding:8px 4px; text-align:center; cursor:pointer; transition:all .15s ease;
+    display:flex; flex-direction:column; align-items:center; gap:2px; font-family:'Inter',sans-serif;
+  }
+  .btn-nota-opcao strong{ font-size:15px; font-weight:800; color:var(--texto); }
+  .btn-nota-opcao span{ font-size:9.5px; font-weight:600; line-height:1.1; color:var(--texto-suave); }
+  .btn-nota-opcao:hover{ border-color:var(--verde-800); }
+  .btn-nota-opcao.ativo-1{ background:#FEF2F2 !important; border-color:#DC2626 !important; }
+  .btn-nota-opcao.ativo-1 strong, .btn-nota-opcao.ativo-1 span{ color:#DC2626 !important; }
+  .btn-nota-opcao.ativo-2{ background:#FFFBEB !important; border-color:#D97706 !important; }
+  .btn-nota-opcao.ativo-2 strong, .btn-nota-opcao.ativo-2 span{ color:#D97706 !important; }
+  .btn-nota-opcao.ativo-3{ background:#F0F9FF !important; border-color:#0284C7 !important; }
+  .btn-nota-opcao.ativo-3 strong, .btn-nota-opcao.ativo-3 span{ color:#0284C7 !important; }
+  .btn-nota-opcao.ativo-4{ background:#ECFDF5 !important; border-color:#059669 !important; }
+  .btn-nota-opcao.ativo-4 strong, .btn-nota-opcao.ativo-4 span{ color:#059669 !important; }
+
   /* ---------- MODAL DE DETALHES ---------- */
   .item-cartao.clicavel{cursor:pointer;}
   .modal-fundo{
@@ -1660,6 +1792,54 @@ function restaurarManualNuvem(){
       <button class="btn btn-secundario" onclick="fecharDetalheEquipe()">Fechar</button>
       <button class="btn btn-perigo" id="modalEquipeExcluirBtn">Excluir</button>
       <button class="btn btn-primario" id="modalEquipeEditarBtn">Editar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DE AVALIAÇÃO RÁPIDA (KPI DME2) -->
+<div class="modal-fundo" id="modalAvaliacaoColaborador" style="z-index:75;" onclick="if(event.target===this) fecharModalAvaliacao()">
+  <div class="modal-caixa" style="max-width:540px;">
+    <div class="modal-cabecalho">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="font-size:22px;">📊</span>
+        <div>
+          <h3 style="margin:0; font-size:21px; line-height:1.1;">Avaliação de Desempenho</h3>
+          <div id="modalAvalColabSubtitulo" style="font-size:12px; color:var(--texto-suave); margin-top:2px;"></div>
+        </div>
+      </div>
+      <button class="modal-fechar" onclick="fecharModalAvaliacao()">✕</button>
+    </div>
+    <input type="hidden" id="modalAvalColabId">
+    
+    <!-- PROCEDIMENTO OFICIAL -->
+    <div style="background:rgba(2, 132, 199, 0.08); border-left:3px solid #0284C7; padding:10px 12px; border-radius:6px; font-size:11.5px; line-height:1.45; color:var(--texto); margin-bottom:14px;">
+      <div style="font-weight:700; margin-bottom:4px; color:#0369A1;">Procedimento: Informar nota de 1 a 4 para cada critério, conforme a escala abaixo:</div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:4px 8px; font-size:11px;">
+        <div><strong style="color:#DC2626;">1 - Precisa Melhorar:</strong> Não atende aos requisitos básicos.</div>
+        <div><strong style="color:#D97706;">2 - Em Desenvolvimento:</strong> Atende parcialmente, necessitando de supervisão.</div>
+        <div><strong style="color:#0284C7;">3 - Atende o Esperado:</strong> Atua de forma consistente e autônoma.</div>
+        <div><strong style="color:#059669;">4 - Supera o Esperado:</strong> É referência e entrega além do solicitado.</div>
+      </div>
+    </div>
+
+    <!-- 4 CRITÉRIOS -->
+    <div id="modalAvalGradeCriterios" style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;"></div>
+
+    <!-- PREVIEW DA MÉDIA GERAL (KPI) -->
+    <div id="modalAvalPreviewMedia" style="background:var(--fundo-alt); border:1px solid var(--borda); border-radius:10px; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:8px;">
+      <div>
+        <div style="font-size:11px; font-weight:700; text-transform:uppercase; color:var(--texto-suave); letter-spacing:0.5px;">KPI - Média Geral</div>
+        <div id="modalAvalMediaTexto" style="font-size:20px; font-weight:800; color:var(--texto); font-family:'Bebas Neue',sans-serif; letter-spacing:0.5px;">Pendente</div>
+      </div>
+      <div id="modalAvalMediaBadge" class="kpi-avaliacao-card-badge" style="background:#F1F5F9; color:#64748B; border:1px solid #CBD5E1; font-size:12px; padding:4px 12px;">
+        Não avaliado
+      </div>
+    </div>
+
+    <div class="modal-acoes">
+      <button class="btn btn-secundario" onclick="fecharModalAvaliacao()">Cancelar</button>
+      <button class="btn btn-secundario" onclick="limparNotasModalAvaliacao()" style="color:var(--alerta);">Limpar notas</button>
+      <button class="btn btn-primario" onclick="salvarModalAvaliacao()">Salvar Avaliação</button>
     </div>
   </div>
 </div>
@@ -2752,11 +2932,11 @@ function restaurarManualNuvem(){
         <div><label>Nome</label><input type="text" id="equipe-nome" placeholder="Nome completo"></div>
         <div><label>Matrícula</label><input type="text" id="equipe-matricula" placeholder="Ex: 82447"></div>
         <div><label>Função</label>
-          <select id="equipe-funcao" onchange="alternarFuncaoOutra()"></select>
+          <select id="equipe-funcao" onchange="alternarFuncaoOutra(); verificarFuncaoParaAvaliacaoForm();"></select>
         </div>
         <div class="campo-largo" id="funcaoOutraBox" style="display:none;">
           <label>Nova função</label>
-          <input type="text" id="equipe-funcao-outra" placeholder="Digite a função...">
+          <input type="text" id="equipe-funcao-outra" placeholder="Digite a função..." oninput="verificarFuncaoParaAvaliacaoForm()">
         </div>
         <div><label>Turno</label>
           <select id="equipe-turno">
@@ -2786,6 +2966,72 @@ function restaurarManualNuvem(){
         </div>
         <div><label>Telefone</label><input type="text" id="equipe-telefone" placeholder="(31) 9....-...."></div>
         <div class="campo-largo"><label>Observações</label><input type="text" id="equipe-obs" placeholder="Ex: horário, férias..."></div>
+        <!-- KPI DE AVALIAÇÃO DE DESEMPENHO (Para: ASG, Apoio, Auxiliar de Quadras, Atendente de Portaria, Guarda Vidas, Aux Sala de Jogos) -->
+        <div class="campo-largo" id="box-avaliacao-equipe" style="display:none; background:var(--fundo-alt); border:1.5px solid var(--borda); border-radius:12px; padding:14px; margin-top:8px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:17px;">📊</span>
+              <div>
+                <strong style="font-size:13.5px; color:var(--verde-900); display:block; line-height:1.2;">KPI de Avaliação de Desempenho</strong>
+                <span style="font-size:11px; color:var(--texto-suave);">Escala por competências (notas 1 a 4)</span>
+              </div>
+            </div>
+            <div id="badgeMediaFormEquipe" class="kpi-avaliacao-card-badge" style="background:#F1F5F9; color:#64748B; border:1px solid #CBD5E1;">
+              Pendente
+            </div>
+          </div>
+          <div style="background:rgba(2, 132, 199, 0.08); border-left:3px solid #0284C7; padding:9px 12px; border-radius:6px; font-size:11.5px; line-height:1.45; color:var(--texto); margin-bottom:12px;">
+            <div style="font-weight:700; margin-bottom:4px; color:#0369A1;">Procedimento: Informar nota de 1 a 4 para cada critério, conforme a escala abaixo:</div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:4px 8px; font-size:11px;">
+              <div><strong style="color:#DC2626;">1 - Precisa Melhorar:</strong> Não atende aos requisitos básicos.</div>
+              <div><strong style="color:#D97706;">2 - Em Desenvolvimento:</strong> Atende parcialmente, necessitando de supervisão.</div>
+              <div><strong style="color:#0284C7;">3 - Atende o Esperado:</strong> Atua de forma consistente e autônoma.</div>
+              <div><strong style="color:#059669;">4 - Supera o Esperado:</strong> É referência e entrega além do solicitado.</div>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px;">
+            <div>
+              <label style="font-size:11.5px; font-weight:700; margin-bottom:4px; display:block;">Conhecimento</label>
+              <select id="equipe-aval-conhecimento" onchange="atualizarMediaFormEquipe()" style="font-size:12px;">
+                <option value="">Selecione a nota...</option>
+                <option value="1">1 - Precisa Melhorar</option>
+                <option value="2">2 - Em Desenvolvimento</option>
+                <option value="3">3 - Atende o Esperado</option>
+                <option value="4">4 - Supera o Esperado</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11.5px; font-weight:700; margin-bottom:4px; display:block;">Presença Operacional</label>
+              <select id="equipe-aval-presenca" onchange="atualizarMediaFormEquipe()" style="font-size:12px;">
+                <option value="">Selecione a nota...</option>
+                <option value="1">1 - Precisa Melhorar</option>
+                <option value="2">2 - Em Desenvolvimento</option>
+                <option value="3">3 - Atende o Esperado</option>
+                <option value="4">4 - Supera o Esperado</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11.5px; font-weight:700; margin-bottom:4px; display:block;">Relacionamento Interpessoal</label>
+              <select id="equipe-aval-relacionamento" onchange="atualizarMediaFormEquipe()" style="font-size:12px;">
+                <option value="">Selecione a nota...</option>
+                <option value="1">1 - Precisa Melhorar</option>
+                <option value="2">2 - Em Desenvolvimento</option>
+                <option value="3">3 - Atende o Esperado</option>
+                <option value="4">4 - Supera o Esperado</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:11.5px; font-weight:700; margin-bottom:4px; display:block;">Perspectiva de Desenvolvimento</label>
+              <select id="equipe-aval-perspectiva" onchange="atualizarMediaFormEquipe()" style="font-size:12px;">
+                <option value="">Selecione a nota...</option>
+                <option value="1">1 - Precisa Melhorar</option>
+                <option value="2">2 - Em Desenvolvimento</option>
+                <option value="3">3 - Atende o Esperado</option>
+                <option value="4">4 - Supera o Esperado</option>
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="acoes-form">
         <button class="btn btn-secundario" onclick="fecharForm('equipe')">Cancelar</button>
@@ -2908,63 +3154,45 @@ function restaurarManualNuvem(){
       <!-- KPI: Conservação e Limpeza -->
       <div class="kpi-card-destaque conservacao" id="kpiPrincipalConservacao" onclick="filtrarPorCategoria('Conservação e Limpeza')" title="Clique para filtrar atividades de Conservação e Limpeza">
         <div class="kpi-destaque-topo">
-          <span class="badge-kpi-azul">🧹 CONSERVAÇÃO E LIMPEZA</span>
-          <span class="indicador-acesso-kpi" id="indicadorStatusConservacao">👉 Filtrar tarefas ▾</span>
+          <span class="kpi-destaque-icone-inline">🧹</span>
+          <span class="kpi-destaque-rotulo"><span class="kpi-rotulo-curto">Conservação</span><span class="kpi-rotulo-resto"> e Limpeza</span></span>
         </div>
-        <div class="kpi-destaque-corpo">
-          <div class="kpi-destaque-esquerda">
-            <div class="kpi-destaque-icone">🧹</div>
-            <div>
-              <div class="kpi-destaque-rotulo">Conservação e Limpeza</div>
-              <div class="kpi-destaque-sub" id="subRotuloConservacao">Atividades de limpeza predial</div>
-            </div>
-          </div>
-          <div class="kpi-destaque-direita">
-            <div class="kpi-destaque-valor" id="kpiAtividadeConservacao">0</div>
-            <div class="kpi-destaque-sufixo">na semana</div>
-          </div>
+        <div class="kpi-destaque-valor-wrap">
+          <div class="kpi-destaque-valor" id="kpiAtividadeConservacao">0</div>
+        </div>
+        <div class="kpi-destaque-rodape">
+          <div class="kpi-destaque-sub" id="subRotuloConservacao">na semana</div>
+          <div class="kpi-destaque-filtro" id="indicadorStatusConservacao"></div>
         </div>
       </div>
 
       <!-- KPI: Cursos -->
       <div class="kpi-card-destaque cursos" id="kpiCardCursos" onclick="filtrarPorCategoria('Cursos')" title="Clique para filtrar atividades e horários de Cursos">
         <div class="kpi-destaque-topo">
-          <span class="badge-kpi-azul">📚 CURSOS</span>
-          <span class="indicador-acesso-kpi" id="indicadorStatusCursos">Filtrar tarefas ▾</span>
+          <span class="kpi-destaque-icone-inline">📚</span>
+          <span class="kpi-destaque-rotulo">Cursos</span>
         </div>
-        <div class="kpi-destaque-corpo">
-          <div class="kpi-destaque-esquerda">
-            <div class="kpi-destaque-icone">📚</div>
-            <div>
-              <div class="kpi-destaque-rotulo">Cursos</div>
-              <div class="kpi-destaque-sub" id="subRotuloCursos">Escolas e salas esportivas</div>
-            </div>
-          </div>
-          <div class="kpi-destaque-direita">
-            <div class="kpi-destaque-valor" id="kpiAtividadeCursos">0</div>
-            <div class="kpi-destaque-sufixo">na semana</div>
-          </div>
+        <div class="kpi-destaque-valor-wrap">
+          <div class="kpi-destaque-valor" id="kpiAtividadeCursos">0</div>
+        </div>
+        <div class="kpi-destaque-rodape">
+          <div class="kpi-destaque-sub" id="subRotuloCursos">na semana</div>
+          <div class="kpi-destaque-filtro" id="indicadorStatusCursos"></div>
         </div>
       </div>
 
       <!-- KPI: Operações -->
       <div class="kpi-card-destaque operacoes" id="kpiCardOperacoes" onclick="filtrarPorCategoria('Operações')" title="Clique para filtrar rotinas de Operações">
         <div class="kpi-destaque-topo">
-          <span class="badge-kpi-azul">⚙️ OPERAÇÕES</span>
-          <span class="indicador-acesso-kpi" id="indicadorStatusOperacoes">Filtrar tarefas ▾</span>
+          <span class="kpi-destaque-icone-inline">⚙️</span>
+          <span class="kpi-destaque-rotulo">Operações</span>
         </div>
-        <div class="kpi-destaque-corpo">
-          <div class="kpi-destaque-esquerda">
-            <div class="kpi-destaque-icone">⚙️</div>
-            <div>
-              <div class="kpi-destaque-rotulo">Operações</div>
-              <div class="kpi-destaque-sub" id="subRotuloOperacoes">Rotinas e manutenção predial</div>
-            </div>
-          </div>
-          <div class="kpi-destaque-direita">
-            <div class="kpi-destaque-valor" id="kpiAtividadeOperacoes">0</div>
-            <div class="kpi-destaque-sufixo">na semana</div>
-          </div>
+        <div class="kpi-destaque-valor-wrap">
+          <div class="kpi-destaque-valor" id="kpiAtividadeOperacoes">0</div>
+        </div>
+        <div class="kpi-destaque-rodape">
+          <div class="kpi-destaque-sub" id="subRotuloOperacoes">na semana</div>
+          <div class="kpi-destaque-filtro" id="indicadorStatusOperacoes"></div>
         </div>
       </div>
     </div>
@@ -3262,7 +3490,7 @@ function camposDoModulo(mod){
     case 'chaves':   return ['chave-nome','chave-numero','chave-imagem','chave-obs'];
     case 'radios':   return ['radio-setor','radio-codigo','radio-identificacao','radio-modelo','radio-sn'];
     case 'estoque':  return ['estoque-nome','estoque-categoria','estoque-unidade','estoque-quantidade','estoque-minimo'];
-    case 'equipe':   return ['equipe-nome','equipe-matricula','equipe-funcao','equipe-turno','equipe-horario','equipe-telefone','equipe-obs'];
+    case 'equipe':   return ['equipe-nome','equipe-matricula','equipe-funcao','equipe-turno','equipe-horario','equipe-telefone','equipe-obs','equipe-aval-conhecimento','equipe-aval-presenca','equipe-aval-relacionamento','equipe-aval-perspectiva'];
     case 'contatos': return ['contatos-nome','contatos-setor','contatos-ramal','contatos-celular','contatos-email'];
     case 'equipamentos': return ['equipamentos-nome','equipamentos-tipo','equipamentos-status','equipamentos-localizacao','equipamentos-estado','equipamentos-voltagem','equipamentos-responsavel','equipamentos-obs','equipamentos-imagem'];
   }
@@ -3344,7 +3572,20 @@ function removerFotoEquipamento(){
 
 function novoForm(mod){
   document.getElementById('id-' + mod).value = '';
-  if(mod === 'equipe'){ popularSelectFuncoes(''); ajustarSelectHorario(''); }
+  if(mod === 'equipe'){
+    popularSelectFuncoes('');
+    ajustarSelectHorario('');
+    const c1 = document.getElementById('equipe-aval-conhecimento');
+    const c2 = document.getElementById('equipe-aval-presenca');
+    const c3 = document.getElementById('equipe-aval-relacionamento');
+    const c4 = document.getElementById('equipe-aval-perspectiva');
+    if(c1) c1.value = '';
+    if(c2) c2.value = '';
+    if(c3) c3.value = '';
+    if(c4) c4.value = '';
+    verificarFuncaoParaAvaliacaoForm('');
+    atualizarMediaFormEquipe();
+  }
   if(mod === 'equipamentos'){ popularSelectTipoEquipamento(tipoEquipamentoAtivo || ''); }
   camposDoModulo(mod).forEach(campoId => {
     const el = document.getElementById(campoId);
@@ -3389,7 +3630,20 @@ function editar(mod, id){
       document.getElementById('previewFotoChaveBox').style.display = 'none';
     }
   }
-  if(mod === 'equipe'){ popularSelectFuncoes(item.funcao); ajustarSelectHorario(item.horario); }
+  if(mod === 'equipe'){
+    popularSelectFuncoes(item.funcao);
+    ajustarSelectHorario(item.horario);
+    const selC1 = document.getElementById('equipe-aval-conhecimento');
+    const selC2 = document.getElementById('equipe-aval-presenca');
+    const selC3 = document.getElementById('equipe-aval-relacionamento');
+    const selC4 = document.getElementById('equipe-aval-perspectiva');
+    if(selC1) selC1.value = String(item['aval-conhecimento'] || (item.avaliacao && item.avaliacao.conhecimento) || '');
+    if(selC2) selC2.value = String(item['aval-presenca'] || (item.avaliacao && item.avaliacao.presenca) || '');
+    if(selC3) selC3.value = String(item['aval-relacionamento'] || (item.avaliacao && item.avaliacao.relacionamento) || '');
+    if(selC4) selC4.value = String(item['aval-perspectiva'] || (item.avaliacao && item.avaliacao.perspectiva) || '');
+    verificarFuncaoParaAvaliacaoForm(item.funcao);
+    atualizarMediaFormEquipe();
+  }
   if(mod === 'equipamentos'){
     popularSelectTipoEquipamento(item.tipo || '');
     document.getElementById('equipamentos-foto-camera').value = ''; document.getElementById('equipamentos-foto-galeria').value = '';
@@ -3445,6 +3699,23 @@ function salvar(mod){
   if(mod === 'equipe' && dados.horario === '__outro__'){
     dados.horario = document.getElementById('equipe-horario-outro').value.trim();
   }
+  if(mod === 'equipe'){
+    const c1 = Number(dados['aval-conhecimento']);
+    const c2 = Number(dados['aval-presenca']);
+    const c3 = Number(dados['aval-relacionamento']);
+    const c4 = Number(dados['aval-perspectiva']);
+    if([c1, c2, c3, c4].some(n => n >= 1 && n <= 4)){
+      dados.avaliacao = {
+        conhecimento: (c1 >= 1 && c1 <= 4) ? c1 : null,
+        presenca: (c2 >= 1 && c2 <= 4) ? c2 : null,
+        relacionamento: (c3 >= 1 && c3 <= 4) ? c3 : null,
+        perspectiva: (c4 >= 1 && c4 <= 4) ? c4 : null,
+        atualizadoEm: new Date().toISOString()
+      };
+    } else {
+      delete dados.avaliacao;
+    }
+  }
 
   // validação mínima: primeiro campo obrigatório
   const primeiraChave = camposDoModulo(mod)[0].split('-').slice(1).join('-');
@@ -3463,6 +3734,394 @@ function salvar(mod){
   salvarLista(mod, lista);
   fecharForm(mod);
   renderTudo();
+}
+
+/* ============================================================
+   KPI DE AVALIAÇÃO DE DESEMPENHO (EQUIPE DEM2)
+   Funções elegíveis: ASG, Apoio, Auxiliar de Quadras,
+   Atendente de Portaria, Guarda Vidas, Aux Sala de Jogos
+   Escala:
+   1 - Precisa Melhorar: Não atende aos requisitos básicos.
+   2 - Em Desenvolvimento: Atende parcialmente, necessitando de supervisão.
+   3 - Atende o Esperado: Atua de forma consistente e autônoma.
+   4 - Supera o Esperado: É referência e entrega além do solicitado.
+   ============================================================ */
+const ESCALA_AVALIACAO = {
+  1: { nota: 1, rotulo: 'Precisa Melhorar', desc: 'Não atende aos requisitos básicos.', cor: '#DC2626', bg: '#FEF2F2', borda: '#FCA5A5' },
+  2: { nota: 2, rotulo: 'Em Desenvolvimento', desc: 'Atende parcialmente, necessitando de supervisão.', cor: '#D97706', bg: '#FFFBEB', borda: '#FCD34D' },
+  3: { nota: 3, rotulo: 'Atende o Esperado', desc: 'Atua de forma consistente e autônoma.', cor: '#0284C7', bg: '#F0F9FF', borda: '#BAE6FD' },
+  4: { nota: 4, rotulo: 'Supera o Esperado', desc: 'É referência e entrega além do solicitado.', cor: '#059669', bg: '#ECFDF5', borda: '#6EE7B7' }
+};
+
+const CRITERIOS_AVALIACAO = [
+  { chave: 'conhecimento', label: 'Conhecimento', icone: '🧠', idCampo: 'equipe-aval-conhecimento' },
+  { chave: 'presenca', label: 'Presença Operacional', icone: '📍', idCampo: 'equipe-aval-presenca' },
+  { chave: 'relacionamento', label: 'Relacionamento Interpessoal', icone: '🤝', idCampo: 'equipe-aval-relacionamento' },
+  { chave: 'perspectiva', label: 'Perspectiva de Desenvolvimento', icone: '🚀', idCampo: 'equipe-aval-perspectiva' }
+];
+
+function ehFuncaoElegivelAvaliacao(funcao){
+  if(!funcao) return false;
+  const f = funcao.toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  if(f.includes('encarregad') || f.includes('gerente')) return false;
+  if(f === 'asg' || f.includes('asg') || f.includes('servicos gerais') || f.includes('limpeza')) return true;
+  if(f === 'apoio' || f.includes('apoio')) return true;
+  if(f.includes('quadra')) return true;
+  if(f.includes('portaria') || f.includes('atendente')) return true;
+  if(f.includes('guarda vida') || f.includes('guarda-vida') || f.includes('guardavida') || f.includes('salva vida') || f.includes('salva-vida')) return true;
+  if(f.includes('sala de jogo') || f.includes('jogos')) return true;
+  return false;
+}
+
+function obterEscalaAvaliacao(media){
+  if(media >= 3.5) return ESCALA_AVALIACAO[4];
+  if(media >= 2.5) return ESCALA_AVALIACAO[3];
+  if(media >= 1.5) return ESCALA_AVALIACAO[2];
+  return ESCALA_AVALIACAO[1];
+}
+
+function calcularMediaAvaliacao(item){
+  if(!item) return null;
+  const c1 = Number(item['aval-conhecimento'] || (item.avaliacao && item.avaliacao.conhecimento));
+  const c2 = Number(item['aval-presenca'] || (item.avaliacao && item.avaliacao.presenca));
+  const c3 = Number(item['aval-relacionamento'] || (item.avaliacao && item.avaliacao.relacionamento));
+  const c4 = Number(item['aval-perspectiva'] || (item.avaliacao && item.avaliacao.perspectiva));
+  const notas = [
+    { chave: 'conhecimento', val: (c1 >= 1 && c1 <= 4) ? c1 : null },
+    { chave: 'presenca', val: (c2 >= 1 && c2 <= 4) ? c2 : null },
+    { chave: 'relacionamento', val: (c3 >= 1 && c3 <= 4) ? c3 : null },
+    { chave: 'perspectiva', val: (c4 >= 1 && c4 <= 4) ? c4 : null }
+  ];
+  const preenchidos = notas.filter(n => n.val !== null);
+  if(preenchidos.length === 0) return null;
+  const soma = preenchidos.reduce((acc, n) => acc + n.val, 0);
+  const media = Number((soma / preenchidos.length).toFixed(2));
+  return {
+    media,
+    escala: obterEscalaAvaliacao(media),
+    preenchidos: preenchidos.length,
+    conhecimento: notas[0].val,
+    presenca: notas[1].val,
+    relacionamento: notas[2].val,
+    perspectiva: notas[3].val,
+    atualizadoEm: item.avaliacao ? item.avaliacao.atualizadoEm : null
+  };
+}
+
+function verificarFuncaoParaAvaliacaoForm(funcaoForcada){
+  const box = document.getElementById('box-avaliacao-equipe');
+  if(!box) return;
+  let funcao = funcaoForcada;
+  if(funcao === undefined || funcao === null){
+    const sel = document.getElementById('equipe-funcao');
+    funcao = sel ? sel.value : '';
+    if(funcao === '__outra__'){
+      const inp = document.getElementById('equipe-funcao-outra');
+      funcao = inp ? inp.value : '';
+    }
+  }
+  const elegivel = ehFuncaoElegivelAvaliacao(funcao);
+  box.style.display = elegivel ? 'block' : 'none';
+}
+
+function atualizarMediaFormEquipe(){
+  const badge = document.getElementById('badgeMediaFormEquipe');
+  if(!badge) return;
+  const c1 = Number(document.getElementById('equipe-aval-conhecimento')?.value);
+  const c2 = Number(document.getElementById('equipe-aval-presenca')?.value);
+  const c3 = Number(document.getElementById('equipe-aval-relacionamento')?.value);
+  const c4 = Number(document.getElementById('equipe-aval-perspectiva')?.value);
+  const notas = [c1, c2, c3, c4].filter(n => n >= 1 && n <= 4);
+  if(notas.length === 0){
+    badge.style.background = '#F1F5F9';
+    badge.style.color = '#64748B';
+    badge.style.border = '1px solid #CBD5E1';
+    badge.textContent = 'Pendente';
+    return;
+  }
+  const soma = notas.reduce((acc, v) => acc + v, 0);
+  const media = soma / notas.length;
+  const esc = obterEscalaAvaliacao(media);
+  badge.style.background = esc.bg;
+  badge.style.color = esc.cor;
+  badge.style.border = '1px solid ' + esc.borda;
+  badge.textContent = `★ ${media.toFixed(2)} · ${esc.rotulo} (${notas.length}/4)`;
+}
+
+function montarHtmlKpiCardResumo(i){
+  if(!ehFuncaoElegivelAvaliacao(i.funcao)) return '';
+  const aval = calcularMediaAvaliacao(i);
+  if(aval){
+    return `
+      <div class="kpi-avaliacao-card" onclick="event.stopPropagation(); abrirModalAvaliacao('${i.id}')" title="Clique para visualizar ou alterar a avaliação de desempenho">
+        <div class="kpi-avaliacao-card-topo">
+          <span class="kpi-avaliacao-card-titulo">📊 Avaliação de Desempenho</span>
+          <span class="kpi-avaliacao-card-badge" style="background:${aval.escala.bg}; color:${aval.escala.cor}; border:1px solid ${aval.escala.borda};">
+            ★ ${aval.media} · ${aval.escala.rotulo}
+          </span>
+        </div>
+        <div class="kpi-avaliacao-card-grid">
+          <div class="kpi-criterio-item">
+            <span class="kpi-criterio-label" title="Conhecimento">🧠 Conhec.</span>
+            <span class="kpi-criterio-nota ${aval.conhecimento ? 'nota-'+aval.conhecimento : 'nota-vazia'}">${aval.conhecimento || '—'}</span>
+          </div>
+          <div class="kpi-criterio-item">
+            <span class="kpi-criterio-label" title="Presença Operacional">📍 Presença</span>
+            <span class="kpi-criterio-nota ${aval.presenca ? 'nota-'+aval.presenca : 'nota-vazia'}">${aval.presenca || '—'}</span>
+          </div>
+          <div class="kpi-criterio-item">
+            <span class="kpi-criterio-label" title="Relacionamento Interpessoal">🤝 Relacion.</span>
+            <span class="kpi-criterio-nota ${aval.relacionamento ? 'nota-'+aval.relacionamento : 'nota-vazia'}">${aval.relacionamento || '—'}</span>
+          </div>
+          <div class="kpi-criterio-item">
+            <span class="kpi-criterio-label" title="Perspectiva de Desenvolvimento">🚀 Perspect.</span>
+            <span class="kpi-criterio-nota ${aval.perspectiva ? 'nota-'+aval.perspectiva : 'nota-vazia'}">${aval.perspectiva || '—'}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  } else {
+    return `
+      <div style="margin-top:6px; display:flex; align-items:center; justify-content:space-between; gap:6px; flex-wrap:wrap;">
+        <span style="font-size:11px; color:var(--texto-suave); display:inline-flex; align-items:center; gap:4px;">
+          <span>📊</span><span>Avaliação pendente</span>
+        </span>
+        <button type="button" class="btn-avaliar-kpi" onclick="event.stopPropagation(); abrirModalAvaliacao('${i.id}')" title="Avaliar notas de 1 a 4">
+          <span>⭐</span><span>Avaliar (1 a 4)</span>
+        </button>
+      </div>
+    `;
+  }
+}
+
+function montarHtmlBlocoAvaliacaoDetalhe(item){
+  const aval = calcularMediaAvaliacao(item);
+  const c1 = aval ? aval.conhecimento : null;
+  const c2 = aval ? aval.presenca : null;
+  const c3 = aval ? aval.relacionamento : null;
+  const c4 = aval ? aval.perspectiva : null;
+
+  const rotuloCriterio = (n) => {
+    if(!n || !ESCALA_AVALIACAO[n]) return '<span style="color:var(--texto-suave);">Não avaliado</span>';
+    const esc = ESCALA_AVALIACAO[n];
+    return `<span style="font-weight:700; color:${esc.cor};">${esc.nota} - ${esc.rotulo}</span>`;
+  };
+
+  const badgeGeral = aval ? `
+    <span class="kpi-avaliacao-card-badge" style="background:${aval.escala.bg}; color:${aval.escala.cor}; border:1px solid ${aval.escala.borda}; font-size:12px; padding:3px 10px;">
+      ★ ${aval.media} / 4.0 · ${aval.escala.rotulo} (${aval.preenchidos}/4)
+    </span>
+  ` : `
+    <span class="kpi-avaliacao-card-badge" style="background:#F1F5F9; color:#64748B; border:1px solid #CBD5E1; font-size:12px; padding:3px 10px;">
+      Pendente de Avaliação
+    </span>
+  `;
+
+  return `
+    <div style="margin-top:14px; padding:14px; border-radius:12px; background:var(--fundo-alt); border:1.5px solid var(--borda);">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:18px;">📊</span>
+          <strong style="font-size:13.5px; color:var(--verde-900);">KPI de Avaliação de Desempenho</strong>
+        </div>
+        ${badgeGeral}
+      </div>
+
+      <!-- Procedimento Oficial -->
+      <div style="background:rgba(2, 132, 199, 0.08); border-left:3px solid #0284C7; padding:8px 10px; border-radius:6px; font-size:11px; line-height:1.4; color:var(--texto); margin-bottom:10px;">
+        <strong>Procedimento (Escala 1 a 4):</strong><br>
+        <span style="color:#DC2626; font-weight:700;">1 - Precisa Melhorar</span> (não atende) · 
+        <span style="color:#D97706; font-weight:700;">2 - Em Desenvolvimento</span> (parcial) · 
+        <span style="color:#0284C7; font-weight:700;">3 - Atende o Esperado</span> (consistente) · 
+        <span style="color:#059669; font-weight:700;">4 - Supera o Esperado</span> (referência)
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;">
+        <div style="background:var(--cartao); padding:8px 10px; border-radius:8px; border:1px solid var(--linha);">
+          <div style="font-size:11px; color:var(--texto-suave); margin-bottom:2px;">🧠 Conhecimento</div>
+          <div style="font-size:12px;">${rotuloCriterio(c1)}</div>
+        </div>
+        <div style="background:var(--cartao); padding:8px 10px; border-radius:8px; border:1px solid var(--linha);">
+          <div style="font-size:11px; color:var(--texto-suave); margin-bottom:2px;">📍 Presença Operacional</div>
+          <div style="font-size:12px;">${rotuloCriterio(c2)}</div>
+        </div>
+        <div style="background:var(--cartao); padding:8px 10px; border-radius:8px; border:1px solid var(--linha);">
+          <div style="font-size:11px; color:var(--texto-suave); margin-bottom:2px;">🤝 Relacionamento Interpessoal</div>
+          <div style="font-size:12px;">${rotuloCriterio(c3)}</div>
+        </div>
+        <div style="background:var(--cartao); padding:8px 10px; border-radius:8px; border:1px solid var(--linha);">
+          <div style="font-size:11px; color:var(--texto-suave); margin-bottom:2px;">🚀 Perspectiva de Desenvolvimento</div>
+          <div style="font-size:12px;">${rotuloCriterio(c4)}</div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end;">
+        <button type="button" class="btn-avaliar-kpi" onclick="abrirModalAvaliacao('${item.id}')">
+          <span>⭐</span>
+          <span>${aval ? 'Alterar Avaliação (1 a 4)' : 'Avaliar Colaborador'}</span>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+let notasTemporariasModalAvaliacao = { conhecimento: null, presenca: null, relacionamento: null, perspectiva: null };
+
+function abrirModalAvaliacao(id){
+  const lista = carregar('equipe');
+  const item = lista.find(i => i.id === id);
+  if(!item) return;
+
+  document.getElementById('modalAvalColabId').value = item.id;
+  document.getElementById('modalAvalColabSubtitulo').innerHTML = `<strong>${escapeHtml(item.nome)}</strong> · ${escapeHtml(item.funcao || '—')} ${item.matricula ? '(Matr. ' + escapeHtml(item.matricula) + ')' : ''}`;
+
+  const c1 = Number(item['aval-conhecimento'] || (item.avaliacao && item.avaliacao.conhecimento));
+  const c2 = Number(item['aval-presenca'] || (item.avaliacao && item.avaliacao.presenca));
+  const c3 = Number(item['aval-relacionamento'] || (item.avaliacao && item.avaliacao.relacionamento));
+  const c4 = Number(item['aval-perspectiva'] || (item.avaliacao && item.avaliacao.perspectiva));
+
+  notasTemporariasModalAvaliacao = {
+    conhecimento: (c1 >= 1 && c1 <= 4) ? c1 : null,
+    presenca: (c2 >= 1 && c2 <= 4) ? c2 : null,
+    relacionamento: (c3 >= 1 && c3 <= 4) ? c3 : null,
+    perspectiva: (c4 >= 1 && c4 <= 4) ? c4 : null
+  };
+
+  renderCriteriosModalAvaliacao();
+  atualizarPreviewModalAvaliacao();
+  document.getElementById('modalAvaliacaoColaborador').classList.add('aberto');
+}
+
+function fecharModalAvaliacao(){
+  document.getElementById('modalAvaliacaoColaborador').classList.remove('aberto');
+}
+
+function selecionarNotaCriterioModal(criterio, nota){
+  if(notasTemporariasModalAvaliacao[criterio] === nota){
+    notasTemporariasModalAvaliacao[criterio] = null;
+  } else {
+    notasTemporariasModalAvaliacao[criterio] = nota;
+  }
+  renderCriteriosModalAvaliacao();
+  atualizarPreviewModalAvaliacao();
+}
+
+function renderCriteriosModalAvaliacao(){
+  const cont = document.getElementById('modalAvalGradeCriterios');
+  if(!cont) return;
+
+  cont.innerHTML = CRITERIOS_AVALIACAO.map(crit => {
+    const notaSel = notasTemporariasModalAvaliacao[crit.chave];
+    const botoes = [1, 2, 3, 4].map(n => {
+      const esc = ESCALA_AVALIACAO[n];
+      const ativo = notaSel === n;
+      return `
+        <button type="button" class="btn-nota-opcao ${ativo ? 'ativo-' + n : ''}" onclick="selecionarNotaCriterioModal('${crit.chave}', ${n})">
+          <strong>${n}</strong>
+          <span>${esc.rotulo}</span>
+        </button>
+      `;
+    }).join('');
+
+    const descAtual = notaSel ? ESCALA_AVALIACAO[notaSel].desc : 'Clique em uma das notas (1 a 4) para selecionar.';
+    const rotuloNota = notaSel ? `<span style="font-weight:700; color:${ESCALA_AVALIACAO[notaSel].cor};">Nota ${notaSel} - ${ESCALA_AVALIACAO[notaSel].rotulo}</span>` : '<span style="color:var(--texto-suave);">Pendente</span>';
+
+    return `
+      <div style="background:var(--cartao); border:1px solid var(--borda); border-radius:10px; padding:10px 12px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; flex-wrap:wrap; gap:4px;">
+          <div style="font-size:12.5px; font-weight:700; color:var(--texto);">
+            ${crit.icone} ${crit.label}
+          </div>
+          <div style="font-size:11.5px;">${rotuloNota}</div>
+        </div>
+        <div class="seletor-nota-grupo">${botoes}</div>
+        <div style="font-size:10.5px; color:var(--texto-suave); margin-top:5px; font-style:italic;">
+          ${descAtual}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function atualizarPreviewModalAvaliacao(){
+  const txtMedia = document.getElementById('modalAvalMediaTexto');
+  const badgeMedia = document.getElementById('modalAvalMediaBadge');
+  if(!txtMedia || !badgeMedia) return;
+
+  const preenchidos = Object.values(notasTemporariasModalAvaliacao).filter(n => n !== null);
+  if(preenchidos.length === 0){
+    txtMedia.textContent = 'Pendente';
+    badgeMedia.style.background = '#F1F5F9';
+    badgeMedia.style.color = '#64748B';
+    badgeMedia.style.border = '1px solid #CBD5E1';
+    badgeMedia.textContent = 'Não avaliado (0 de 4)';
+    return;
+  }
+
+  const soma = preenchidos.reduce((a, b) => a + b, 0);
+  const media = soma / preenchidos.length;
+  const esc = obterEscalaAvaliacao(media);
+
+  txtMedia.textContent = `${media.toFixed(2)} / 4.0`;
+  badgeMedia.style.background = esc.bg;
+  badgeMedia.style.color = esc.cor;
+  badgeMedia.style.border = '1px solid ' + esc.borda;
+  badgeMedia.textContent = `★ ${esc.rotulo} (${preenchidos.length} de 4 critérios)`;
+}
+
+function limparNotasModalAvaliacao(){
+  notasTemporariasModalAvaliacao = { conhecimento: null, presenca: null, relacionamento: null, perspectiva: null };
+  renderCriteriosModalAvaliacao();
+  atualizarPreviewModalAvaliacao();
+}
+
+function salvarModalAvaliacao(){
+  const id = document.getElementById('modalAvalColabId').value;
+  if(!id) return;
+  let lista = carregar('equipe');
+  const index = lista.findIndex(i => i.id === id);
+  if(index === -1) return;
+
+  const n = notasTemporariasModalAvaliacao;
+  const c1 = n.conhecimento;
+  const c2 = n.presenca;
+  const c3 = n.relacionamento;
+  const c4 = n.perspectiva;
+
+  lista[index]['aval-conhecimento'] = c1 ? String(c1) : '';
+  lista[index]['aval-presenca'] = c2 ? String(c2) : '';
+  lista[index]['aval-relacionamento'] = c3 ? String(c3) : '';
+  lista[index]['aval-perspectiva'] = c4 ? String(c4) : '';
+
+  if([c1, c2, c3, c4].some(val => val !== null)){
+    lista[index].avaliacao = {
+      conhecimento: c1,
+      presenca: c2,
+      relacionamento: c3,
+      perspectiva: c4,
+      atualizadoEm: new Date().toISOString()
+    };
+  } else {
+    delete lista[index].avaliacao;
+  }
+
+  salvarLista('equipe', lista);
+  fecharModalAvaliacao();
+
+  const modalDetalhe = document.getElementById('modalDetalheEquipe');
+  if(modalDetalhe && modalDetalhe.classList.contains('aberto')){
+    abrirDetalheEquipe(id);
+  }
+
+  renderEquipe();
+  if(document.getElementById('modalColaboradoresFuncao')?.classList.contains('aberto')){
+    renderColaboradoresPorFuncaoModal(true);
+  }
+  if(document.getElementById('modalPlantao')?.classList.contains('aberto')){
+    const titulo = document.getElementById('modalPlantaoTitulo')?.textContent || '';
+    const letra = titulo.includes('A') ? 'A' : 'B';
+    renderPlantao(letra);
+  }
 }
 
 /* ============================================================
@@ -5044,6 +5703,7 @@ function renderPlantao(letra){
           ${i.horario ? 'Horário: <code>' + escapeHtml(i.horario) + '</code>' : ''}
           ${i.telefone ? (i.horario ? ' · ' : '') + 'Tel: ' + escapeHtml(i.telefone) : ''}
           ${i.obs ? '<br>Obs: ' + escapeHtml(i.obs) : ''}
+          ${montarHtmlKpiCardResumo(i)}
         </div>
         <div class="item-acoes">
           <button onclick="event.stopPropagation(); fecharPlantao(); editar('equipe','${i.id}')">Editar</button>
@@ -5129,10 +5789,14 @@ function abrirDetalheEquipe(id){
     ['Observações', item.obs]
   ];
 
-  const corpo = campos.map(([rotulo, valor, jaEscapado]) => {
+  let corpo = campos.map(([rotulo, valor, jaEscapado]) => {
     const texto = valor ? (jaEscapado ? valor : escapeHtml(valor)) : '—';
     return `<div class="modal-linha"><span class="rotulo-campo">${rotulo}</span><span class="valor-campo">${texto}</span></div>`;
   }).join('');
+
+  if(ehFuncaoElegivelAvaliacao(item.funcao)){
+    corpo += montarHtmlBlocoAvaliacaoDetalhe(item);
+  }
 
   document.getElementById('modalEquipeCorpo').innerHTML = corpo;
   document.getElementById('modalEquipeEditarBtn').onclick = function(){
@@ -5298,6 +5962,7 @@ function renderColaboradoresPorFuncaoModal(apenasAtualizarLista){
               ${i.horario ? ' · Horário: <code>' + escapeHtml(i.horario) + '</code>' : ''}
               ${i.telefone ? '<br>📞 Tel: <a href="tel:' + escapeHtml(i.telefone) + '" onclick="event.stopPropagation()">' + escapeHtml(i.telefone) + '</a>' : ''}
               ${i.obs ? '<br><span style="color:var(--texto-suave);">Obs: ' + escapeHtml(i.obs) + '</span>' : ''}
+              ${montarHtmlKpiCardResumo(i)}
             </div>
             <div class="item-acoes" style="margin-top:8px; display:flex; justify-content:flex-end; gap:6px;">
               <button class="btn btn-pequeno btn-secundario" onclick="event.stopPropagation(); fecharColaboradoresFuncao(); editar('equipe','${i.id}')">Editar</button>
@@ -5444,6 +6109,7 @@ function renderEquipe(){
           ${i.matricula ? 'Matrícula <code>' + escapeHtml(i.matricula) + '</code> · ' : ''}${escapeHtml(i.funcao||'—')} · Horário: <code>${escapeHtml(i.horario||'—')}</code>
           ${i.telefone ? '<br>Tel: ' + escapeHtml(i.telefone) : ''}
           ${i.obs ? '<br>Obs: ' + escapeHtml(i.obs) : ''}
+          ${montarHtmlKpiCardResumo(i)}
         </div>
         <div class="item-acoes">
           <button onclick="event.stopPropagation(); editar('equipe','${i.id}')">Editar</button>
@@ -6095,20 +6761,20 @@ function atualizarBotoesFiltroCategoria(){
   const indCons = document.getElementById('indicadorStatusConservacao');
   if(indCons){
     indCons.innerHTML = filtroCategoriaAtividadeAtiva === 'Conservação e Limpeza'
-      ? '✓ Filtrado (limpar)'
-      : '👉 Filtrar tarefas ▾';
+      ? '<span class="kpi-tag-ativo">✓ Ativo</span>'
+      : '<span class="kpi-tag-filtrar">Filtrar ▾</span>';
   }
   const indCurs = document.getElementById('indicadorStatusCursos');
   if(indCurs){
     indCurs.innerHTML = filtroCategoriaAtividadeAtiva === 'Cursos'
-      ? '✓ Filtrado (limpar)'
-      : 'Filtrar tarefas ▾';
+      ? '<span class="kpi-tag-ativo">✓ Ativo</span>'
+      : '<span class="kpi-tag-filtrar">Filtrar ▾</span>';
   }
   const indOper = document.getElementById('indicadorStatusOperacoes');
   if(indOper){
     indOper.innerHTML = filtroCategoriaAtividadeAtiva === 'Operações'
-      ? '✓ Filtrado (limpar)'
-      : 'Filtrar tarefas ▾';
+      ? '<span class="kpi-tag-ativo">✓ Ativo</span>'
+      : '<span class="kpi-tag-filtrar">Filtrar ▾</span>';
   }
 }
 
@@ -6185,7 +6851,9 @@ function renderAtividadeSemanal(){
   }
   const elSubCons = document.getElementById('subRotuloConservacao');
   if(elSubCons){
-    elSubCons.textContent = `${totalConservacao} na semana (${hojeConsConcl}/${hojeConservacao} hoje) · Toque para filtrar`;
+    elSubCons.textContent = hojeConservacao > 0
+      ? `na semana · ${hojeConsConcl}/${hojeConservacao} hoje`
+      : 'na semana · 0 hoje';
   }
   const elCurs = document.getElementById('kpiAtividadeCursos');
   if(elCurs){
@@ -6194,9 +6862,9 @@ function renderAtividadeSemanal(){
   }
   const elSubCurs = document.getElementById('subRotuloCursos');
   if(elSubCurs){
-    elSubCurs.textContent = totalCursos === 0
-      ? '0 na semana · Livre para novas atividades'
-      : `${totalCursos} na semana (${hojeCursConcl}/${hojeCursos} hoje) · Toque para filtrar`;
+    elSubCurs.textContent = hojeCursos > 0
+      ? `na semana · ${hojeCursConcl}/${hojeCursos} hoje`
+      : 'na semana · 0 hoje';
   }
   const elOper = document.getElementById('kpiAtividadeOperacoes');
   if(elOper){
@@ -6205,9 +6873,9 @@ function renderAtividadeSemanal(){
   }
   const elSubOper = document.getElementById('subRotuloOperacoes');
   if(elSubOper){
-    elSubOper.textContent = totalOperacoes === 0
-      ? '0 na semana · Livre para novas atividades'
-      : `${totalOperacoes} na semana (${hojeOperConcl}/${hojeOperacoes} hoje) · Toque para filtrar`;
+    elSubOper.textContent = hojeOperacoes > 0
+      ? `na semana · ${hojeOperConcl}/${hojeOperacoes} hoje`
+      : 'na semana · 0 hoje';
   }
 
   const elSelo = document.getElementById('seloAtividade');
@@ -8948,7 +9616,12 @@ const EQUIPE_SEED = [{"id": "equipe_v2_1783848176928_0", "nome": "Wandeir de Sou
         turno: existente.turno || oficial.turno,
         horario: existente.horario || oficial.horario,
         telefone: existente.telefone || oficial.telefone,
-        obs: existente.obs || oficial.obs
+        obs: existente.obs || oficial.obs,
+        'aval-conhecimento': existente['aval-conhecimento'] || oficial['aval-conhecimento'] || '',
+        'aval-presenca': existente['aval-presenca'] || oficial['aval-presenca'] || '',
+        'aval-relacionamento': existente['aval-relacionamento'] || oficial['aval-relacionamento'] || '',
+        'aval-perspectiva': existente['aval-perspectiva'] || oficial['aval-perspectiva'] || '',
+        avaliacao: existente.avaliacao || oficial.avaliacao || undefined
       };
     }
     return oficial;
@@ -8961,6 +9634,39 @@ const EQUIPE_SEED = [{"id": "equipe_v2_1783848176928_0", "nome": "Wandeir de Sou
 
   const salvouOk = salvarLista('equipe', [...reconstruida, ...extras]);
   if(salvouOk){ localStorage.setItem('mtc_equipe_versao_v3', 'ok'); }
+})();
+
+/* ============================================================
+   SEMENTE DE AVALIAÇÃO INICIAL PARA DEMONSTRAÇÃO (1 a 4)
+   Aplica notas de exemplo nos colaboradores das funções elegíveis
+   caso ainda não tenham sido avaliados.
+   ============================================================ */
+(function migrarAvaliacoesIniciaisEquipe(){
+  if(localStorage.getItem('mtc_equipe_aval_seed_v1') === 'ok') return;
+  const lista = carregar('equipe');
+  if(!lista || lista.length === 0) return;
+  const amostras = {
+    '83192': { conhecimento: 3, presenca: 4, relacionamento: 3, perspectiva: 4 }, // Andre Guilherme - Apoio
+    '82093': { conhecimento: 3, presenca: 3, relacionamento: 3, perspectiva: 3 }, // Adriano - Atendente de Portaria
+    '82440': { conhecimento: 4, presenca: 4, relacionamento: 3, perspectiva: 4 }, // Edvaldo - Auxiliar de Quadras
+    '81690': { conhecimento: 3, presenca: 4, relacionamento: 3, perspectiva: 3 }, // Arenilda - ASG
+    '82256': { conhecimento: 4, presenca: 3, relacionamento: 4, perspectiva: 4 }, // Luciano - Guarda-vidas
+    '83427': { conhecimento: 3, presenca: 3, relacionamento: 3, perspectiva: 2 }  // Matheus - Aux Sala de Jogos
+  };
+  let alterou = false;
+  lista.forEach(item => {
+    if(item.matricula && amostras[item.matricula] && !item['aval-conhecimento'] && !item.avaliacao){
+      const a = amostras[item.matricula];
+      item['aval-conhecimento'] = String(a.conhecimento);
+      item['aval-presenca'] = String(a.presenca);
+      item['aval-relacionamento'] = String(a.relacionamento);
+      item['aval-perspectiva'] = String(a.perspectiva);
+      item.avaliacao = { ...a, atualizadoEm: new Date().toISOString() };
+      alterou = true;
+    }
+  });
+  if(alterou){ salvarLista('equipe', lista); }
+  localStorage.setItem('mtc_equipe_aval_seed_v1', 'ok');
 })();
 
 /* ============================================================

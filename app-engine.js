@@ -3622,20 +3622,20 @@ function atualizarBotoesFiltroCategoria(){
   const indCons = document.getElementById('indicadorStatusConservacao');
   if(indCons){
     indCons.innerHTML = filtroCategoriaAtividadeAtiva === 'Conservação e Limpeza'
-      ? '✓ Filtrado (limpar)'
-      : '👉 Filtrar tarefas ▾';
+      ? '<span class="kpi-tag-ativo">✓ Ativo</span>'
+      : '<span class="kpi-tag-filtrar">Filtrar ▾</span>';
   }
   const indCurs = document.getElementById('indicadorStatusCursos');
   if(indCurs){
     indCurs.innerHTML = filtroCategoriaAtividadeAtiva === 'Cursos'
-      ? '✓ Filtrado (limpar)'
-      : 'Filtrar tarefas ▾';
+      ? '<span class="kpi-tag-ativo">✓ Ativo</span>'
+      : '<span class="kpi-tag-filtrar">Filtrar ▾</span>';
   }
   const indOper = document.getElementById('indicadorStatusOperacoes');
   if(indOper){
     indOper.innerHTML = filtroCategoriaAtividadeAtiva === 'Operações'
-      ? '✓ Filtrado (limpar)'
-      : 'Filtrar tarefas ▾';
+      ? '<span class="kpi-tag-ativo">✓ Ativo</span>'
+      : '<span class="kpi-tag-filtrar">Filtrar ▾</span>';
   }
 }
 
@@ -3712,7 +3712,9 @@ function renderAtividadeSemanal(){
   }
   const elSubCons = document.getElementById('subRotuloConservacao');
   if(elSubCons){
-    elSubCons.textContent = `${totalConservacao} na semana (${hojeConsConcl}/${hojeConservacao} hoje) · Toque para filtrar`;
+    elSubCons.textContent = hojeConservacao > 0
+      ? `na semana · ${hojeConsConcl}/${hojeConservacao} hoje`
+      : 'na semana · 0 hoje';
   }
   const elCurs = document.getElementById('kpiAtividadeCursos');
   if(elCurs){
@@ -3721,9 +3723,9 @@ function renderAtividadeSemanal(){
   }
   const elSubCurs = document.getElementById('subRotuloCursos');
   if(elSubCurs){
-    elSubCurs.textContent = totalCursos === 0
-      ? '0 na semana · Livre para novas atividades'
-      : `${totalCursos} na semana (${hojeCursConcl}/${hojeCursos} hoje) · Toque para filtrar`;
+    elSubCurs.textContent = hojeCursos > 0
+      ? `na semana · ${hojeCursConcl}/${hojeCursos} hoje`
+      : 'na semana · 0 hoje';
   }
   const elOper = document.getElementById('kpiAtividadeOperacoes');
   if(elOper){
@@ -3732,9 +3734,9 @@ function renderAtividadeSemanal(){
   }
   const elSubOper = document.getElementById('subRotuloOperacoes');
   if(elSubOper){
-    elSubOper.textContent = totalOperacoes === 0
-      ? '0 na semana · Livre para novas atividades'
-      : `${totalOperacoes} na semana (${hojeOperConcl}/${hojeOperacoes} hoje) · Toque para filtrar`;
+    elSubOper.textContent = hojeOperacoes > 0
+      ? `na semana · ${hojeOperConcl}/${hojeOperacoes} hoje`
+      : 'na semana · 0 hoje';
   }
 
   const elSelo = document.getElementById('seloAtividade');
