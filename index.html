@@ -967,6 +967,183 @@ function restaurarManualNuvem(){
     background:var(--cartao); border:1px solid var(--linha); border-radius:14px;
     padding:16px; margin-top:8px; margin-bottom:16px; box-shadow:0 4px 16px rgba(0,0,0,0.06);
   }
+
+  /* ============================================================
+     ESTILOS: CICLO DIÁRIO 24H E ALERTAS DE NOTIFICAÇÃO (5 MIN ANTES)
+     ============================================================ */
+  .card-controle-atividades{
+    background:#FFFFFF; border:1.5px solid #E2E8F0; border-radius:14px;
+    padding:14px; margin-bottom:14px; box-shadow:0 3px 12px rgba(0,0,0,0.04);
+    display:flex; flex-direction:column; gap:12px;
+  }
+  .bloco-controle-atividade{
+    background:#F8FAFC; border:1px solid #E2E8F0; border-radius:11px; padding:12px;
+  }
+  .bloco-controle-atividade.ciclo-diario{
+    background:#F0FDF4; border-color:#BBF7D0;
+  }
+  .bloco-controle-topo{
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:6px;
+  }
+  .bloco-controle-titulo{
+    display:flex; align-items:center; gap:6px; font-size:13.5px; font-weight:700; color:#0F172A;
+  }
+  .bloco-controle-icone{
+    font-size:16px; line-height:1;
+  }
+  .bloco-controle-acoes{
+    display:flex; align-items:center; flex-wrap:wrap; gap:6px;
+  }
+  .btn-ctrl-acao{
+    font-size:11.5px; font-weight:600; padding:5px 10px; border-radius:8px;
+    border:1px solid #CBD5E1; background:#FFFFFF; color:#334155; cursor:pointer;
+    display:inline-flex; align-items:center; gap:5px; transition:all 0.15s ease;
+  }
+  .btn-ctrl-acao:hover{
+    background:#F1F5F9; border-color:#94A3B8; color:#0F172A;
+  }
+  .btn-ctrl-acao.ativo{
+    background:#0284C7; color:#FFFFFF; border-color:#0284C7;
+  }
+  .btn-ctrl-acao.sucesso{
+    background:#16A34A; color:#FFFFFF; border-color:#16A34A;
+  }
+  .bloco-controle-status{
+    font-size:12px; color:#475569; display:flex; align-items:center; gap:6px; line-height:1.4;
+    padding-top:4px;
+  }
+  .ponto-status-verde{
+    width:8px; height:8px; border-radius:50%; background:#22C55E; display:inline-block; flex-shrink:0;
+    box-shadow:0 0 0 3px rgba(34,197,94,0.25); animation:pulsoPontoStatus 2s infinite;
+  }
+  @keyframes pulsoPontoStatus{
+    0%, 100% { opacity:1; transform:scale(1); }
+    50% { opacity:0.6; transform:scale(1.2); }
+  }
+  .tag-ciclo-ativo{
+    font-size:11px; font-weight:700; color:#15803D; background:#DCFCE7; border:1px solid #86EFAC;
+    padding:3px 8px; border-radius:10px; display:inline-block;
+  }
+  .bloco-controle-desc{
+    font-size:11.5px; color:#166534; margin:4px 0 0 0; line-height:1.4;
+  }
+
+  /* Tag de lembrete no cartão da atividade */
+  .tag-lembrete-5min{
+    font-size:10px; font-weight:700; color:#0369A1; background:#E0F2FE; border:1px solid #BAE6FD;
+    padding:1.5px 6px; border-radius:6px; display:inline-flex; align-items:center; gap:3px;
+    letter-spacing:0.1px; margin-left:4px;
+  }
+
+  /* Pulso luminoso quando a atividade é focada pelo lembrete */
+  .item-cartao.atividade-em-destaque{
+    border-color:#0284C7 !important;
+    background:#F0F9FF !important;
+    animation:pulsoDestaqueAtividade 1.2s ease-in-out infinite alternate;
+  }
+  @keyframes pulsoDestaqueAtividade{
+    0%{ box-shadow:0 0 0 2px rgba(2,132,199,0.3); }
+    100%{ box-shadow:0 0 0 6px rgba(2,132,199,0.7), 0 8px 24px rgba(2,132,199,0.3); }
+  }
+
+  /* Banner Flutuante de Alerta no Topo (Desktop e Celular) */
+  .banner-alerta-lembrete{
+    position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:100000;
+    width:calc(100% - 24px); max-width:540px;
+    background:linear-gradient(135deg, #071E3D 0%, #0F3563 60%, #154D8C 100%);
+    border:2px solid #38BDF8; border-radius:16px;
+    box-shadow:0 16px 36px rgba(0,0,0,0.5), 0 0 24px rgba(56,189,248,0.35);
+    padding:14px 16px; color:#FFFFFF;
+    animation:slideDownBannerLembrete 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes slideDownBannerLembrete{
+    from{ opacity:0; transform:translate(-50%, -24px); }
+    to{ opacity:1; transform:translate(-50%, 0); }
+  }
+  .banner-alerta-conteudo{
+    display:flex; align-items:center; gap:12px;
+  }
+  .banner-alerta-icone-wrap{
+    position:relative; width:44px; height:44px; border-radius:12px;
+    background:rgba(56,189,248,0.2); border:1.5px solid #38BDF8;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .banner-alerta-sino{
+    font-size:22px; line-height:1; animation:sinoTocar 1.5s infinite;
+  }
+  @keyframes sinoTocar{
+    0%, 100% { transform:rotate(0deg); }
+    15% { transform:rotate(14deg); }
+    30% { transform:rotate(-14deg); }
+    45% { transform:rotate(10deg); }
+    60% { transform:rotate(-10deg); }
+    75% { transform:rotate(4deg); }
+  }
+  .banner-alerta-pulso{
+    position:absolute; inset:-4px; border-radius:14px; border:2px solid #38BDF8;
+    animation:pulsoAnelSino 1.5s infinite; opacity:0;
+  }
+  @keyframes pulsoAnelSino{
+    0% { transform:scale(0.95); opacity:0.8; }
+    100% { transform:scale(1.25); opacity:0; }
+  }
+  .banner-alerta-texto{
+    flex:1; min-width:0;
+  }
+  .banner-alerta-chamada{
+    display:flex; align-items:center; gap:6px; margin-bottom:3px; flex-wrap:wrap;
+  }
+  .badge-alerta-tempo{
+    background:#F59E0B; color:#0F172A; font-size:10px; font-weight:800;
+    padding:2px 7px; border-radius:6px; letter-spacing:0.3px; text-transform:uppercase;
+  }
+  .banner-alerta-horario{
+    font-size:12px; font-weight:700; color:#BAE6FD;
+  }
+  .banner-alerta-titulo{
+    font-size:14.5px; font-weight:700; color:#FFFFFF; margin:0 0 2px 0;
+    line-height:1.25; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .banner-alerta-sub{
+    font-size:11.5px; color:#93C5FD; margin:0; line-height:1.3;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .banner-alerta-botoes{
+    display:flex; flex-direction:column; gap:4px; flex-shrink:0;
+  }
+  .btn-banner-acao{
+    font-size:11.5px; font-weight:700; padding:6px 12px; border-radius:8px; border:none;
+    cursor:pointer; display:inline-flex; align-items:center; justify-content:center;
+    gap:4px; white-space:nowrap; transition:all 0.15s ease;
+  }
+  .btn-banner-ver{
+    background:#38BDF8; color:#071E3D;
+  }
+  .btn-banner-ver:hover{ background:#7DD3FC; }
+  .btn-banner-concluir{
+    background:#22C55E; color:#FFFFFF;
+  }
+  .btn-banner-concluir:hover{ background:#16A34A; }
+  .btn-banner-fechar{
+    position:absolute; top:6px; right:8px; background:transparent; border:none;
+    color:#94A3B8; font-size:15px; cursor:pointer; padding:4px; line-height:1;
+  }
+  .btn-banner-fechar:hover{ color:#FFFFFF; }
+
+  @media(max-width:480px){
+    .banner-alerta-conteudo{
+      flex-wrap:wrap;
+    }
+    .banner-alerta-texto{
+      width:calc(100% - 56px);
+    }
+    .banner-alerta-botoes{
+      width:100%; flex-direction:row; justify-content:flex-end; margin-top:6px;
+    }
+    .btn-banner-acao{
+      flex:1;
+    }
+  }
   .painel-cabecalho-info{
     display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;
     padding-bottom:10px; border-bottom:1px solid var(--linha);
@@ -1671,6 +1848,35 @@ function restaurarManualNuvem(){
 </style>
 </head>
 <body>
+
+<!-- BANNER FLUTUANTE DE ALERTA DE LEMBRETE (5 MINUTOS ANTES) -->
+<div id="bannerAlertaLembrete" class="banner-alerta-lembrete" style="display:none;" role="alert" aria-live="assertive">
+  <div class="banner-alerta-conteudo">
+    <div class="banner-alerta-icone-wrap">
+      <span class="banner-alerta-sino">🔔</span>
+      <span class="banner-alerta-pulso"></span>
+    </div>
+    <div class="banner-alerta-texto">
+      <div class="banner-alerta-chamada">
+        <span class="badge-alerta-tempo">⏰ EM 5 MINUTOS</span>
+        <span class="banner-alerta-horario" id="bannerAlertaHorario">00:00</span>
+      </div>
+      <h4 class="banner-alerta-titulo" id="bannerAlertaTitulo">Nome da Atividade</h4>
+      <p class="banner-alerta-sub" id="bannerAlertaSub">Categoria · Turno / Setor</p>
+    </div>
+    <div class="banner-alerta-botoes">
+      <button type="button" class="btn-banner-acao btn-banner-ver" id="btnBannerVerAtividade" onclick="irParaAtividadeDoLembrete()">
+        👁️ Ver
+      </button>
+      <button type="button" class="btn-banner-acao btn-banner-concluir" id="btnBannerConcluirAtividade" onclick="concluirAtividadeDoLembrete()">
+        ✓ Concluir
+      </button>
+    </div>
+    <button type="button" class="btn-banner-fechar" onclick="fecharBannerAlertaLembrete()" title="Dispensar aviso">
+      ✕
+    </button>
+  </div>
+</div>
 
 <div id="telaLoginGoogle" class="tela-login-google">
   <div class="card-login-google">
@@ -3221,6 +3427,55 @@ function restaurarManualNuvem(){
 
     <!-- MODO 1: POR DIA DA SEMANA -->
     <div id="painelModoDia">
+      <!-- PAINEL DE CONTROLE: CICLO DIÁRIO 24H & LEMBRETES 5 MIN ANTES -->
+      <div class="card-controle-atividades" id="cardControleAtividades">
+        <!-- BLOCO 1: ALERTA DE NOTIFICAÇÃO (5 MIN ANTES) -->
+        <div class="bloco-controle-atividade">
+          <div class="bloco-controle-topo">
+            <div class="bloco-controle-titulo">
+              <span class="bloco-controle-icone">⏰</span>
+              <span>Lembretes Automáticos (5 min antes)</span>
+            </div>
+            <div class="bloco-controle-acoes">
+              <button type="button" class="btn-ctrl-acao" id="btnStatusNotificacaoDispositivo" onclick="solicitarOuChecarNotificacoes()">
+                <span id="iconeStatusNotificacao">🔔</span>
+                <span id="rotuloStatusNotificacao">Ativar no Computador / Celular</span>
+              </button>
+              <button type="button" class="btn-ctrl-acao" onclick="testarAlertaLembrete()" title="Tocar som, vibrar celular e emitir alerta de teste imediato">
+                🔔 Testar Alerta
+              </button>
+              <button type="button" class="btn-ctrl-acao" id="btnAlternarSomLembrete" onclick="alternarSomLembrete()" title="Ligar ou desligar o sinal sonoro do alerta">
+                <span id="iconeSomLembrete">🔊</span>
+                <span id="rotuloSomLembrete">Som ligado</span>
+              </button>
+            </div>
+          </div>
+          <div class="bloco-controle-status">
+            <span class="ponto-status-verde"></span>
+            <span id="textoProximoLembrete">Monitorando atividades de hoje (alerta sonoro e notificação 5 min antes de cada horário programado)...</span>
+          </div>
+        </div>
+
+        <!-- BLOCO 2: CICLO DIÁRIO DE AVALIAÇÃO (RESET ÀS 24H) -->
+        <div class="bloco-controle-atividade ciclo-diario">
+          <div class="bloco-controle-topo">
+            <div class="bloco-controle-titulo">
+              <span class="bloco-controle-icone">🔄</span>
+              <span>Ciclo Diário de Avaliação (Reset após 24h)</span>
+            </div>
+            <div class="bloco-controle-acoes">
+              <span class="tag-ciclo-ativo" id="tagCicloAtivo">Ciclo: Hoje</span>
+              <button type="button" class="btn-ctrl-acao" onclick="reiniciarCicloDiarioManual()" title="Voltar todas as atividades para Pendente para iniciar novo ciclo imediatamente">
+                🔄 Reiniciar Ciclo Agora
+              </button>
+            </div>
+          </div>
+          <p class="bloco-controle-desc">
+            Após as <strong>24h do dia (à meia-noite)</strong>, todas as atividades retornam automaticamente para o estado <strong>Pendente</strong> para o início de um novo ciclo de avaliação.
+          </p>
+        </div>
+      </div>
+
       <!-- Barra Superior de Ações e Busca -->
       <div class="barra-acoes" style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
         <button class="btn btn-primario" onclick="abrirNovaAtividade()">+ Nova atividade</button>
@@ -6660,43 +6915,558 @@ function excluirAtividade(dia, id, extra){
   renderAtividadeSemanal();
 }
 
-function carregarStatusAtividades(){
-  try{ return JSON.parse(localStorage.getItem('mtc_atividade_status')) || {}; }
-  catch(e){ return {}; }
+/* ============================================================
+   CICLO DIÁRIO DE 24 HORAS & ALERTAS DE NOTIFICAÇÃO (5 MIN ANTES)
+   ============================================================ */
+const CHAVE_CICLO_DATA = 'mtc_atividade_ciclo_data';
+const CHAVE_LEMBRETES_DISPARADOS = 'mtc_atividade_lembretes_disparados';
+const CHAVE_SOM_LEMBRETES = 'mtc_atividade_som_lembretes';
+window.atividadeLembreteAtivoId = null;
+window.timerFecharBannerLembrete = null;
+
+function obterDataHojeLocal(){
+  const d = new Date();
+  const ano = d.getFullYear();
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
 }
+
+function formatarDataLocalBr(dataIso){
+  if(!dataIso) return '';
+  const partes = dataIso.split('-');
+  if(partes.length === 3) return `${partes[2]}/${partes[1]}/${partes[0]}`;
+  return dataIso;
+}
+
+function verificarEExecutarCicloDiarioAtividades(forcarManual = false){
+  const hojeStr = obterDataHojeLocal();
+  const cicloSalvo = localStorage.getItem(CHAVE_CICLO_DATA);
+  const tagCiclo = document.getElementById('tagCicloAtivo');
+  if(tagCiclo){
+    tagCiclo.textContent = `Ciclo: ${formatarDataLocalBr(hojeStr)}`;
+  }
+
+  if(forcarManual || !cicloSalvo || cicloSalvo !== hojeStr){
+    const eraMudancaDia = !!cicloSalvo && cicloSalvo !== hojeStr;
+
+    // Reseta todas as atividades de volta para o estado Pendente
+    setItemSeguro('mtc_atividade_status', JSON.stringify({}));
+
+    // Reseta o histórico de lembretes disparados do ciclo anterior
+    setItemSeguro(CHAVE_LEMBRETES_DISPARADOS, JSON.stringify({ data: hojeStr, ids: [] }));
+
+    // Atualiza o ciclo com a nova data de hoje
+    setItemSeguro(CHAVE_CICLO_DATA, hojeStr);
+
+    if(forcarManual){
+      mostrarAvisoTemporario('Ciclo diário reiniciado com sucesso! Todas as atividades retornaram para o estado Pendente.');
+    } else if(eraMudancaDia){
+      mostrarAvisoTemporario('Novo ciclo diário de 24h iniciado! Todas as atividades retornaram para o estado Pendente.');
+    }
+
+    try { renderAtividadeSemanal(); } catch(e){}
+    try { renderAbasDiasSemana(); } catch(e){}
+    try {
+      const modP = document.getElementById('modalPendentesHoje');
+      if(modP && modP.classList.contains('aberto')) renderPendentesHoje();
+    } catch(e){}
+    try {
+      const modC = document.getElementById('modalConcluidasHoje');
+      if(modC && modC.classList.contains('aberto')) renderConcluidasHoje();
+    } catch(e){}
+    return true;
+  }
+  return false;
+}
+
+function reiniciarCicloDiarioManual(){
+  if(confirm('Deseja reiniciar o ciclo diário de avaliação agora?\n\nTodas as atividades cadastradas retornarão para o estado "Pendente" para o início de um novo ciclo.')){
+    verificarEExecutarCicloDiarioAtividades(true);
+    checarLembretesAtividadesHoje();
+  }
+}
+
+function mostrarAvisoTemporario(mensagem){
+  if(typeof window.mostrarToastNotificacao === 'function'){
+    window.mostrarToastNotificacao(mensagem);
+    return;
+  }
+  console.log('[Ciclo Diário]', mensagem);
+}
+
+function carregarStatusAtividades(){
+  try {
+    verificarEExecutarCicloDiarioAtividades(false);
+    return JSON.parse(localStorage.getItem('mtc_atividade_status')) || {};
+  } catch(e){
+    return {};
+  }
+}
+
 function salvarStatusAtividades(mapa){
   setItemSeguro('mtc_atividade_status', JSON.stringify(mapa));
 }
+
 function statusOriginal(realizado){
-  return (realizado||'').toLowerCase().includes('conclu') ? 'Concluída' : 'Pendente';
+  // Por determinação do ciclo de avaliação diária de 24h, toda atividade inicia e retorna como 'Pendente'
+  return 'Pendente';
 }
+
 function statusDeEntrada(entrada){
   if(!entrada) return null;
   return typeof entrada === 'string' ? entrada : entrada.status;
 }
+
 function dataDeEntrada(entrada){
   if(!entrada || typeof entrada === 'string') return null;
   return entrada.data || null;
 }
+
 function obterStatusAtividade(id, realizadoOriginal){
   const mapa = carregarStatusAtividades();
   return statusDeEntrada(mapa[id]) || statusOriginal(realizadoOriginal);
 }
+
 function alterarStatusAtividade(id, novoStatus){
   const mapa = carregarStatusAtividades();
   mapa[id] = { status: novoStatus, data: new Date().toISOString() };
   salvarStatusAtividades(mapa);
   try{ renderConcluidasHoje(); }catch(e){}
   try{ renderAtividadeSemanal(); }catch(e){}
+  atualizarInfoProximoLembrete();
 }
+
 function alternarConclusaoAtividade(id, statusAtual){
   const novoStatus = (statusAtual === 'Concluída') ? 'Pendente' : 'Concluída';
   alterarStatusAtividade(id, novoStatus);
 }
+
 function classeStatusAtividade(status){
   if(status === 'Concluída') return 'ok';
   if(status === 'Em andamento') return 'neutro';
   return 'alerta';
+}
+
+/* ------------------------------------------------------------
+   SISTEMA DE ALERTA DE NOTIFICAÇÕES (5 MINUTOS ANTES)
+   Computador e Celular (Áudio Melodioso, Vibração, Push e Banner)
+   ------------------------------------------------------------ */
+
+function extrairMinutosHorario(horarioStr){
+  if(!horarioStr) return null;
+  const s = String(horarioStr).trim();
+
+  // Padrão como "07:30", "07:30 às 09:00", "7:30", "07h30"
+  let m = s.match(/(\d{1,2})[:hH](\d{2})/);
+  if(m){
+    const h = parseInt(m[1], 10);
+    const min = parseInt(m[2], 10);
+    if(h >= 0 && h < 24 && min >= 0 && min < 60) return h * 60 + min;
+  }
+
+  // Padrão como "08h", "14h", "08:00"
+  m = s.match(/(\d{1,2})\s*[hH]/);
+  if(m){
+    const h = parseInt(m[1], 10);
+    if(h >= 0 && h < 24) return h * 60;
+  }
+
+  return null;
+}
+
+function formatarMinutosParaHora(totalMin){
+  const h = Math.floor(totalMin / 60) % 24;
+  const m = totalMin % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function tocarAlertaSonoroLembrete(){
+  try {
+    const somAtivo = localStorage.getItem(CHAVE_SOM_LEMBRETES) !== 'desativado';
+    if(!somAtivo) return;
+
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if(!AudioCtx) return;
+    const ctx = new AudioCtx();
+
+    if(ctx.state === 'suspended'){
+      ctx.resume();
+    }
+
+    const tocarSinoNota = (freq, inicio, duracao, ganhoMax) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + inicio);
+
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + inicio);
+      gain.gain.exponentialRampToValueAtTime(ganhoMax, ctx.currentTime + inicio + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + inicio + duracao);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(ctx.currentTime + inicio);
+      osc.stop(ctx.currentTime + inicio + duracao + 0.05);
+    };
+
+    // Toque sonoro harmônico elegante de sino (E5, G#5, B5, E6)
+    tocarSinoNota(659.25, 0.00, 0.35, 0.28);
+    tocarSinoNota(830.61, 0.16, 0.35, 0.28);
+    tocarSinoNota(987.77, 0.32, 0.40, 0.32);
+    tocarSinoNota(1318.51, 0.50, 0.65, 0.35);
+  } catch(e){}
+}
+
+function vibrarCelularLembrete(){
+  try {
+    if('vibrate' in navigator && typeof navigator.vibrate === 'function'){
+      navigator.vibrate([250, 100, 250, 100, 350]);
+    }
+  } catch(e){}
+}
+
+function emitirNotificacaoDispositivo(titulo, corpo, dados){
+  try {
+    if(!('Notification' in window)) return;
+    if(Notification.permission === 'granted'){
+      const iconeSvg = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%230284C7"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>';
+      const opcoes = {
+        body: corpo,
+        icon: iconeSvg,
+        badge: iconeSvg,
+        vibrate: [250, 100, 250, 100, 350],
+        tag: dados?.tag || 'lembrete_atividade',
+        data: dados || {},
+        renotify: true
+      };
+
+      if('serviceWorker' in navigator && navigator.serviceWorker.controller){
+        navigator.serviceWorker.ready.then(function(reg){
+          reg.showNotification(titulo, opcoes).catch(function(){
+            new Notification(titulo, opcoes);
+          });
+        }).catch(function(){
+          new Notification(titulo, opcoes);
+        });
+      } else {
+        new Notification(titulo, opcoes);
+      }
+    }
+  } catch(e){}
+}
+
+function solicitarOuChecarNotificacoes(){
+  if(!('Notification' in window)){
+    alert('Seu navegador não possui suporte a notificações nativas, mas os alertas sonoros e na tela funcionarão perfeitamente no seu dispositivo.');
+    return;
+  }
+  if(Notification.permission === 'granted'){
+    alert('Notificações no computador e celular já estão ativadas e autorizadas!');
+    atualizarStatusInterfaceNotificacoes();
+    return;
+  }
+  if(Notification.permission === 'denied'){
+    alert('As notificações estão bloqueadas nas configurações do seu navegador.\n\nPara ativar: clique no ícone de ajustes/cadeado na barra de endereços e permita as notificações para esta página.');
+    atualizarStatusInterfaceNotificacoes();
+    return;
+  }
+  Notification.requestPermission().then(function(perm){
+    atualizarStatusInterfaceNotificacoes();
+    if(perm === 'granted'){
+      tocarAlertaSonoroLembrete();
+      emitirNotificacaoDispositivo(
+        '⏰ Notificações Ativadas com Sucesso!',
+        'Você receberá lembretes sonoros e notificações 5 minutos antes de cada atividade programada.',
+        { tag: 'boas_vindas' }
+      );
+    }
+  });
+}
+
+function atualizarStatusInterfaceNotificacoes(){
+  const btn = document.getElementById('btnStatusNotificacaoDispositivo');
+  const icone = document.getElementById('iconeStatusNotificacao');
+  const rotulo = document.getElementById('rotuloStatusNotificacao');
+  if(!btn || !icone || !rotulo) return;
+
+  if(!('Notification' in window)){
+    icone.textContent = '🔊';
+    rotulo.textContent = 'Alertas na Tela e Som Ativos';
+    btn.className = 'btn-ctrl-acao ativo';
+    return;
+  }
+
+  if(Notification.permission === 'granted'){
+    icone.textContent = '✓';
+    rotulo.textContent = 'Notificações Ativas no Celular / PC';
+    btn.className = 'btn-ctrl-acao sucesso';
+  } else if(Notification.permission === 'denied'){
+    icone.textContent = '⚠️';
+    rotulo.textContent = 'Notificações Bloqueadas no Navegador';
+    btn.className = 'btn-ctrl-acao';
+  } else {
+    icone.textContent = '🔔';
+    rotulo.textContent = 'Ativar no Computador / Celular';
+    btn.className = 'btn-ctrl-acao ativo';
+  }
+}
+
+function alternarSomLembrete(){
+  const somAtivo = localStorage.getItem(CHAVE_SOM_LEMBRETES) !== 'desativado';
+  if(somAtivo){
+    setItemSeguro(CHAVE_SOM_LEMBRETES, 'desativado');
+  } else {
+    setItemSeguro(CHAVE_SOM_LEMBRETES, 'ativado');
+    tocarAlertaSonoroLembrete();
+  }
+  atualizarBotaoSomLembrete();
+}
+
+function atualizarBotaoSomLembrete(){
+  const btn = document.getElementById('btnAlternarSomLembrete');
+  const icone = document.getElementById('iconeSomLembrete');
+  const rotulo = document.getElementById('rotuloSomLembrete');
+  if(!btn || !icone || !rotulo) return;
+
+  const somAtivo = localStorage.getItem(CHAVE_SOM_LEMBRETES) !== 'desativado';
+  if(somAtivo){
+    icone.textContent = '🔊';
+    rotulo.textContent = 'Som ligado';
+    btn.classList.remove('ativo');
+  } else {
+    icone.textContent = '🔇';
+    rotulo.textContent = 'Silencioso';
+    btn.classList.add('ativo');
+  }
+}
+
+function dispararAlertaLembrete(dados){
+  window.atividadeLembreteAtivoId = dados.id;
+
+  // 1. Áudio melódico
+  tocarAlertaSonoroLembrete();
+
+  // 2. Vibração para celulares
+  vibrarCelularLembrete();
+
+  // 3. Notificação nativa (PC e Celular)
+  emitirNotificacaoDispositivo(
+    `⏰ Lembrete: ${dados.atividade}`,
+    `Início às ${dados.horario} (Faltam 5 min para a execução) · ${dados.categoria}`,
+    { tag: 'lembrete_' + dados.id, id: dados.id }
+  );
+
+  // 4. Banner na tela
+  const banner = document.getElementById('bannerAlertaLembrete');
+  const elHorario = document.getElementById('bannerAlertaHorario');
+  const elTitulo = document.getElementById('bannerAlertaTitulo');
+  const elSub = document.getElementById('bannerAlertaSub');
+
+  if(banner && elHorario && elTitulo && elSub){
+    elHorario.textContent = dados.horario;
+    elTitulo.textContent = dados.atividade;
+    elSub.textContent = `${dados.categoria}${dados.obs ? ' · ' + dados.obs : ''}`;
+    banner.style.display = 'block';
+
+    if(window.timerFecharBannerLembrete) clearTimeout(window.timerFecharBannerLembrete);
+    window.timerFecharBannerLembrete = setTimeout(fecharBannerAlertaLembrete, 35000);
+  }
+}
+
+function testarAlertaLembrete(){
+  solicitarOuChecarNotificacoes();
+  dispararAlertaLembrete({
+    id: 'teste_alerta',
+    atividade: 'Teste de Alerta Programado (5 min antes)',
+    horario: formatarMinutosParaHora((new Date().getHours() * 60 + new Date().getMinutes() + 5) % 1440),
+    categoria: 'Conservação e Limpeza',
+    obs: 'Alerta sonoro, vibração e notificação funcionando perfeitamente!'
+  });
+}
+
+function fecharBannerAlertaLembrete(){
+  const banner = document.getElementById('bannerAlertaLembrete');
+  if(banner) banner.style.display = 'none';
+  if(window.timerFecharBannerLembrete){
+    clearTimeout(window.timerFecharBannerLembrete);
+    window.timerFecharBannerLembrete = null;
+  }
+}
+
+function irParaAtividadeDoLembrete(){
+  const idAtividade = window.atividadeLembreteAtivoId;
+  fecharBannerAlertaLembrete();
+
+  if(!idAtividade) return;
+
+  // Garante visualização na aba de hoje
+  if(typeof alternarModoAtividade === 'function'){
+    alternarModoAtividade('dia');
+  }
+  diaSemanaAtivo = inicializarAbaHoje();
+  filtroCategoriaAtividadeAtiva = 'todas';
+  filtroSubCursoAtivo = 'todos';
+  renderAbasDiasSemana();
+  renderAtividadeSemanal();
+
+  setTimeout(() => {
+    const elCartao = document.getElementById(`cartao_atividade_${idAtividade}`);
+    if(elCartao){
+      elCartao.scrollIntoView({ behavior:'smooth', block:'center' });
+      elCartao.classList.add('atividade-em-destaque');
+      setTimeout(() => {
+        elCartao.classList.remove('atividade-em-destaque');
+      }, 3500);
+    }
+  }, 200);
+}
+
+function concluirAtividadeDoLembrete(){
+  const idAtividade = window.atividadeLembreteAtivoId;
+  if(idAtividade){
+    alterarStatusAtividade(idAtividade, 'Concluída');
+    mostrarAvisoTemporario('Atividade marcada como Concluída com sucesso!');
+  }
+  fecharBannerAlertaLembrete();
+}
+
+function checarLembretesAtividadesHoje(){
+  // Garante verificação do ciclo diário de 24h
+  verificarEExecutarCicloDiarioAtividades(false);
+
+  const agora = new Date();
+  const agoraMinutos = agora.getHours() * 60 + agora.getMinutes();
+  const hojeStr = obterDataHojeLocal();
+  const diaHoje = inicializarAbaHoje();
+
+  const mapaEdicoes = carregarEdicoesAtividades();
+  const mapaStatus = carregarStatusAtividades();
+  const removidas = new Set(carregarAtividadesRemovidas());
+
+  const originaisHoje = (ATIVIDADE_SEMANAL_SEED[diaHoje] || [])
+    .map((i, idx) => ({ ...i, id: diaHoje + '_' + idx }))
+    .filter(i => !removidas.has(i.id));
+
+  const extrasHoje = (carregarAtividadesExtras()[diaHoje] || []).map(e => ({ ...e, extra: true, realizado: '' }));
+  const todasHoje = [...originaisHoje, ...extrasHoje];
+
+  let disparados = {};
+  try {
+    const salvo = JSON.parse(localStorage.getItem(CHAVE_LEMBRETES_DISPARADOS) || '{}');
+    if(salvo.data === hojeStr && Array.isArray(salvo.ids)){
+      salvo.ids.forEach(id => { disparados[id] = true; });
+    }
+  } catch(e){}
+
+  let houveNovoDisparo = false;
+
+  todasHoje.forEach(item => {
+    // Se já estiver concluída hoje, dispensa o lembrete
+    const status = statusDeEntrada(mapaStatus[item.id]) || statusOriginal(item.realizado);
+    if(status === 'Concluída') return;
+
+    const editado = mapaEdicoes[item.id];
+    const horarioStr = (editado ? editado.horario : item.horario) || '';
+    const minProg = extrairMinutosHorario(horarioStr);
+    if(minProg === null) return;
+
+    // Alerta disparado 5 minutos antes:
+    const minAlerta = minProg - 5;
+
+    // Janela de disparo: se o horário atual estiver entre minAlerta e minProg e ainda não disparou
+    if(agoraMinutos >= minAlerta && agoraMinutos < minProg && !disparados[item.id]){
+      disparados[item.id] = true;
+      houveNovoDisparo = true;
+
+      const nome = editado?.atividade || item.atividade;
+      const cat = (editado && editado.categoria) || item.categoria || classificarAtividade(nome);
+      const obs = editado?.obs || item.obs || '';
+
+      dispararAlertaLembrete({
+        id: item.id,
+        atividade: nome,
+        horario: horarioStr,
+        categoria: cat,
+        obs: obs
+      });
+    }
+  });
+
+  if(houveNovoDisparo){
+    setItemSeguro(CHAVE_LEMBRETES_DISPARADOS, JSON.stringify({
+      data: hojeStr,
+      ids: Object.keys(disparados)
+    }));
+  }
+
+  atualizarInfoProximoLembrete();
+}
+
+function atualizarInfoProximoLembrete(){
+  const elTexto = document.getElementById('textoProximoLembrete');
+  if(!elTexto) return;
+
+  const agora = new Date();
+  const agoraMinutos = agora.getHours() * 60 + agora.getMinutes();
+  const diaHoje = inicializarAbaHoje();
+
+  const mapaEdicoes = carregarEdicoesAtividades();
+  const mapaStatus = carregarStatusAtividades();
+  const removidas = new Set(carregarAtividadesRemovidas());
+
+  const originaisHoje = (ATIVIDADE_SEMANAL_SEED[diaHoje] || [])
+    .map((i, idx) => ({ ...i, id: diaHoje + '_' + idx }))
+    .filter(i => !removidas.has(i.id));
+
+  const extrasHoje = (carregarAtividadesExtras()[diaHoje] || []).map(e => ({ ...e, extra: true, realizado: '' }));
+  const todasHoje = [...originaisHoje, ...extrasHoje];
+
+  let proxima = null;
+  let menorDiferenca = Infinity;
+
+  todasHoje.forEach(item => {
+    const status = statusDeEntrada(mapaStatus[item.id]) || statusOriginal(item.realizado);
+    if(status === 'Concluída') return;
+
+    const editado = mapaEdicoes[item.id];
+    const horarioStr = (editado ? editado.horario : item.horario) || '';
+    const minProg = extrairMinutosHorario(horarioStr);
+    if(minProg === null) return;
+
+    const dif = minProg - agoraMinutos;
+    if(dif > 0 && dif < menorDiferenca){
+      menorDiferenca = dif;
+      const nome = editado?.atividade || item.atividade;
+      proxima = {
+        nome: nome,
+        horario: horarioStr,
+        minProg: minProg,
+        dif: dif
+      };
+    }
+  });
+
+  if(proxima){
+    const minAlerta = proxima.minProg - 5;
+    const horaAlertaStr = formatarMinutosParaHora(minAlerta >= 0 ? minAlerta : 0);
+    elTexto.innerHTML = `Próximo lembrete hoje: <strong>${escapeHtml(proxima.nome)}</strong> programada para <strong>${escapeHtml(proxima.horario)}</strong> (alerta sonoro às <strong>${horaAlertaStr}</strong> — 5 min antes).`;
+  } else {
+    elTexto.textContent = 'Monitorando atividades de hoje. Todas as atividades programadas com horário receberão alerta 5 min antes.';
+  }
+}
+
+// Inicializa verificação contínua e status da interface
+if(!window.loopAtividadesIniciado){
+  window.loopAtividadesIniciado = true;
+  setInterval(checarLembretesAtividadesHoje, 10000);
+  setTimeout(() => {
+    verificarEExecutarCicloDiarioAtividades(false);
+    atualizarStatusInterfaceNotificacoes();
+    atualizarBotaoSomLembrete();
+    atualizarInfoProximoLembrete();
+  }, 1000);
 }
 
 let filtroCategoriaAtividadeAtiva = 'todas';
@@ -7041,7 +7811,7 @@ function renderAtividadeSemanal(){
     const nomeEscapadoJs = escapeHtml(atividadeTexto).replace(/'/g, "\\'");
     const obsEscapadoJs = escapeHtml(obsTexto||'').replace(/'/g, "\\'");
     return `
-    <div class="item-cartao ${classe}">
+    <div class="item-cartao ${classe}" id="cartao_atividade_${i.id}">
       <div class="coluna-marcador-atividade"
            title="${isConcluida ? 'Concluída (Clique para marcar como Pendente)' : 'Clique para marcar como Concluída'}"
            onclick="alternarConclusaoAtividade('${i.id}', '${status}')">
@@ -7054,6 +7824,7 @@ function renderAtividadeSemanal(){
           <strong>${escapeHtml(atividadeTexto)}</strong>
           <span class="tag-categoria ${classeCategoriaAtividade(cat)}">${escapeHtml(cat)}</span>
           ${i.extra ? '<span class="tag-status neutro">Adicionada</span>' : ''}
+          ${horarioTexto ? `<span class="tag-lembrete-5min" title="Lembrete automático 5 minutos antes deste horário">⏰ 5 min antes</span>` : ''}
         </div>
         <div class="item-meta">
           Horário: <code>${escapeHtml(horarioTexto||'—')}</code>${turnoTexto ? ' · Turno: ' + escapeHtml(turnoTexto) : ''}
@@ -11729,6 +12500,18 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
       var url = new URL(e.request.url);
       if (url.origin !== self.location.origin) return;
       e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+    });
+    self.addEventListener('notificationclick', function(e) {
+      e.notification.close();
+      e.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
+          for (var i = 0; i < clientList.length; i++) {
+            var client = clientList[i];
+            if ('focus' in client) return client.focus();
+          }
+          if (clients.openWindow) return clients.openWindow('/');
+        })
+      );
     });
   `;
   const blob = new Blob([swCode], { type: 'text/javascript' });
