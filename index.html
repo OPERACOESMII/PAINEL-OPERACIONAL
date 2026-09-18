@@ -659,7 +659,13 @@ function restaurarManualNuvem(){
     --sombra: 0 1px 2px rgba(10,38,71,0.07), 0 8px 24px rgba(10,38,71,0.10);
   }
   *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
+  html,body{
+    margin:0; padding:0;
+    width:100%; max-width:100%;
+    overflow-x:hidden;
+    position:relative;
+    -webkit-text-size-adjust:100%;
+  }
   body{
     background:var(--fundo);
     color:var(--texto);
@@ -680,14 +686,15 @@ function restaurarManualNuvem(){
     position:sticky; top:0; z-index:20;
     background:var(--gradiente);
     color:#fff;
-    padding:16px 20px;
-    display:flex; align-items:center; gap:14px;
+    padding:14px 18px;
+    display:flex; align-items:center; gap:12px;
     box-shadow:var(--sombra);
+    width:100%; max-width:100%; box-sizing:border-box;
   }
   .brasao{
-    width:44px;height:44px;border-radius:10px;
+    width:44px; height:44px; border-radius:10px;
     background:linear-gradient(155deg, #071B33, #123F6B);
-    display:flex;align-items:center;justify-content:center;
+    display:flex; align-items:center; justify-content:center;
     padding:6px;
     flex-shrink:0;
   }
@@ -711,7 +718,35 @@ function restaurarManualNuvem(){
     font-family:'Inter',sans-serif;
   }
   .btn-voltar:active{background:rgba(255,255,255,0.16);}
-  main{position:relative; z-index:1; max-width:960px; margin:0 auto; padding:18px 12px 60px;}
+  @media(max-width: 600px){
+    header.topo{
+      padding:10px 12px;
+      gap:8px;
+    }
+    .brasao{
+      width:36px; height:36px; padding:4px; border-radius:8px;
+    }
+    .titulo-topo h1{
+      font-size:20px;
+    }
+    .titulo-topo .clube{
+      font-size:9px;
+      letter-spacing:1px;
+    }
+    .btn-voltar{
+      padding:6px 10px;
+      font-size:12px;
+      gap:4px;
+    }
+    #usuarioGoogleTopo{
+      padding:2px 7px !important;
+      font-size:10.5px !important;
+    }
+  }
+  main{
+    position:relative; z-index:1; max-width:960px; margin:0 auto; padding:14px 10px 60px;
+    width:100%; max-width:100%; box-sizing:border-box; overflow-x:hidden;
+  }
 
   /* ---------- HUB ---------- */
   #hub .lema{
@@ -736,6 +771,23 @@ function restaurarManualNuvem(){
     cursor:pointer; color:inherit; padding:0;
   }
   .btn-link-restrito:hover{background:rgba(255,255,255,0.18);}
+  .btn-kpi-link-restrito{
+    position:absolute; top:8px; right:8px; z-index:4;
+    background:rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.32);
+    border-radius:7px; width:26px; height:26px; font-size:12px;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; color:#FFFFFF; padding:0;
+    transition:all 0.15s ease;
+    backdrop-filter:blur(4px);
+  }
+  .btn-kpi-link-restrito:hover{
+    background:rgba(255,255,255,0.35); transform:scale(1.08); border-color:#FFFFFF;
+  }
+  @media(max-width: 768px){
+    .btn-kpi-link-restrito{
+      top:5px; right:5px; width:22px; height:22px; font-size:11px;
+    }
+  }
   .cartao-hub::before{
     content:''; position:absolute; top:-24px; right:-24px;
     width:70px; height:70px; border:2px solid var(--verde-100); border-radius:50%;
@@ -974,10 +1026,11 @@ function restaurarManualNuvem(){
   .card-controle-atividades{
     background:#FFFFFF; border:1.5px solid #E2E8F0; border-radius:14px;
     padding:14px; margin-bottom:14px; box-shadow:0 3px 12px rgba(0,0,0,0.04);
-    display:flex; flex-direction:column; gap:12px;
+    display:flex; flex-direction:column; gap:12px; width:100%; box-sizing:border-box;
   }
   .bloco-controle-atividade{
     background:#F8FAFC; border:1px solid #E2E8F0; border-radius:11px; padding:12px;
+    width:100%; box-sizing:border-box;
   }
   .bloco-controle-atividade.ciclo-diario{
     background:#F0FDF4; border-color:#BBF7D0;
@@ -989,15 +1042,16 @@ function restaurarManualNuvem(){
     display:flex; align-items:center; gap:6px; font-size:13.5px; font-weight:700; color:#0F172A;
   }
   .bloco-controle-icone{
-    font-size:16px; line-height:1;
+    font-size:16px; line-height:1; flex-shrink:0;
   }
   .bloco-controle-acoes{
     display:flex; align-items:center; flex-wrap:wrap; gap:6px;
   }
   .btn-ctrl-acao{
-    font-size:11.5px; font-weight:600; padding:5px 10px; border-radius:8px;
+    font-size:11.5px; font-weight:600; padding:6px 10px; border-radius:8px;
     border:1px solid #CBD5E1; background:#FFFFFF; color:#334155; cursor:pointer;
-    display:inline-flex; align-items:center; gap:5px; transition:all 0.15s ease;
+    display:inline-flex; align-items:center; justify-content:center; gap:5px;
+    transition:all 0.15s ease; white-space:normal; line-height:1.25; text-align:center;
   }
   .btn-ctrl-acao:hover{
     background:#F1F5F9; border-color:#94A3B8; color:#0F172A;
@@ -1010,7 +1064,7 @@ function restaurarManualNuvem(){
   }
   .bloco-controle-status{
     font-size:12px; color:#475569; display:flex; align-items:center; gap:6px; line-height:1.4;
-    padding-top:4px;
+    padding-top:4px; word-break:break-word;
   }
   .ponto-status-verde{
     width:8px; height:8px; border-radius:50%; background:#22C55E; display:inline-block; flex-shrink:0;
@@ -1022,17 +1076,46 @@ function restaurarManualNuvem(){
   }
   .tag-ciclo-ativo{
     font-size:11px; font-weight:700; color:#15803D; background:#DCFCE7; border:1px solid #86EFAC;
-    padding:3px 8px; border-radius:10px; display:inline-block;
+    padding:3px 8px; border-radius:10px; display:inline-block; white-space:nowrap;
   }
   .bloco-controle-desc{
     font-size:11.5px; color:#166534; margin:4px 0 0 0; line-height:1.4;
+  }
+  @media(max-width: 600px){
+    .card-controle-atividades{
+      padding:10px; border-radius:12px; gap:10px;
+    }
+    .bloco-controle-atividade{
+      padding:10px 8px; border-radius:10px;
+    }
+    .bloco-controle-topo{
+      flex-direction:column; align-items:flex-start; gap:8px;
+    }
+    .bloco-controle-acoes{
+      width:100%; display:flex; flex-direction:column; gap:6px;
+    }
+    .btn-ctrl-acao{
+      width:100%; padding:8px 10px; font-size:11.5px;
+    }
+    .bloco-controle-atividade.ciclo-diario .bloco-controle-acoes{
+      flex-direction:row; justify-content:space-between; align-items:center;
+    }
+    .bloco-controle-atividade.ciclo-diario .bloco-controle-acoes .btn-ctrl-acao{
+      width:auto; flex:1;
+    }
+    .bloco-controle-status{
+      font-size:11px;
+    }
+    .bloco-controle-desc{
+      font-size:11px;
+    }
   }
 
   /* Tag de lembrete no cartão da atividade */
   .tag-lembrete-5min{
     font-size:10px; font-weight:700; color:#0369A1; background:#E0F2FE; border:1px solid #BAE6FD;
-    padding:1.5px 6px; border-radius:6px; display:inline-flex; align-items:center; gap:3px;
-    letter-spacing:0.1px; margin-left:4px;
+    padding:2px 7px; border-radius:6px; display:inline-flex; align-items:center; gap:3px;
+    letter-spacing:0.1px; white-space:nowrap; flex-shrink:0; line-height:1.3;
   }
 
   /* Pulso luminoso quando a atividade é focada pelo lembrete */
@@ -1151,20 +1234,72 @@ function restaurarManualNuvem(){
 
   .filtros-categoria-barra{
     display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; margin-bottom:12px;
+    width:100%; max-width:100%; box-sizing:border-box; -webkit-overflow-scrolling:touch; scrollbar-width:thin;
   }
+  .barra-abas-dias-semana{
+    display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; margin-bottom:12px;
+    width:100%; max-width:100%; box-sizing:border-box; -webkit-overflow-scrolling:touch; scrollbar-width:thin;
+  }
+  .barra-subfiltro-cursos{
+    display:none; gap:6px; overflow-x:auto; padding-bottom:6px; margin-bottom:12px;
+    width:100%; max-width:100%; box-sizing:border-box; -webkit-overflow-scrolling:touch; scrollbar-width:thin;
+  }
+  .btn-aba-dia{
+    flex-shrink:0; padding:7px 12px; border-radius:20px; border:1px solid var(--linha);
+    font-family:'Inter',sans-serif; font-size:12px; font-weight:700; cursor:pointer;
+    background:#fff; color:var(--texto); display:inline-flex; align-items:center; gap:6px;
+    white-space:nowrap; transition:all 0.15s ease;
+  }
+  .btn-aba-dia:hover{ border-color:var(--verde-700); background:#F9FAFB; }
+  .btn-aba-dia.ativo{ border-color:var(--verde-800); background:var(--gradiente-suave); color:#fff; }
+  .btn-aba-dia .badge-qtd{
+    font-size:10.5px; padding:1px 6px; border-radius:10px; background:#F3F4F6; color:var(--texto-suave);
+  }
+  .btn-aba-dia.ativo .badge-qtd{
+    background:rgba(255,255,255,0.25); color:#fff;
+  }
+
   .btn-chip{
     font-size:12px; font-weight:600; padding:6px 12px; border-radius:20px;
     border:1px solid var(--linha); background:#fff; color:var(--texto); cursor:pointer;
     display:inline-flex; align-items:center; gap:4px; white-space:nowrap; transition:all 0.15s ease;
+    flex-shrink:0;
   }
   .btn-chip:hover{ border-color:var(--verde-700); background:#F9FAFB; }
   .btn-chip.ativo{ background:var(--verde-800); color:#fff; border-color:var(--verde-800); }
 
-  .barra-acoes{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;}
+  .barra-acoes{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; width:100%; box-sizing:border-box;}
+  .barra-acoes-atividade{
+    display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px;
+    width:100%; box-sizing:border-box;
+  }
+  .campo-busca-atividade{
+    flex:1; max-width:280px; width:100%; position:relative;
+  }
+  .btn-nova-atividade-topo{
+    flex-shrink:0;
+  }
+  @media(max-width: 600px){
+    .barra-acoes-atividade{
+      flex-direction:column; align-items:stretch; gap:8px;
+    }
+    .btn-nova-atividade-topo{
+      width:100%; justify-content:center; padding:10px 14px;
+    }
+    .campo-busca-atividade{
+      max-width:100%; width:100%;
+    }
+    .btn-aba-dia{
+      padding:6px 10px; font-size:11.5px;
+    }
+    .btn-chip{
+      padding:5px 10px; font-size:11.5px;
+    }
+  }
   input[type=text], input[type=search], input[type=datetime-local], input[type=number], select, textarea{
     font-family:'Inter',sans-serif; font-size:14px; padding:10px 12px;
     border:1px solid var(--linha); border-radius:9px; background:#fff; color:var(--texto);
-    width:100%;
+    width:100%; box-sizing:border-box;
   }
   input:focus, select:focus, textarea:focus{outline:2px solid var(--verde-700); outline-offset:1px;}
   .campo-busca{flex:1; min-width:140px; position:relative;}
@@ -1182,6 +1317,7 @@ function restaurarManualNuvem(){
   .painel-form{
     background:var(--cartao); border:1px solid var(--linha); border-radius:14px;
     padding:16px; margin-bottom:16px; box-shadow:var(--sombra); display:none;
+    width:100%; box-sizing:border-box;
   }
   .painel-form.aberto{display:block;}
   .painel-form h4{
@@ -1193,10 +1329,11 @@ function restaurarManualNuvem(){
   @media (max-width:520px){ .grade-form{grid-template-columns:1fr;} }
   .acoes-form{display:flex; gap:8px; justify-content:flex-end;}
 
-  .lista-cartoes{display:flex; flex-direction:column; gap:10px;}
+  .lista-cartoes{display:flex; flex-direction:column; gap:10px; width:100%; box-sizing:border-box;}
   .item-cartao{
     background:var(--cartao); border:1px solid var(--linha); border-radius:13px;
-    padding:14px; box-shadow:var(--sombra); display:flex; gap:12px; align-items:flex-start;
+    padding:12px; box-shadow:var(--sombra); display:flex; gap:10px; align-items:flex-start;
+    width:100%; max-width:100%; box-sizing:border-box;
   }
   .item-cartao .franja{width:4px; align-self:stretch; border-radius:3px; background:var(--neutro); flex-shrink:0;}
   .item-cartao.ok .franja{background:var(--ok);}
@@ -1243,7 +1380,7 @@ function restaurarManualNuvem(){
   /* Botão de marcação para sinalizar atividade concluída ao lado esquerdo da barra */
   .coluna-marcador-atividade{
     display:flex; flex-direction:column; align-items:center; justify-content:center;
-    align-self:stretch; min-width:54px; max-width:62px; padding:6px 4px;
+    align-self:stretch; min-width:48px; max-width:54px; padding:6px 2px;
     background:#F8FAFC; border:1px solid var(--linha); border-radius:9px;
     flex-shrink:0; text-align:center; user-select:none; box-sizing:border-box;
     cursor:pointer; transition:all .18s ease;
@@ -1265,7 +1402,7 @@ function restaurarManualNuvem(){
     background:var(--alerta-bg); border-color:#f6cbc2;
   }
   .coluna-marcador-atividade .prefixo-marcador{
-    font-size:8.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px;
+    font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px;
     color:var(--texto-suave); line-height:1; margin-bottom:4px;
     font-family:'JetBrains Mono',monospace;
   }
@@ -1279,10 +1416,10 @@ function restaurarManualNuvem(){
     color:var(--alerta);
   }
   .coluna-marcador-atividade .botao-marcador-check{
-    width:28px; height:28px; border-radius:50%; display:flex;
+    width:26px; height:26px; border-radius:50%; display:flex;
     align-items:center; justify-content:center;
     border:2px solid var(--linha); background:#fff;
-    color:transparent; font-size:15px; font-weight:900; line-height:1;
+    color:transparent; font-size:14px; font-weight:900; line-height:1;
     transition:all .18s ease; flex-shrink:0;
   }
   .item-cartao.ok .coluna-marcador-atividade .botao-marcador-check{
@@ -1521,13 +1658,53 @@ function restaurarManualNuvem(){
       padding: 5px 9px;
     }
   }
-  .item-corpo{flex:1; min-width:0;}
-  .item-titulo{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:3px;}
-  .item-titulo strong{font-size:15px; color:var(--texto);}
-  .item-meta{font-size:12px; color:var(--texto-suave); line-height:1.5;}
+  .item-corpo{flex:1; min-width:0; width:100%; overflow:hidden;}
+  .item-titulo{
+    display:flex; flex-direction:column; align-items:flex-start; gap:4px; margin-bottom:4px; width:100%;
+  }
+  .item-titulo strong, .item-titulo-texto strong{
+    font-size:14px; color:var(--texto); line-height:1.35;
+    word-break:break-word; overflow-wrap:anywhere; display:block; width:100%;
+  }
+  .item-titulo-texto{
+    width:100%;
+  }
+  .item-badges-linha{
+    display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; width:100%; margin-top:2px;
+  }
+  @media(min-width: 768px){
+    .item-titulo{
+      flex-direction:row; justify-content:space-between; align-items:flex-start; gap:8px;
+    }
+    .item-badges-linha{
+      width:auto; justify-content:flex-end;
+    }
+  }
+  .item-meta{
+    font-size:12px; color:var(--texto-suave); line-height:1.45;
+    word-break:break-word; overflow-wrap:anywhere; margin-top:3px;
+  }
   .item-meta code{
     font-family:'JetBrains Mono',monospace; background:var(--verde-100); color:var(--verde-800);
     padding:1px 6px; border-radius:5px; font-size:11.5px;
+  }
+  .linha-resumo-selos{
+    display:flex; flex-wrap:wrap; align-items:center; gap:6px;
+  }
+  .resumo-total-contador{
+    font-size:12px; color:var(--texto-suave); font-weight:600;
+  }
+  #resumoDiaSemana{
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;
+    gap:6px 10px; margin-bottom:12px; width:100%; box-sizing:border-box;
+  }
+  @media(max-width: 600px){
+    #resumoDiaSemana{
+      flex-direction:column; align-items:flex-start; gap:6px;
+    }
+    .resumo-total-contador{
+      font-size:11.5px;
+    }
   }
   .tag-status{
     font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:600; letter-spacing:0.4px;
@@ -1553,7 +1730,7 @@ function restaurarManualNuvem(){
   .btn-subcurso.ativo{background:#B45309; border-color:#92400E; color:#fff;}
   .btn-subcurso.ativo .subcurso-cont{background:rgba(255,255,255,0.25); color:#fff;}
   .subcurso-cont{font-size:10.5px; padding:1px 6px; border-radius:10px; background:#F3F4F6; color:var(--texto-suave);}
-  .item-acoes{display:flex; gap:6px; margin-top:8px;}
+  .item-acoes{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:8px; width:100%;}
   .item-acoes button{
     font-size:11.5px; padding:6px 10px; border-radius:7px; border:1px solid var(--linha);
     background:#fff; cursor:pointer; font-weight:600; color:var(--texto-suave); font-family:'Inter',sans-serif;
@@ -3359,6 +3536,7 @@ function restaurarManualNuvem(){
     <div class="grade-kpis-atividade">
       <!-- KPI: Conservação e Limpeza -->
       <div class="kpi-card-destaque conservacao" id="kpiPrincipalConservacao" onclick="filtrarPorCategoria('Conservação e Limpeza')" title="Clique para filtrar atividades de Conservação e Limpeza">
+        <button type="button" class="btn-kpi-link-restrito" title="Gerar link de acesso para Conservação e Limpeza (WhatsApp e E-mail)" onclick="event.stopPropagation(); gerarLinkAcessoRestrito('conservacao')">🔗</button>
         <div class="kpi-destaque-topo">
           <span class="kpi-destaque-icone-inline">🧹</span>
           <span class="kpi-destaque-rotulo"><span class="kpi-rotulo-curto">Conservação</span><span class="kpi-rotulo-resto"> e Limpeza</span></span>
@@ -3374,6 +3552,7 @@ function restaurarManualNuvem(){
 
       <!-- KPI: Cursos -->
       <div class="kpi-card-destaque cursos" id="kpiCardCursos" onclick="filtrarPorCategoria('Cursos')" title="Clique para filtrar atividades e horários de Cursos">
+        <button type="button" class="btn-kpi-link-restrito" title="Gerar link de acesso para Cursos (WhatsApp e E-mail)" onclick="event.stopPropagation(); gerarLinkAcessoRestrito('cursos')">🔗</button>
         <div class="kpi-destaque-topo">
           <span class="kpi-destaque-icone-inline">📚</span>
           <span class="kpi-destaque-rotulo">Cursos</span>
@@ -3389,6 +3568,7 @@ function restaurarManualNuvem(){
 
       <!-- KPI: Operações -->
       <div class="kpi-card-destaque operacoes" id="kpiCardOperacoes" onclick="filtrarPorCategoria('Operações')" title="Clique para filtrar rotinas de Operações">
+        <button type="button" class="btn-kpi-link-restrito" title="Gerar link de acesso para Operações (WhatsApp e E-mail)" onclick="event.stopPropagation(); gerarLinkAcessoRestrito('operacoes')">🔗</button>
         <div class="kpi-destaque-topo">
           <span class="kpi-destaque-icone-inline">⚙️</span>
           <span class="kpi-destaque-rotulo">Operações</span>
@@ -3477,9 +3657,9 @@ function restaurarManualNuvem(){
       </div>
 
       <!-- Barra Superior de Ações e Busca -->
-      <div class="barra-acoes" style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px;">
-        <button class="btn btn-primario" onclick="abrirNovaAtividade()">+ Nova atividade</button>
-        <div class="campo-busca" style="max-width:280px;">
+      <div class="barra-acoes-atividade">
+        <button class="btn btn-primario btn-nova-atividade-topo" onclick="abrirNovaAtividade()">+ Nova atividade</button>
+        <div class="campo-busca-atividade">
           <input type="search" id="buscaAtividadesPainel" placeholder="Buscar atividade ou local..." oninput="renderAtividadeSemanal()">
         </div>
       </div>
@@ -3501,13 +3681,13 @@ function restaurarManualNuvem(){
       </div>
 
       <!-- Abas dos Dias da Semana (Segunda a Domingo) -->
-      <div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:8px; margin-bottom:12px;" id="abasDiasSemana"></div>
+      <div class="barra-abas-dias-semana" id="abasDiasSemana"></div>
       
       <!-- Subfiltro por modalidade esportiva (quando a categoria Cursos estiver ativa) -->
-      <div id="subFiltroCursosBarra" style="display:none; gap:6px; overflow-x:auto; padding-bottom:8px; margin-bottom:12px;"></div>
+      <div class="barra-subfiltro-cursos" id="subFiltroCursosBarra"></div>
 
       <!-- Resumo do Dia -->
-      <div id="resumoDiaSemana" style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center;"></div>
+      <div id="resumoDiaSemana"></div>
       
       <!-- Lista Completa de Cartões das Atividades Cadastradas -->
       <div class="lista-cartoes" id="lista-atividade-semanal"></div>
@@ -3591,6 +3771,9 @@ const MODULOS = {
   equipe:   { chave:'mtc_equipe_dem2', titulo:'Equipe DEM2' },
   contatos: { chave:'mtc_contatos', titulo:'Contatos' },
   equipamentos: { chave:'mtc_equipamentos', titulo:'Controle de Equipamentos' },
+  conservacao: { chave:'mtc_atividade_semanal_placeholder', titulo:'Conservação e Limpeza', categoria:'Conservação e Limpeza' },
+  cursos:   { chave:'mtc_atividade_semanal_placeholder', titulo:'Cursos', categoria:'Cursos' },
+  operacoes:{ chave:'mtc_atividade_semanal_placeholder', titulo:'Operações', categoria:'Operações' },
   radiosConserto: { chave:'mtc_radios_conserto', titulo:'Rádios em Conserto' },
   materiaisCatalogo: { chave:'mtc_materiais_catalogo', titulo:'Catálogo de Materiais' },
   uniformesCatalogo: { chave:'mtc_uniformes_catalogo', titulo:'Catálogo de Uniformes' },
@@ -3659,9 +3842,22 @@ function formatarData(iso){
    NAVEGAÇÃO
    ============================================================ */
 function abrirSecao(mod){
+  if(mod === 'conservacao' || mod === 'cursos' || mod === 'operacoes'){
+    document.querySelectorAll('.secao').forEach(s => s.classList.remove('ativa'));
+    document.getElementById('secao-atividade').classList.add('ativa');
+    document.getElementById('tituloPagina').textContent = (MODULOS[mod] && MODULOS[mod].titulo) || mod;
+    document.getElementById('btnVoltar').style.display = 'flex';
+    if(mod === 'conservacao') definirFiltroCategoriaAtividade('Conservação e Limpeza');
+    else if(mod === 'cursos') definirFiltroCategoriaAtividade('Cursos');
+    else if(mod === 'operacoes') definirFiltroCategoriaAtividade('Operações');
+    renderTudo();
+    window.scrollTo(0,0);
+    return;
+  }
   document.querySelectorAll('.secao').forEach(s => s.classList.remove('ativa'));
-  document.getElementById('secao-' + mod).classList.add('ativa');
-  document.getElementById('tituloPagina').textContent = MODULOS[mod].titulo;
+  const secaoAlvo = document.getElementById('secao-' + mod);
+  if(secaoAlvo) secaoAlvo.classList.add('ativa');
+  document.getElementById('tituloPagina').textContent = (MODULOS[mod] && MODULOS[mod].titulo) || 'Painel Operacional';
   document.getElementById('btnVoltar').style.display = 'flex';
   renderTudo();
   window.scrollTo(0,0);
@@ -3676,7 +3872,7 @@ function irParaHub(){
 }
 
 /* ============================================================
-   LINK DE ACESSO RESTRITO A UM ÚNICO CARD
+   LINK DE ACESSO RESTRITO A UM ÚNICO CARD / FUNÇÃO
    Gera um link (?somente=modulo) que, ao ser aberto, mostra
    apenas aquele card no painel — os demais ficam ocultos.
    ============================================================ */
@@ -3684,12 +3880,22 @@ function baseUrlPainel(){
   return location.origin + location.pathname;
 }
 function gerarLinkAcessoRestrito(modulo){
-  const titulo = (MODULOS[modulo] && MODULOS[modulo].titulo) || modulo;
-  const url = baseUrlPainel() + '?somente=' + encodeURIComponent(modulo);
+  const normalizado = String(modulo || '').trim().toLowerCase();
+  let chaveModulo = modulo;
+  if(normalizado === 'conservacao' || normalizado === 'conservação' || normalizado === 'limpeza'){
+    chaveModulo = 'conservacao';
+  } else if(normalizado === 'cursos' || normalizado === 'curso'){
+    chaveModulo = 'cursos';
+  } else if(normalizado === 'operacoes' || normalizado === 'operações' || normalizado === 'operacões' || normalizado === 'operacao'){
+    chaveModulo = 'operacoes';
+  }
+
+  const titulo = (MODULOS[chaveModulo] && MODULOS[chaveModulo].titulo) || modulo;
+  const url = baseUrlPainel() + '?somente=' + encodeURIComponent(chaveModulo);
   if (navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(url).catch(()=>{});
   }
-  window._linkRestritoAtual = { titulo: titulo, url: url };
+  window._linkRestritoAtual = { modulo: chaveModulo, titulo: titulo, url: url };
   document.getElementById('tituloLinkRestrito').textContent = 'Acesso restrito a: ' + titulo;
   document.getElementById('urlLinkRestrito').textContent = url;
   document.getElementById('modalLinkRestrito').classList.add('aberto');
@@ -3707,7 +3913,7 @@ function compartilharLinkRestritoEmail(){
   const dados = window._linkRestritoAtual;
   if (!dados) return;
   const assunto = 'Acesso ao painel MINAS II — ' + dados.titulo;
-  const corpo = `Segue o link de acesso ao painel MINAS II, restrito ao card "${dados.titulo}":\n\n${dados.url}`;
+  const corpo = `Segue o link de acesso ao painel MINAS II, restrito a "${dados.titulo}":\n\n${dados.url}`;
   despacharEnvioEmail({
     destinatarios: '',
     assunto: assunto,
@@ -3715,14 +3921,47 @@ function compartilharLinkRestritoEmail(){
     notificacaoSucesso: ehDispositivoMovel() ? 'Abrindo aplicativo Gmail com o link de acesso...' : 'Nova guia aberta com o link de acesso!'
   });
 }
+function mostrarBannerAcessoRestrito(nomeFuncao){
+  let banner = document.getElementById('bannerAcessoRestritoAtividade');
+  if(!banner){
+    banner = document.createElement('div');
+    banner.id = 'bannerAcessoRestritoAtividade';
+    banner.style.cssText = 'margin:10px 0 14px; padding:10px 14px; border-radius:10px; background:rgba(37,99,235,0.18); border:1px solid rgba(96,165,250,0.5); font-size:13px; display:flex; align-items:center; justify-content:space-between; gap:10px; color:#EFF6FF;';
+    const secao = document.getElementById('secao-atividade');
+    if(secao){
+      const cab = secao.querySelector('.cabecalho-secao');
+      if(cab && cab.nextSibling){
+        secao.insertBefore(banner, cab.nextSibling);
+      } else {
+        secao.prepend(banner);
+      }
+    }
+  }
+  banner.innerHTML = `
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="font-size:16px;">🔒</span>
+      <span>Acesso Restrito: <strong>${escapeHtml(nomeFuncao)}</strong> (link de visualização exclusiva)</span>
+    </div>
+    <span style="font-size:11px; background:rgba(255,255,255,0.15); padding:3px 8px; border-radius:6px; font-weight:600; white-space:nowrap;">Modo Restrito</span>
+  `;
+  banner.style.display = 'flex';
+}
 function aplicarAcessoRestrito(){
   const params = new URLSearchParams(location.search);
   const somente = params.get('somente');
   if (!somente) return;
-  const permitidos = somente.split(',').map(s => s.trim()).filter(Boolean);
+  const permitidos = somente.split(',').map(s => {
+    let item = s.trim().toLowerCase();
+    if(item === 'conservação' || item === 'limpeza') item = 'conservacao';
+    if(item === 'curso') item = 'cursos';
+    if(item === 'operações' || item === 'operacões' || item === 'operacao') item = 'operacoes';
+    return item;
+  }).filter(Boolean);
   if (permitidos.length === 0) return;
+
   document.querySelectorAll('.cartao-hub').forEach(el => {
-    if (permitidos.indexOf(el.dataset.modulo) === -1) el.style.display = 'none';
+    const mod = (el.dataset.modulo || '').toLowerCase();
+    if (permitidos.indexOf(mod) === -1) el.style.display = 'none';
     else el.querySelectorAll('.btn-link-restrito').forEach(b => b.style.display = 'none');
   });
   const legendaHub = document.querySelector('#hub .lema');
@@ -3732,6 +3971,18 @@ function aplicarAcessoRestrito(){
     setTimeout(function(){
       if (modulo === 'agenda') abrirAgenda();
       else if (modulo === 'ssmpo') abrirSSMPO();
+      else if (modulo === 'conservacao') {
+        abrirSecao('conservacao');
+        mostrarBannerAcessoRestrito('Conservação e Limpeza');
+      }
+      else if (modulo === 'cursos') {
+        abrirSecao('cursos');
+        mostrarBannerAcessoRestrito('Cursos');
+      }
+      else if (modulo === 'operacoes') {
+        abrirSecao('operacoes');
+        mostrarBannerAcessoRestrito('Operações');
+      }
       else if (MODULOS[modulo]) abrirSecao(modulo);
     }, 50);
   }
@@ -6559,9 +6810,13 @@ function renderPendentesHoje(){
       <div class="franja"></div>
       <div class="item-corpo">
         <div class="item-titulo">
-          <strong>${escapeHtml(atividadeTexto)}</strong>
-          <span class="tag-categoria ${classeCategoriaAtividade(cat)}">${escapeHtml(cat)}</span>
-          <span class="tag-status alerta">Pendente</span>
+          <div class="item-titulo-texto">
+            <strong>${escapeHtml(atividadeTexto)}</strong>
+          </div>
+          <div class="item-badges-linha">
+            <span class="tag-categoria ${classeCategoriaAtividade(cat)}">${escapeHtml(cat)}</span>
+            <span class="tag-status alerta">Pendente</span>
+          </div>
         </div>
         <div class="item-meta">
           Horário: <code>${escapeHtml(horarioTexto||'—')}</code>${turnoTexto ? ' · Turno: ' + escapeHtml(turnoTexto) : ''}
@@ -6696,9 +6951,13 @@ function renderCategoriaAtividades(){
       <div class="franja"></div>
       <div class="item-corpo">
         <div class="item-titulo">
-          <strong>${escapeHtml(atividadeTexto)}</strong>
-          ${filtroModalCategoria === 'semana' ? `<span class="tag-status neutro">${escapeHtml(diaRotulo)}</span>` : ''}
-          <span class="tag-status ${classe}">${status}</span>
+          <div class="item-titulo-texto">
+            <strong>${escapeHtml(atividadeTexto)}</strong>
+          </div>
+          <div class="item-badges-linha">
+            ${filtroModalCategoria === 'semana' ? `<span class="tag-status neutro">${escapeHtml(diaRotulo)}</span>` : ''}
+            <span class="tag-status ${classe}">${status}</span>
+          </div>
         </div>
         <div class="item-meta">
           Horário: <code>${escapeHtml(horarioTexto||'—')}</code>${turnoTexto ? ' · Turno: ' + escapeHtml(turnoTexto) : ''}
@@ -6743,8 +7002,12 @@ function renderConcluidasHoje(){
       <div class="franja"></div>
       <div class="item-corpo">
         <div class="item-titulo">
-          <strong>${escapeHtml(atividadeTexto)}</strong>
-          <span class="tag-status ok">Concluída</span>
+          <div class="item-titulo-texto">
+            <strong>${escapeHtml(atividadeTexto)}</strong>
+          </div>
+          <div class="item-badges-linha">
+            <span class="tag-status ok">Concluída</span>
+          </div>
         </div>
         <div class="item-meta">
           Horário: <code>${escapeHtml(horarioTexto||'—')}</code>${turnoTexto ? ' · Turno: ' + escapeHtml(turnoTexto) : ''}
@@ -6798,17 +7061,9 @@ function renderAbasDiasSemana(){
     }
     const isAtivo = d.chave === diaSemanaAtivo;
     return `
-    <button type="button" onclick="selecionarDiaSemana('${d.chave}')" style="
-      flex-shrink:0; padding:8px 14px; border-radius:20px; border:1px solid ${isAtivo ? 'var(--verde-800)' : 'var(--linha)'};
-      font-family:'Inter',sans-serif; font-size:12.5px; font-weight:700; cursor:pointer;
-      background:${isAtivo ? 'var(--gradiente-suave)' : '#fff'};
-      color:${isAtivo ? '#fff' : 'var(--texto)'};
-      display:inline-flex; align-items:center; gap:6px;
-    ">
+    <button type="button" onclick="selecionarDiaSemana('${d.chave}')" class="btn-aba-dia ${isAtivo ? 'ativo' : ''}">
       <span>${d.label}</span>
-      <span style="font-size:11px; padding:1px 6px; border-radius:10px; background:${isAtivo ? 'rgba(255,255,255,0.25)' : '#F3F4F6'}; color:${isAtivo ? '#fff' : 'var(--texto-suave)'};">
-        ${qtdExibida}
-      </span>
+      <span class="badge-qtd">${qtdExibida}</span>
     </button>`;
   }).join('');
 }
@@ -7653,6 +7908,21 @@ function renderAtividadeSemanal(){
     elSelo.textContent = totalSemanal + ' atividades';
     elSelo.className = 'selo ok';
   }
+  const elSeloCons = document.getElementById('seloConservacao');
+  if(elSeloCons){
+    elSeloCons.textContent = totalConservacao + ' atividades';
+    elSeloCons.className = 'selo ok';
+  }
+  const elSeloCurs = document.getElementById('seloCursos');
+  if(elSeloCurs){
+    elSeloCurs.textContent = totalCursos + ' atividades';
+    elSeloCurs.className = 'selo ok';
+  }
+  const elSeloOper = document.getElementById('seloOperacoes');
+  if(elSeloOper){
+    elSeloOper.textContent = totalOperacoes + ' atividades';
+    elSeloOper.className = 'selo ok';
+  }
 
   const removidas = new Set(carregarAtividadesRemovidas());
   const itensOriginais = idsDe(diaSemanaAtivo, ATIVIDADE_SEMANAL_SEED[diaSemanaAtivo] || []).filter(i => !removidas.has(i.id));
@@ -7778,10 +8048,12 @@ function renderAtividadeSemanal(){
   const elResumoDia = document.getElementById('resumoDiaSemana');
   if(elResumoDia){
     elResumoDia.innerHTML = `
-      <span class="selo ok">${concluidos} concluída(s)</span>
-      <span class="selo neutro">${andamento} em andamento</span>
-      <span class="selo ${pendentes > 0 ? 'alerta' : 'ok'}">${pendentes} pendente(s)</span>
-      <span style="font-size:12px; color:var(--texto-suave); margin-left:auto; font-weight:600;">Exibindo: ${total} atividade(s)${escapeHtml(rotuloFiltro)}</span>
+      <div class="linha-resumo-selos">
+        <span class="selo ok">${concluidos} concluída(s)</span>
+        <span class="selo neutro">${andamento} em andamento</span>
+        <span class="selo ${pendentes > 0 ? 'alerta' : 'ok'}">${pendentes} pendente(s)</span>
+      </div>
+      <span class="resumo-total-contador">Exibindo: ${total} atividade(s)${escapeHtml(rotuloFiltro)}</span>
     `;
   }
   const cont = document.getElementById('lista-atividade-semanal');
@@ -7821,17 +8093,21 @@ function renderAtividadeSemanal(){
       <div class="franja"></div>
       <div class="item-corpo">
         <div class="item-titulo">
-          <strong>${escapeHtml(atividadeTexto)}</strong>
-          <span class="tag-categoria ${classeCategoriaAtividade(cat)}">${escapeHtml(cat)}</span>
-          ${i.extra ? '<span class="tag-status neutro">Adicionada</span>' : ''}
-          ${horarioTexto ? `<span class="tag-lembrete-5min" title="Lembrete automático 5 minutos antes deste horário">⏰ 5 min antes</span>` : ''}
+          <div class="item-titulo-texto">
+            <strong>${escapeHtml(atividadeTexto)}</strong>
+          </div>
+          <div class="item-badges-linha">
+            <span class="tag-categoria ${classeCategoriaAtividade(cat)}">${escapeHtml(cat)}</span>
+            ${i.extra ? '<span class="tag-status neutro">Adicionada</span>' : ''}
+            ${horarioTexto ? `<span class="tag-lembrete-5min" title="Lembrete automático 5 minutos antes deste horário">⏰ 5 min antes</span>` : ''}
+          </div>
         </div>
         <div class="item-meta">
           Horário: <code>${escapeHtml(horarioTexto||'—')}</code>${turnoTexto ? ' · Turno: ' + escapeHtml(turnoTexto) : ''}
           ${obsTexto ? '<br>Obs: ' + escapeHtml(obsTexto) : ''}
         </div>
         <div class="item-acoes">
-          <select onchange="alterarStatusAtividade('${i.id}', this.value)" style="width:auto; padding:6px 10px; font-size:12px;">
+          <select onchange="alterarStatusAtividade('${i.id}', this.value)" style="width:auto; max-width:140px; padding:6px 8px; font-size:12px;">
             <option value="Pendente" ${status==='Pendente'?'selected':''}>Pendente</option>
             <option value="Em andamento" ${status==='Em andamento'?'selected':''}>Em andamento</option>
             <option value="Concluída" ${status==='Concluída'?'selected':''}>Concluída</option>
@@ -8032,7 +8308,9 @@ function renderSetor(){
       <div class="franja"></div>
       <div class="item-corpo">
         <div class="item-titulo">
-          <strong>Horário: <code>${escapeHtml(item.hora)}</code></strong>
+          <div class="item-titulo-texto">
+            <strong>Horário: <code>${escapeHtml(item.hora)}</code></strong>
+          </div>
         </div>
         <div class="item-meta">
           <input type="text" value="${escapeHtml(atividadeAtual)}" placeholder="Descreva a atividade deste horário..."
@@ -8050,11 +8328,16 @@ function renderSetor(){
     </div>`;
   }).join('');
 
-  document.getElementById('resumoSetor').innerHTML = `
-    <span class="selo ok">${concluidos} concluída(s)</span>
-    <span class="selo neutro">${andamento} em andamento</span>
-    <span class="selo ${pendentes > 0 ? 'alerta' : 'ok'}">${pendentes} pendente(s)</span>
-  `;
+  const elResumoSetor = document.getElementById('resumoSetor');
+  if(elResumoSetor){
+    elResumoSetor.innerHTML = `
+      <div class="linha-resumo-selos">
+        <span class="selo ok">${concluidos} concluída(s)</span>
+        <span class="selo neutro">${andamento} em andamento</span>
+        <span class="selo ${pendentes > 0 ? 'alerta' : 'ok'}">${pendentes} pendente(s)</span>
+      </div>
+    `;
+  }
   document.getElementById('lista-setor').innerHTML = linhas;
 }
 
