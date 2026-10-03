@@ -1436,6 +1436,27 @@ function restaurarManualNuvem(){
     border-color:var(--ok);
   }
 
+  /* Filtros rápidos / chips de busca de rádios */
+  .chips-busca-radios{
+    display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-top:8px; margin-bottom:12px;
+  }
+  .chip-busca-radio{
+    padding:5px 11px; font-size:11.5px; font-weight:600; border-radius:18px;
+    border:1px solid var(--linha); background:#FFFFFF; color:var(--texto-suave);
+    cursor:pointer; transition:all .15s ease; display:inline-flex; align-items:center; gap:4px;
+    user-select:none; font-family:'Inter',sans-serif;
+  }
+  .chip-busca-radio:hover{
+    background:#F1F5F9; border-color:#CBD5E1; color:var(--texto);
+  }
+  .chip-busca-radio.ativo{
+    background:var(--verde-800); border-color:var(--verde-800); color:#FFFFFF;
+    box-shadow:0 1px 4px rgba(27,94,69,0.25);
+  }
+  .busca-realce{
+    background:#FEF08A; color:#854D0E; font-weight:700; padding:0 2px; border-radius:3px;
+  }
+
   /* ============================================================
      SELETOR DE SETORES E ANDARES ADAPTADO À TELA
      ============================================================ */
@@ -2022,7 +2043,317 @@ function restaurarManualNuvem(){
     justify-content: center;
     gap: 6px;
   }
+
+  /* ============================================================
+     ETIQUETAS E QR CODE — CONTROLE DE RÁDIOS
+     ============================================================ */
+  .btn-acao-cartao-qr {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #F1F5F9;
+    border: 1px solid #CBD5E1;
+    color: #1E293B;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all .15s ease;
+    line-height: 1.2;
+    user-select: none;
+  }
+  .btn-acao-cartao-qr:hover {
+    background: var(--verde-800);
+    border-color: var(--verde-800);
+    color: #FFFFFF;
+    box-shadow: 0 1px 4px rgba(27,94,69,0.25);
+  }
+  .btn-acao-cartao-qr svg {
+    flex-shrink: 0;
+  }
+
+  .modal-caixa-larga {
+    max-width: 720px !important;
+  }
+
+  /* Visualização da Etiqueta Adesiva Física */
+  .etiqueta-radio-preview-wrap {
+    background: #E2E8F0;
+    border: 1px dashed #94A3B8;
+    border-radius: 12px;
+    padding: 20px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 12px 0 16px;
+    min-height: 180px;
+    position: relative;
+    overflow-x: auto;
+  }
+
+  .etiqueta-radio-card {
+    background: #FFFFFF;
+    color: #0F172A;
+    border: 2px solid #0F172A;
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    user-select: none;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    transition: all .18s ease;
+  }
+
+  .etiqueta-radio-card.tam-padrao {
+    width: 320px;
+    min-height: 175px;
+  }
+  .etiqueta-radio-card.tam-compacto {
+    width: 260px;
+    min-height: 140px;
+    padding: 8px 10px;
+    gap: 4px;
+  }
+  .etiqueta-radio-card.tam-cracha {
+    width: 380px;
+    min-height: 220px;
+    padding: 14px 16px;
+    gap: 10px;
+  }
+
+  .etiqueta-radio-cabecalho {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid #0F172A;
+    padding-bottom: 4px;
+    font-weight: 800;
+    font-size: 10.5px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #0F172A;
+    line-height: 1.2;
+  }
+  .etiqueta-radio-cabecalho-sub {
+    font-size: 9px;
+    font-weight: 600;
+    color: #475569;
+    letter-spacing: normal;
+  }
+
+  .etiqueta-radio-corpo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+  }
+
+  .etiqueta-radio-qr-svg {
+    flex-shrink: 0;
+    background: #FFFFFF;
+    padding: 3px;
+    border: 1px solid #CBD5E1;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .etiqueta-radio-qr-svg svg {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  .etiqueta-radio-card.tam-padrao .etiqueta-radio-qr-svg {
+    width: 96px;
+    height: 96px;
+  }
+  .etiqueta-radio-card.tam-compacto .etiqueta-radio-qr-svg {
+    width: 76px;
+    height: 76px;
+  }
+  .etiqueta-radio-card.tam-cracha .etiqueta-radio-qr-svg {
+    width: 125px;
+    height: 125px;
+  }
+
+  .etiqueta-radio-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .etiqueta-radio-cod-badge {
+    display: inline-block;
+    background: #0F172A;
+    color: #FFFFFF;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 14.5px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    width: fit-content;
+    line-height: 1.2;
+  }
+  .etiqueta-radio-card.tam-cracha .etiqueta-radio-cod-badge {
+    font-size: 18px;
+    padding: 3px 9px;
+  }
+  .etiqueta-radio-card.tam-compacto .etiqueta-radio-cod-badge {
+    font-size: 12px;
+    padding: 1px 5px;
+  }
+
+  .etiqueta-radio-campo {
+    font-size: 10.5px;
+    line-height: 1.22;
+    color: #1E293B;
+    word-break: break-word;
+  }
+  .etiqueta-radio-card.tam-compacto .etiqueta-radio-campo {
+    font-size: 9.5px;
+    line-height: 1.18;
+  }
+  .etiqueta-radio-card.tam-cracha .etiqueta-radio-campo {
+    font-size: 12px;
+    line-height: 1.35;
+  }
+  .etiqueta-radio-campo strong {
+    color: #0F172A;
+    font-weight: 700;
+  }
+  .etiqueta-radio-campo code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.95em;
+    font-weight: 700;
+    background: #F1F5F9;
+    padding: 1px 3px;
+    border-radius: 3px;
+  }
+
+  .etiqueta-radio-rodape {
+    border-top: 1px dashed #CBD5E1;
+    padding-top: 3px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 8.5px;
+    font-weight: 600;
+    color: #64748B;
+    text-transform: uppercase;
+    line-height: 1.1;
+  }
+
+  /* Painel de Opções da Etiqueta */
+  .painel-opcoes-etiqueta {
+    background: #F8FAFC;
+    border: 1px solid var(--linha);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+  .linha-opcoes-etiqueta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .seletor-tam-btn {
+    padding: 4px 10px;
+    border: 1px solid #CBD5E1;
+    background: #FFFFFF;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+  .seletor-tam-btn.ativo {
+    background: var(--verde-800);
+    color: #FFFFFF;
+    border-color: var(--verde-800);
+  }
+
+  /* Grade de visualização de lote */
+  .grade-etiquetas-lote-preview {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+    max-height: 52vh;
+    overflow-y: auto;
+    padding: 12px;
+    background: #F1F5F9;
+    border: 1px solid #CBD5E1;
+    border-radius: 10px;
+  }
+
+  /* REGRAS DE IMPRESSÃO (PRINT MEDIA) */
+  @media print {
+    body.imprimindo-etiquetas * {
+      visibility: hidden !important;
+    }
+    body.imprimindo-etiquetas #areaImpressaoEtiquetas,
+    body.imprimindo-etiquetas #areaImpressaoEtiquetas * {
+      visibility: visible !important;
+    }
+    body.imprimindo-etiquetas #areaImpressaoEtiquetas {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #FFFFFF !important;
+      z-index: 9999999 !important;
+      display: block !important;
+    }
+    @page {
+      size: auto;
+      margin: 6mm;
+    }
+    .etiqueta-radio-card {
+      box-shadow: none !important;
+      border: 1.5pt solid #000000 !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+    .folha-grade-etiquetas {
+      display: grid !important;
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 6mm !important;
+      width: 100% !important;
+    }
+    .folha-grade-etiquetas.compacta {
+      grid-template-columns: repeat(3, 1fr) !important;
+      gap: 4mm !important;
+    }
+    .folha-grade-etiquetas.rolo {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 5mm !important;
+      align-items: center !important;
+    }
+    /* Guias de corte discretas */
+    .item-impressao-wrap {
+      border: 1px dashed #CCCCCC;
+      padding: 2mm;
+      border-radius: 2mm;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+  }
 </style>
+<script src="./qrcode.js"></script>
 </head>
 <body>
 
@@ -2139,8 +2470,137 @@ function restaurarManualNuvem(){
     <div id="modalRadioCorpo"></div>
     <div class="modal-acoes">
       <button class="btn btn-secundario" onclick="fecharDetalheRadio()">Fechar</button>
+      <button class="btn btn-secundario" onclick="abrirModalQrRadio(window.radioDetalheAtualId)">🔲 QR Code / Etiqueta</button>
       <button class="btn btn-secundario" onclick="compartilharRadioEmail()">📧 E-mail</button>
       <button class="btn btn-primario" id="modalRadioEditarBtn">Editar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ÁREA DE IMPRESSÃO DE ETIQUETAS (VISÍVEL APENAS NA IMPRESSÃO @media print) -->
+<div id="areaImpressaoEtiquetas" style="display:none;" aria-hidden="true"></div>
+
+<!-- MODAL DE ETIQUETA E QR CODE DO RÁDIO -->
+<div class="modal-fundo" id="modalQrRadio" onclick="if(event.target===this) fecharModalQrRadio()">
+  <div class="modal-caixa modal-caixa-larga">
+    <div class="modal-cabecalho">
+      <div>
+        <h3 id="modalQrRadioTitulo" style="margin:0;">QR Code &amp; Etiqueta de Identificação</h3>
+        <p id="modalQrRadioSubtitulo" style="font-size:12px; color:var(--texto-suave); margin:3px 0 0;">Identificação patrimonial pronta para colar no rádio</p>
+      </div>
+      <button class="modal-fechar" onclick="fecharModalQrRadio()">✕</button>
+    </div>
+
+    <!-- Painel de configurações / tamanho da etiqueta -->
+    <div class="painel-opcoes-etiqueta">
+      <div class="linha-opcoes-etiqueta" style="margin-bottom:8px;">
+        <span style="font-weight:700; color:var(--texto);">Formato da etiqueta:</span>
+        <button type="button" class="seletor-tam-btn ativo" id="btnTamPadrao" onclick="definirTamanhoEtiqueta('padrao')">Padrão (65 × 35 mm)</button>
+        <button type="button" class="seletor-tam-btn" id="btnTamCompacto" onclick="definirTamanhoEtiqueta('compacto')">Compacto (50 × 25 mm)</button>
+        <button type="button" class="seletor-tam-btn" id="btnTamCracha" onclick="definirTamanhoEtiqueta('cracha')">Crachá / Tag (85 × 54 mm)</button>
+      </div>
+      <div class="linha-opcoes-etiqueta" style="gap:16px;">
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:11.5px; margin:0;">
+          <input type="checkbox" id="chkEtiquetaCabecalho" checked onchange="atualizarPreviewEtiquetaRadio()" style="width:auto;">
+          Cabeçalho Minas Tênis Clube
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:11.5px; margin:0;">
+          <input type="checkbox" id="chkEtiquetaSn" checked onchange="atualizarPreviewEtiquetaRadio()" style="width:auto;">
+          Número de Série (S/N)
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:11.5px; margin:0;">
+          <input type="checkbox" id="chkEtiquetaModelo" checked onchange="atualizarPreviewEtiquetaRadio()" style="width:auto;">
+          Modelo
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:11.5px; margin:0;">
+          <input type="checkbox" id="chkEtiquetaIden" checked onchange="atualizarPreviewEtiquetaRadio()" style="width:auto;">
+          Identificação
+        </label>
+      </div>
+    </div>
+
+    <!-- Área de prévia visual da etiqueta física -->
+    <div class="etiqueta-radio-preview-wrap">
+      <div id="etiquetaRadioCardPreview"></div>
+    </div>
+
+    <!-- Payload / Informações que a câmera do celular lê ao escanear -->
+    <div style="margin-bottom:14px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:10px 12px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+        <span style="font-size:11.5px; font-weight:700; color:var(--texto-suave);">Conteúdo lido pela câmera do celular ao escanear:</span>
+        <button type="button" onclick="copiarTextoQrRadio()" class="btn btn-secundario" style="padding:2px 8px; font-size:11px;">📋 Copiar dados</button>
+      </div>
+      <pre id="prePayloadQrRadio" style="font-size:11px; color:#1E293B; background:#FFFFFF; border:1px solid #CBD5E1; border-radius:6px; padding:8px 10px; margin:0; white-space:pre-wrap; font-family:ui-monospace, monospace; max-height:100px; overflow:auto;"></pre>
+    </div>
+
+    <!-- Ações: Imprimir, Baixar imagem, Fechar -->
+    <div class="modal-acoes" style="flex-wrap:wrap;">
+      <button class="btn btn-secundario" onclick="fecharModalQrRadio()">Fechar</button>
+      <button class="btn btn-secundario" onclick="baixarQrRadioPng()">📥 Baixar QR Code (PNG)</button>
+      <button class="btn btn-secundario" onclick="baixarEtiquetaRadioPng()">🖼️ Baixar Etiqueta (PNG)</button>
+      <button class="btn btn-primario" onclick="imprimirEtiquetaRadioIndividual()" style="background:var(--verde-800); border-color:var(--verde-800);">🖨️ Imprimir Etiqueta</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DE IMPRESSÃO DE ETIQUETAS EM LOTE (FOLHA / GRADE) -->
+<div class="modal-fundo" id="modalEtiquetasLoteRadios" onclick="if(event.target===this) fecharModalEtiquetasLoteRadios()">
+  <div class="modal-caixa modal-caixa-larga">
+    <div class="modal-cabecalho">
+      <div>
+        <h3 style="margin:0;">Imprimir Etiquetas QR em Lote</h3>
+        <p style="font-size:12px; color:var(--texto-suave); margin:3px 0 0;">Gere folhas prontas para recorte ou impressão de etiquetas adesivas para múltiplos rádios</p>
+      </div>
+      <button class="modal-fechar" onclick="fecharModalEtiquetasLoteRadios()">✕</button>
+    </div>
+
+    <!-- Barra de controle de seleção e formato -->
+    <div class="painel-opcoes-etiqueta">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button type="button" class="btn btn-secundario" style="padding:4px 9px; font-size:11.5px;" onclick="marcarTodosRadiosLote(true)">Selecionar todos</button>
+          <button type="button" class="btn btn-secundario" style="padding:4px 9px; font-size:11.5px;" onclick="marcarTodosRadiosLote(false)">Desmarcar todos</button>
+          <span id="contadorSelecaoRadiosLote" style="font-size:12px; font-weight:700; color:var(--texto);">0 selecionados</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:11.5px; font-weight:600; color:var(--texto-suave);">Layout de folha:</span>
+          <select id="selectLayoutFolhaLote" onchange="atualizarGradePreviewLote()" style="padding:4px 8px; font-size:12px; border-radius:6px; border:1px solid #CBD5E1;">
+            <option value="padrao">Folha A4 — 10 etiquetas (2 colunas - 65×35mm)</option>
+            <option value="compacta">Folha A4 — 21 etiquetas (3 colunas - 50×25mm)</option>
+            <option value="rolo">Fita Contínua / Impressora Térmica</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:11.5px; margin:0;">
+          <input type="checkbox" id="chkLoteApenasOperacionais" checked onchange="carregarListaSelecaoRadiosLote()" style="width:auto;">
+          Apenas rádios operacionais (ocultar manutenção)
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:11.5px; margin:0;">
+          <input type="checkbox" id="chkLoteFiltradosBusca" onchange="carregarListaSelecaoRadiosLote()" style="width:auto;">
+          Considerar filtro de busca atual
+        </label>
+      </div>
+    </div>
+
+    <!-- Lista com checkboxes para escolher os rádios -->
+    <div style="margin-bottom:12px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+        <span style="font-size:12px; font-weight:700; color:var(--texto);">Selecione os rádios que deseja incluir na impressão:</span>
+      </div>
+      <div id="listaCheckboxesRadiosLote" style="max-height:160px; overflow-y:auto; border:1px solid #CBD5E1; border-radius:8px; padding:6px 10px; background:#FFFFFF; display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:6px;"></div>
+    </div>
+
+    <!-- Pré-visualização da grade de etiquetas prontas -->
+    <div style="margin-bottom:14px;">
+      <span style="font-size:12px; font-weight:700; color:var(--texto); display:block; margin-bottom:6px;">Prévia da folha / etiquetas prontas com QR Code:</span>
+      <div class="grade-etiquetas-lote-preview" id="gradeEtiquetasLotePreview"></div>
+    </div>
+
+    <!-- Ações do lote -->
+    <div class="modal-acoes">
+      <button class="btn btn-secundario" onclick="fecharModalEtiquetasLoteRadios()">Fechar</button>
+      <button class="btn btn-primario" onclick="imprimirEtiquetasLoteRadios()" style="background:var(--verde-800); border-color:var(--verde-800);">🖨️ Imprimir Todas as Selecionadas</button>
     </div>
   </div>
 </div>
@@ -2283,6 +2743,9 @@ function restaurarManualNuvem(){
     <div class="modal-cabecalho">
       <h3>Rádios em manutenção</h3>
       <button class="modal-fechar" onclick="fecharManutencao()">✕</button>
+    </div>
+    <div class="campo-busca" style="margin-bottom:12px;">
+      <input type="search" id="buscaRadiosManutencao" placeholder="Buscar em manutenção por S/N, setor, código..." oninput="renderManutencao()">
     </div>
     <div class="lista-cartoes" id="lista-manutencao"></div>
   </div>
@@ -3215,11 +3678,23 @@ function restaurarManualNuvem(){
       <div class="kpi" style="cursor:pointer;" onclick="abrirManutencao()"><div class="valor" id="kpiRadiosSetores">0</div><div class="rotulo">Manutenção</div></div>
       <div class="kpi" style="cursor:pointer;" onclick="abrirConserto()"><div class="valor" id="kpiRadiosConserto">0</div><div class="rotulo">Em conserto</div></div>
     </div>
-    <div class="barra-acoes">
-      <div class="campo-busca"><input type="search" id="buscaRadios" placeholder="Buscar por setor, código ou modelo..." oninput="renderRadios()"></div>
+    <div class="barra-acoes" style="margin-bottom:6px;">
+      <div class="campo-busca" style="display:flex; align-items:center; position:relative;">
+        <input type="search" id="buscaRadios" placeholder="Buscar por S/N, setor, código ou modelo..." oninput="renderRadios()" style="padding-right:32px;">
+        <button id="btnLimparBuscaRadios" type="button" onclick="limparBuscaRadios()" style="display:none; position:absolute; right:8px; background:none; border:none; color:var(--texto-suave); font-size:16px; cursor:pointer; padding:4px; line-height:1;" title="Limpar pesquisa">✕</button>
+      </div>
       <button class="btn btn-primario" onclick="novoForm('radios')">+ Cadastro</button>
       <button class="btn btn-secundario" onclick="abrirConserto()">Em conserto</button>
+      <button class="btn btn-secundario" onclick="abrirModalEtiquetasLoteRadios()" title="Imprimir etiquetas com QR Code em lote ou folha A4">🏷️ Imprimir Etiquetas QR</button>
       <button class="btn btn-secundario" onclick="compartilhar('radios')">Compartilhar</button>
+    </div>
+    <div class="chips-busca-radios" id="filtrosRapidosRadios">
+      <span style="font-size:11.5px; color:var(--texto-suave); font-weight:600; margin-right:2px;">Filtrar por:</span>
+      <button type="button" class="chip-busca-radio ativo" data-tipo="todos" onclick="definirFiltroTipoRadio('todos')">Todos os campos</button>
+      <button type="button" class="chip-busca-radio" data-tipo="sn" onclick="definirFiltroTipoRadio('sn')" title="Filtrar exclusivamente por Número de Série (S/N)">S/N (Série)</button>
+      <button type="button" class="chip-busca-radio" data-tipo="setor" onclick="definirFiltroTipoRadio('setor')" title="Filtrar por nome do Setor / Posto">Setor</button>
+      <button type="button" class="chip-busca-radio" data-tipo="codigo" onclick="definirFiltroTipoRadio('codigo')" title="Filtrar por Código do rádio">Código</button>
+      <button type="button" class="chip-busca-radio" data-tipo="modelo" onclick="definirFiltroTipoRadio('modelo')" title="Filtrar pelo Modelo do rádio">Modelo</button>
     </div>
     <div class="painel-form" id="form-radios">
       <h4 id="tituloForm-radios">Novo cadastro</h4>
@@ -4810,6 +5285,8 @@ function renderChaves(){
    RENDERIZAÇÃO — RÁDIOS
    ============================================================ */
 function abrirManutencao(){
+  const inputBusca = document.getElementById('buscaRadiosManutencao');
+  if(inputBusca) inputBusca.value = '';
   renderManutencao();
   document.getElementById('modalManutencao').classList.add('aberto');
 }
@@ -4819,8 +5296,33 @@ function fecharManutencao(){
 function renderManutencao(){
   const lista = carregar('radios').filter(i => i.manutencao);
   const cont = document.getElementById('lista-manutencao');
-  if(lista.length === 0){ cont.innerHTML = telaVazia('Nenhum rádio marcado como em manutenção.'); return; }
-  cont.innerHTML = lista.map(i => {
+  const inputBusca = document.getElementById('buscaRadiosManutencao');
+  const termo = normalizarTextoBuscaRadio(inputBusca ? inputBusca.value : '');
+
+  const filtrada = lista.filter(i => {
+    if(!termo) return true;
+    const nSetor = normalizarTextoBuscaRadio(i.setor);
+    const nCodigo = normalizarTextoBuscaRadio(i.codigo);
+    const nModelo = normalizarTextoBuscaRadio(i.modelo);
+    const nSn = normalizarTextoBuscaRadio(i.sn);
+    const nIden = normalizarTextoBuscaRadio(i.identificacao);
+
+    const tAlfa = termo.replace(/[^a-z0-9]/g, '');
+    const nSnAlfa = nSn.replace(/[^a-z0-9]/g, '');
+    const nCodAlfa = nCodigo.replace(/[^a-z0-9]/g, '');
+
+    return nSetor.includes(termo) ||
+           nCodigo.includes(termo) || (tAlfa && nCodAlfa.includes(tAlfa)) ||
+           nModelo.includes(termo) ||
+           nSn.includes(termo) || (tAlfa && nSnAlfa.includes(tAlfa)) ||
+           nIden.includes(termo);
+  });
+
+  if(filtrada.length === 0){
+    cont.innerHTML = telaVazia(termo ? 'Nenhum rádio em manutenção encontrado com esse termo.' : 'Nenhum rádio marcado como em manutenção.');
+    return;
+  }
+  cont.innerHTML = filtrada.map(i => {
     const titulo = (i.setor && i.setor !== '(Sem setor definido)') ? i.setor : ('Rádio reserva · Código ' + (i.codigo || '—'));
     return `
     <div class="item-cartao alerta">
@@ -4834,6 +5336,7 @@ function renderManutencao(){
           Código: <code>${escapeHtml(i.codigo||'—')}</code> · Modelo: <code>${escapeHtml(i.modelo||'—')}</code> · S/N: <code>${escapeHtml(i.sn||'—')}</code>
         </div>
         <div class="item-acoes">
+          <button type="button" onclick="fecharManutencao(); abrirModalQrRadio('${i.id}')" title="Gerar QR Code e Imprimir Etiqueta do Rádio">🔲 QR Code</button>
           <button onclick="fecharManutencao(); editar('radios','${i.id}')">Editar</button>
         </div>
       </div>
@@ -4849,13 +5352,122 @@ function mostrarListaRadios(){
   setTimeout(() => { lista.style.boxShadow = 'none'; }, 900);
 }
 
+function normalizarTextoBuscaRadio(txt){
+  return (txt || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+function realcarTextoBusca(textoOriginal, termo){
+  if (!textoOriginal) return '—';
+  if (!termo || !termo.trim()) return escapeHtml(textoOriginal);
+  const seguro = escapeHtml(textoOriginal);
+  const termoNorm = normalizarTextoBuscaRadio(termo);
+  if (!termoNorm) return seguro;
+  // Escapa caracteres especiais de regex
+  const regexStr = termoNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  try {
+    const rx = new RegExp('(' + regexStr + ')', 'gi');
+    return seguro.replace(rx, '<mark class="busca-realce">$1</mark>');
+  } catch(e) {
+    return seguro;
+  }
+}
+
+let filtroTipoRadioAtivo = 'todos';
+
+function definirFiltroTipoRadio(tipo){
+  filtroTipoRadioAtivo = tipo || 'todos';
+  const container = document.getElementById('filtrosRapidosRadios');
+  if(container){
+    container.querySelectorAll('.chip-busca-radio').forEach(btn => {
+      btn.classList.toggle('ativo', btn.dataset.tipo === filtroTipoRadioAtivo);
+    });
+  }
+  const inputBusca = document.getElementById('buscaRadios');
+  if(inputBusca){
+    if(filtroTipoRadioAtivo === 'sn') inputBusca.placeholder = 'Pesquisar apenas por S/N (Número de Série)...';
+    else if(filtroTipoRadioAtivo === 'setor') inputBusca.placeholder = 'Pesquisar apenas por Setor / Local...';
+    else if(filtroTipoRadioAtivo === 'codigo') inputBusca.placeholder = 'Pesquisar apenas por Código do rádio...';
+    else if(filtroTipoRadioAtivo === 'modelo') inputBusca.placeholder = 'Pesquisar apenas por Modelo do aparelho...';
+    else inputBusca.placeholder = 'Buscar por S/N, setor, código ou modelo...';
+  }
+  renderRadios();
+}
+
+function limparBuscaRadios(){
+  const input = document.getElementById('buscaRadios');
+  if(input){
+    input.value = '';
+    renderRadios();
+    input.focus();
+  }
+}
+
 function renderRadios(){
   const lista = carregar('radios');
   const operacionais = lista.filter(i => !i.manutencao);
-  const busca = (document.getElementById('buscaRadios').value || '').toLowerCase();
-  const filtrada = operacionais.filter(i =>
-    (i.setor||'').toLowerCase().includes(busca) || (i.codigo||'').toLowerCase().includes(busca) || (i.modelo||'').toLowerCase().includes(busca)
-  );
+  const inputBusca = document.getElementById('buscaRadios');
+  const valorDigitado = (inputBusca && inputBusca.value) || '';
+  const buscaLimpa = normalizarTextoBuscaRadio(valorDigitado);
+
+  const btnLimpar = document.getElementById('btnLimparBuscaRadios');
+  if(btnLimpar){
+    btnLimpar.style.display = buscaLimpa ? 'block' : 'none';
+  }
+
+  // Divisão em palavras para busca abrangente (ex: "apoio 4251" ou "olimpica 4244")
+  const termos = buscaLimpa ? buscaLimpa.split(/\s+/).filter(Boolean) : [];
+
+  const filtrada = operacionais.filter(i => {
+    if(termos.length === 0) return true;
+
+    const normSetor = normalizarTextoBuscaRadio(i.setor);
+    const normCodigo = normalizarTextoBuscaRadio(i.codigo);
+    const normModelo = normalizarTextoBuscaRadio(i.modelo);
+    const normSn = normalizarTextoBuscaRadio(i.sn);
+    const normIden = normalizarTextoBuscaRadio(i.identificacao);
+
+    // Simplificação alfanumérica para S/N e Código (ignora traços, pontos, barras)
+    const normSnAlfanum = normSn.replace(/[^a-z0-9]/g, '');
+    const normCodigoAlfanum = normCodigo.replace(/[^a-z0-9]/g, '');
+    const normModeloAlfanum = normModelo.replace(/[^a-z0-9]/g, '');
+
+    if (filtroTipoRadioAtivo === 'sn') {
+      return termos.every(t => {
+        const tAlfa = t.replace(/[^a-z0-9]/g, '');
+        return normSn.includes(t) || (tAlfa && normSnAlfanum.includes(tAlfa)) || normIden.includes(t);
+      });
+    }
+
+    if (filtroTipoRadioAtivo === 'setor') {
+      return termos.every(t => normSetor.includes(t));
+    }
+
+    if (filtroTipoRadioAtivo === 'codigo') {
+      return termos.every(t => {
+        const tAlfa = t.replace(/[^a-z0-9]/g, '');
+        return normCodigo.includes(t) || (tAlfa && normCodigoAlfanum.includes(tAlfa));
+      });
+    }
+
+    if (filtroTipoRadioAtivo === 'modelo') {
+      return termos.every(t => {
+        const tAlfa = t.replace(/[^a-z0-9]/g, '');
+        return normModelo.includes(t) || (tAlfa && normModeloAlfanum.includes(tAlfa));
+      });
+    }
+
+    // Busca Abrangente em TODOS os campos
+    return termos.every(t => {
+      const tAlfa = t.replace(/[^a-z0-9]/g, '');
+      const matchSetor = normSetor.includes(t);
+      const matchCodigo = normCodigo.includes(t) || (tAlfa && normCodigoAlfanum.includes(tAlfa));
+      const matchModelo = normModelo.includes(t) || (tAlfa && normModeloAlfanum.includes(tAlfa));
+      const matchSn = normSn.includes(t) || (tAlfa && normSnAlfanum.includes(tAlfa));
+      const matchIden = normIden.includes(t);
+
+      return matchSetor || matchCodigo || matchModelo || matchSn || matchIden;
+    });
+  });
 
   const total = operacionais.length;
   const emManutencao = lista.filter(i => i.manutencao).length;
@@ -4867,8 +5479,17 @@ function renderRadios(){
   document.getElementById('seloRadios').className = 'selo ok';
 
   const cont = document.getElementById('lista-radios');
-  if(filtrada.length === 0){ cont.innerHTML = telaVazia('Nenhum rádio em operação encontrado.'); return; }
+  if(filtrada.length === 0){
+    const msgBusca = valorDigitado.trim()
+      ? `Nenhum rádio encontrado para "<strong>${escapeHtml(valorDigitado)}</strong>"${filtroTipoRadioAtivo !== 'todos' ? ' no filtro de ' + filtroTipoRadioAtivo.toUpperCase() : ''}. Tente pesquisar por outro S/N, setor, código ou modelo.`
+      : 'Nenhum rádio em operação encontrado.';
+    cont.innerHTML = telaVazia(msgBusca);
+    return;
+  }
+
   const conserto = carregar('radiosConserto');
+  const termoRealce = termos.length === 1 ? termos[0] : '';
+
   cont.innerHTML = filtrada.map(i => {
     const reparos = conserto.filter(c => c.radioId === i.id);
     const qtdReparos = reparos.length;
@@ -4877,16 +5498,32 @@ function renderRadios(){
       const ultimo = reparos.slice().sort((a,b) => (b.dataEnvio||'').localeCompare(a.dataEnvio||''))[0];
       indicadorReparo = `<br>🔧 ${qtdReparos} reparo(s) — motivo mais recente: ${escapeHtml(ultimo.avaria||'—')}`;
     }
+
+    const htmlSetor = realcarTextoBusca(i.setor || '—', termoRealce);
+    const htmlCodigo = realcarTextoBusca(i.codigo || '—', termoRealce);
+    const htmlModelo = realcarTextoBusca(i.modelo || '—', termoRealce);
+    const htmlSn = realcarTextoBusca(i.sn || '—', termoRealce);
+
     return `
     <div class="item-cartao ok clicavel" onclick="abrirDetalheRadio('${i.id}')">
+      <div class="coluna-numero-chave" title="Código do rádio: ${escapeHtml(i.codigo || '—')}">
+        <span class="prefixo-n">CÓD</span>
+        <span class="valor-numero-chave ${((i.codigo||'').length > 5) ? 'codigo-longo' : ''}">${htmlCodigo}</span>
+      </div>
       <div class="franja"></div>
       <div class="item-corpo">
         <div class="item-titulo">
-          <strong>${escapeHtml(i.setor||'—')}</strong>
-          <span class="tag-status neutro">${escapeHtml(i.codigo||'—')}</span>
+          <strong>${htmlSetor}</strong>
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <span class="tag-status neutro" title="Código">${htmlCodigo}</span>
+            <button type="button" class="btn-acao-cartao-qr" title="Gerar QR Code e Imprimir Etiqueta" onclick="event.stopPropagation(); abrirModalQrRadio('${i.id}')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+              <span>QR Code</span>
+            </button>
+          </div>
         </div>
         <div class="item-meta">
-          Modelo: <code>${escapeHtml(i.modelo||'—')}</code> · S/N: <code>${escapeHtml(i.sn||'—')}</code>
+          <strong>S/N:</strong> <code style="font-weight:700;">${htmlSn}</code> · <strong>Modelo:</strong> <code>${htmlModelo}</code>
           ${indicadorReparo}
         </div>
       </div>
@@ -5107,6 +5744,584 @@ function renderConserto(){
       </div>
     </div>`;
   }).join('');
+}
+
+/* ============================================================
+   SISTEMA DE QR CODE E IMPRESSÃO DE ETIQUETAS DE RÁDIOS
+   ============================================================ */
+window.formatoEtiquetaRadioAtivo = 'padrao';
+window.radioSelecionadoQrId = null;
+window.radiosSelecionadosLote = new Set();
+
+// Limpeza de estado de impressão caso o usuário cancele ou conclua
+window.addEventListener('afterprint', () => {
+  document.body.classList.remove('imprimindo-etiquetas');
+  const area = document.getElementById('areaImpressaoEtiquetas');
+  if(area) area.innerHTML = '';
+});
+
+function gerarPayloadTextoRadio(r){
+  if(!r) return '';
+  const linhas = [
+    'MINAS TÊNIS CLUBE — MINAS II',
+    'CONTROLE OPERACIONAL DE RÁDIOS',
+    '------------------------------',
+    `Código: ${r.codigo || '—'}`,
+    `Setor: ${r.setor || '—'}`,
+    `S/N: ${r.sn || '—'}`,
+    `Modelo: ${r.modelo || '—'}`
+  ];
+  if(r.identificacao) linhas.push(`Identificação: ${r.identificacao}`);
+  linhas.push(`Status: ${r.manutencao ? 'Manutenção / Reserva' : 'Operação Ativa'}`);
+  linhas.push(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`);
+  return linhas.join('\n');
+}
+
+function gerarSvgQrRadio(texto, cellSize, margin){
+  if (typeof qrcode === 'undefined') {
+    return `<div style="font-size:10px; color:#B91C1C; padding:8px; text-align:center;">QR indisponível</div>`;
+  }
+  try {
+    const qr = qrcode(0, 'M');
+    qr.addData(texto || 'MINAS II');
+    qr.make();
+    return qr.createSvgTag(cellSize || 3, margin !== undefined ? margin : 1);
+  } catch(e) {
+    try {
+      const qr2 = qrcode(0, 'L');
+      qr2.addData(texto || 'MINAS II');
+      qr2.make();
+      return qr2.createSvgTag(cellSize || 3, margin !== undefined ? margin : 1);
+    } catch(err) {
+      return `<div style="font-size:10px; color:#B91C1C; padding:8px; text-align:center;">Erro QR</div>`;
+    }
+  }
+}
+
+function gerarDataUrlQrRadio(texto, tamanhoDesejado){
+  if (typeof qrcode === 'undefined') return '';
+  try {
+    const qr = qrcode(0, 'M');
+    qr.addData(texto || 'MINAS II');
+    qr.make();
+    const count = qr.getModuleCount();
+    const margin = 3;
+    const total = count + (margin * 2);
+    const cellSize = Math.max(3, Math.floor((tamanhoDesejado || 360) / total));
+    const canvas = document.createElement('canvas');
+    canvas.width = total * cellSize;
+    canvas.height = total * cellSize;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#000000';
+    for (let r = 0; r < count; r++) {
+      for (let c = 0; c < count; c++) {
+        if (qr.isDark(r, c)) {
+          ctx.fillRect((c + margin) * cellSize, (r + margin) * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+    return canvas.toDataURL('image/png');
+  } catch(e) {
+    console.error('Erro ao gerar DataURL do QR:', e);
+    return '';
+  }
+}
+
+function montarHtmlEtiquetaRadio(r, opcoes){
+  if(!r) return '';
+  opcoes = opcoes || {};
+  const formato = opcoes.formato || window.formatoEtiquetaRadioAtivo || 'padrao';
+  const mostrarCabecalho = opcoes.mostrarCabecalho !== undefined ? opcoes.mostrarCabecalho : true;
+  const mostrarSn = opcoes.mostrarSn !== undefined ? opcoes.mostrarSn : true;
+  const mostrarModelo = opcoes.mostrarModelo !== undefined ? opcoes.mostrarModelo : true;
+  const mostrarIden = opcoes.mostrarIden !== undefined ? opcoes.mostrarIden : true;
+
+  const payload = gerarPayloadTextoRadio(r);
+  const cellSize = formato === 'cracha' ? 4 : (formato === 'compacto' ? 2 : 3);
+  const qrSvg = gerarSvgQrRadio(payload, cellSize, 1);
+
+  const codigoTxt = escapeHtml(r.codigo || 'S/CÓD');
+  const setorTxt = escapeHtml(r.setor || (r.manutencao ? 'Manutenção / Reserva' : 'Geral'));
+  const snTxt = escapeHtml(r.sn || '—');
+  const modeloTxt = escapeHtml(r.modelo || '—');
+  const idenTxt = escapeHtml(r.identificacao || '');
+
+  let cabecalhoHtml = '';
+  if (mostrarCabecalho) {
+    cabecalhoHtml = `
+      <div class="etiqueta-radio-cabecalho">
+        <span>Minas Tênis Clube · Minas II</span>
+        <span class="etiqueta-radio-cabecalho-sub">Patrimônio / DEM2</span>
+      </div>`;
+  }
+
+  let snHtml = '';
+  if (mostrarSn) {
+    snHtml = `<div class="etiqueta-radio-campo"><strong>S/N:</strong> <code>${snTxt}</code></div>`;
+  }
+
+  let modeloHtml = '';
+  if (mostrarModelo) {
+    modeloHtml = `<div class="etiqueta-radio-campo"><strong>Mod:</strong> <code>${modeloTxt}</code></div>`;
+  }
+
+  let idenHtml = '';
+  if (mostrarIden && idenTxt) {
+    idenHtml = `<div class="etiqueta-radio-campo"><strong>ID:</strong> ${idenTxt}</div>`;
+  }
+
+  return `
+    <div class="etiqueta-radio-card tam-${formato} ${opcoes.modoImpressao ? 'etiqueta-impressao-item' : ''}" data-radio-id="${r.id}">
+      ${cabecalhoHtml}
+      <div class="etiqueta-radio-corpo">
+        <div class="etiqueta-radio-qr-svg" title="Escaneie com a câmera do celular">${qrSvg}</div>
+        <div class="etiqueta-radio-info">
+          <div><span class="etiqueta-radio-cod-badge">CÓD ${codigoTxt}</span></div>
+          <div class="etiqueta-radio-campo" style="font-weight:700; font-size:1.05em; color:#0F172A;">
+            ${setorTxt}
+          </div>
+          ${snHtml}
+          ${modeloHtml}
+          ${idenHtml}
+        </div>
+      </div>
+      <div class="etiqueta-radio-rodape">
+        <span>Rádio Transceptor</span>
+        <span>${r.manutencao ? 'Reserva' : 'Operação'}</span>
+      </div>
+    </div>`;
+}
+
+function abrirModalQrRadio(radioId){
+  const lista = carregar('radios');
+  const r = lista.find(item => item.id === radioId);
+  if(!r) return;
+  window.radioSelecionadoQrId = radioId;
+  window.formatoEtiquetaRadioAtivo = 'padrao';
+
+  ['btnTamPadrao', 'btnTamCompacto', 'btnTamCracha'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.classList.remove('ativo');
+  });
+  const btnPadrao = document.getElementById('btnTamPadrao');
+  if(btnPadrao) btnPadrao.classList.add('ativo');
+
+  const tit = document.getElementById('modalQrRadioTitulo');
+  if(tit) tit.textContent = `Etiqueta & QR Code — ${r.setor || 'Rádio ' + (r.codigo||'')}`;
+  const sub = document.getElementById('modalQrRadioSubtitulo');
+  if(sub) sub.textContent = `Código: ${r.codigo || '—'} · S/N: ${r.sn || '—'} · Modelo: ${r.modelo || '—'}`;
+
+  atualizarPreviewEtiquetaRadio();
+  document.getElementById('modalQrRadio').classList.add('aberto');
+}
+
+function fecharModalQrRadio(){
+  document.getElementById('modalQrRadio').classList.remove('aberto');
+}
+
+function definirTamanhoEtiqueta(tam){
+  window.formatoEtiquetaRadioAtivo = tam;
+  const botoes = {
+    padrao: document.getElementById('btnTamPadrao'),
+    compacto: document.getElementById('btnTamCompacto'),
+    cracha: document.getElementById('btnTamCracha')
+  };
+  Object.keys(botoes).forEach(k => {
+    if(botoes[k]) botoes[k].classList.toggle('ativo', k === tam);
+  });
+  atualizarPreviewEtiquetaRadio();
+}
+
+function atualizarPreviewEtiquetaRadio(){
+  const id = window.radioSelecionadoQrId;
+  const r = carregar('radios').find(item => item.id === id);
+  if(!r) return;
+
+  const chkCabecalho = document.getElementById('chkEtiquetaCabecalho');
+  const chkSn = document.getElementById('chkEtiquetaSn');
+  const chkModelo = document.getElementById('chkEtiquetaModelo');
+  const chkIden = document.getElementById('chkEtiquetaIden');
+
+  const opcoes = {
+    formato: window.formatoEtiquetaRadioAtivo || 'padrao',
+    mostrarCabecalho: chkCabecalho ? chkCabecalho.checked : true,
+    mostrarSn: chkSn ? chkSn.checked : true,
+    mostrarModelo: chkModelo ? chkModelo.checked : true,
+    mostrarIden: chkIden ? chkIden.checked : true
+  };
+
+  const previewEl = document.getElementById('etiquetaRadioCardPreview');
+  if(previewEl){
+    previewEl.innerHTML = montarHtmlEtiquetaRadio(r, opcoes);
+  }
+
+  const preEl = document.getElementById('prePayloadQrRadio');
+  if(preEl){
+    preEl.textContent = gerarPayloadTextoRadio(r);
+  }
+}
+
+function imprimirEtiquetaRadioIndividual(){
+  const id = window.radioSelecionadoQrId;
+  const r = carregar('radios').find(item => item.id === id);
+  if(!r) return;
+
+  const chkCabecalho = document.getElementById('chkEtiquetaCabecalho');
+  const chkSn = document.getElementById('chkEtiquetaSn');
+  const chkModelo = document.getElementById('chkEtiquetaModelo');
+  const chkIden = document.getElementById('chkEtiquetaIden');
+
+  const opcoes = {
+    formato: window.formatoEtiquetaRadioAtivo || 'padrao',
+    mostrarCabecalho: chkCabecalho ? chkCabecalho.checked : true,
+    mostrarSn: chkSn ? chkSn.checked : true,
+    mostrarModelo: chkModelo ? chkModelo.checked : true,
+    mostrarIden: chkIden ? chkIden.checked : true,
+    modoImpressao: true
+  };
+
+  const area = document.getElementById('areaImpressaoEtiquetas');
+  area.innerHTML = `
+    <div style="padding:10mm; display:flex; justify-content:center; align-items:flex-start;">
+      <div class="item-impressao-wrap">
+        ${montarHtmlEtiquetaRadio(r, opcoes)}
+      </div>
+    </div>`;
+
+  document.body.classList.add('imprimindo-etiquetas');
+  window.print();
+
+  setTimeout(() => {
+    document.body.classList.remove('imprimindo-etiquetas');
+    area.innerHTML = '';
+  }, 1000);
+}
+
+function baixarQrRadioPng(){
+  const id = window.radioSelecionadoQrId;
+  const r = carregar('radios').find(item => item.id === id);
+  if(!r) return;
+
+  const payload = gerarPayloadTextoRadio(r);
+  const dataUrl = gerarDataUrlQrRadio(payload, 500);
+  if(!dataUrl){
+    alert('Não foi possível gerar a imagem PNG do QR Code.');
+    return;
+  }
+
+  const link = document.createElement('a');
+  const nomeArquivo = `qrcode-radio-${(r.codigo || r.setor || 'minas2').toString().replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+  link.href = dataUrl;
+  link.download = nomeArquivo;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function baixarEtiquetaRadioPng(){
+  const id = window.radioSelecionadoQrId;
+  const r = carregar('radios').find(item => item.id === id);
+  if(!r) return;
+
+  const canvas = document.createElement('canvas');
+  const formato = window.formatoEtiquetaRadioAtivo || 'padrao';
+  const w = formato === 'cracha' ? 760 : (formato === 'compacto' ? 520 : 640);
+  const h = formato === 'cracha' ? 440 : (formato === 'compacto' ? 280 : 350);
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+
+  // Fundo branco e borda
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = '#0F172A';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(4, 4, w - 8, h - 8);
+
+  // Cabeçalho
+  ctx.fillStyle = '#0F172A';
+  ctx.font = 'bold 18px Inter, sans-serif';
+  ctx.fillText('MINAS TÊNIS CLUBE · MINAS II', 20, 34);
+  ctx.font = '13px Inter, sans-serif';
+  ctx.fillStyle = '#475569';
+  ctx.fillText('PATRIMÔNIO OPERACIONAL / DEM2', w - 240, 34);
+
+  // Linha divisória
+  ctx.strokeStyle = '#0F172A';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(20, 46);
+  ctx.lineTo(w - 20, 46);
+  ctx.stroke();
+
+  // QR Code desenhado à esquerda
+  const payload = gerarPayloadTextoRadio(r);
+  const qr = qrcode(0, 'M');
+  qr.addData(payload);
+  qr.make();
+  const count = qr.getModuleCount();
+  const qrMargin = 2;
+  const total = count + (qrMargin * 2);
+  const qrSize = h - 110;
+  const cellSize = qrSize / total;
+  const qrStartX = 24;
+  const qrStartY = 60;
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(qrStartX, qrStartY, qrSize, qrSize);
+  ctx.strokeStyle = '#CBD5E1';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(qrStartX, qrStartY, qrSize, qrSize);
+
+  ctx.fillStyle = '#000000';
+  for (let row = 0; row < count; row++) {
+    for (let col = 0; col < count; col++) {
+      if (qr.isDark(row, col)) {
+        ctx.fillRect(qrStartX + (col + qrMargin) * cellSize, qrStartY + (row + qrMargin) * cellSize, Math.ceil(cellSize), Math.ceil(cellSize));
+      }
+    }
+  }
+
+  // Dados do rádio à direita
+  const infoX = qrStartX + qrSize + 24;
+  let infoY = 88;
+
+  // Badge Código
+  const codTxt = `CÓD ${r.codigo || '—'}`;
+  ctx.font = 'bold 24px Inter, sans-serif';
+  const codW = ctx.measureText(codTxt).width;
+  ctx.fillStyle = '#0F172A';
+  ctx.fillRect(infoX, infoY - 22, codW + 16, 30);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText(codTxt, infoX + 8, infoY + 2);
+
+  // Setor
+  infoY += 38;
+  ctx.fillStyle = '#0F172A';
+  ctx.font = 'bold 20px Inter, sans-serif';
+  ctx.fillText(r.setor || (r.manutencao ? 'Manutenção / Reserva' : 'Geral'), infoX, infoY);
+
+  // S/N
+  infoY += 28;
+  ctx.fillStyle = '#334155';
+  ctx.font = '16px Inter, sans-serif';
+  ctx.fillText(`S/N: ${r.sn || '—'}`, infoX, infoY);
+
+  // Modelo
+  infoY += 24;
+  ctx.fillText(`Modelo: ${r.modelo || '—'}`, infoX, infoY);
+
+  // Identificação
+  if (r.identificacao) {
+    infoY += 24;
+    ctx.fillText(`ID: ${r.identificacao}`, infoX, infoY);
+  }
+
+  // Rodapé
+  ctx.strokeStyle = '#CBD5E1';
+  ctx.beginPath();
+  ctx.moveTo(20, h - 30);
+  ctx.lineTo(w - 20, h - 30);
+  ctx.stroke();
+
+  ctx.fillStyle = '#64748B';
+  ctx.font = '12px Inter, sans-serif';
+  ctx.fillText('RÁDIO TRANSCEPTOR OPERACIONAL', 20, h - 12);
+  ctx.fillText(r.manutencao ? 'RESERVA' : 'EM OPERAÇÃO', w - 130, h - 12);
+
+  const link = document.createElement('a');
+  link.href = canvas.toDataURL('image/png');
+  link.download = `etiqueta-radio-${(r.codigo || r.setor || 'minas2').toString().replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function copiarTextoQrRadio(){
+  const id = window.radioSelecionadoQrId;
+  const r = carregar('radios').find(item => item.id === id);
+  if(!r) return;
+  const texto = gerarPayloadTextoRadio(r);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(texto).then(() => {
+      alert('Dados do rádio copiados para a área de transferência!');
+    }).catch(() => fallbackCopiarTexto(texto));
+  } else {
+    fallbackCopiarTexto(texto);
+  }
+}
+
+function fallbackCopiarTexto(texto){
+  const pre = document.getElementById('prePayloadQrRadio');
+  if(pre) {
+    const range = document.createRange();
+    range.selectNodeContents(pre);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    try {
+      document.execCommand('copy');
+      alert('Dados copiados para a área de transferência!');
+    } catch(e) {
+      alert('Selecione e copie o texto exibido.');
+    }
+  }
+}
+
+/* --- Impressão em Lote --- */
+function abrirModalEtiquetasLoteRadios(){
+  window.radiosSelecionadosLote = new Set();
+  carregarListaSelecaoRadiosLote();
+  document.getElementById('modalEtiquetasLoteRadios').classList.add('aberto');
+}
+
+function fecharModalEtiquetasLoteRadios(){
+  document.getElementById('modalEtiquetasLoteRadios').classList.remove('aberto');
+}
+
+function obterRadiosDisponiveisParaLote(){
+  let lista = carregar('radios');
+  const apenasOp = document.getElementById('chkLoteApenasOperacionais');
+  if(apenasOp && apenasOp.checked){
+    lista = lista.filter(r => !r.manutencao);
+  }
+  const comFiltro = document.getElementById('chkLoteFiltradosBusca');
+  if(comFiltro && comFiltro.checked){
+    const inputBusca = document.getElementById('buscaRadios');
+    const valorDigitado = (inputBusca && inputBusca.value) || '';
+    const buscaLimpa = normalizarTextoBuscaRadio(valorDigitado);
+    if(buscaLimpa){
+      const termos = buscaLimpa.split(/\s+/).filter(Boolean);
+      lista = lista.filter(i => {
+        const normSetor = normalizarTextoBuscaRadio(i.setor);
+        const normCodigo = normalizarTextoBuscaRadio(i.codigo);
+        const normModelo = normalizarTextoBuscaRadio(i.modelo);
+        const normSn = normalizarTextoBuscaRadio(i.sn);
+        const normIden = normalizarTextoBuscaRadio(i.identificacao);
+        const normSnAlfanum = normSn.replace(/[^a-z0-9]/g, '');
+        const normCodigoAlfanum = normCodigo.replace(/[^a-z0-9]/g, '');
+        const normModeloAlfanum = normModelo.replace(/[^a-z0-9]/g, '');
+        return termos.every(t => {
+          const tAlfa = t.replace(/[^a-z0-9]/g, '');
+          return normSetor.includes(t) ||
+                 normCodigo.includes(t) || (tAlfa && normCodigoAlfanum.includes(tAlfa)) ||
+                 normModelo.includes(t) || (tAlfa && normModeloAlfanum.includes(tAlfa)) ||
+                 normSn.includes(t) || (tAlfa && normSnAlfanum.includes(tAlfa)) ||
+                 normIden.includes(t);
+        });
+      });
+    }
+  }
+  return lista;
+}
+
+function carregarListaSelecaoRadiosLote(){
+  const radios = obterRadiosDisponiveisParaLote();
+  const container = document.getElementById('listaCheckboxesRadiosLote');
+  if(!container) return;
+
+  // Por padrão, seleciona todos os disponíveis
+  window.radiosSelecionadosLote = new Set(radios.map(r => r.id));
+
+  container.innerHTML = radios.map(r => {
+    const checked = window.radiosSelecionadosLote.has(r.id) ? 'checked' : '';
+    const cod = r.codigo ? `[${escapeHtml(r.codigo)}]` : '';
+    const label = `${cod} ${escapeHtml(r.setor || 'Sem setor')}`;
+    return `
+      <label style="display:flex; align-items:center; gap:6px; font-size:11.5px; cursor:pointer; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; padding:4px 8px; margin:0;" title="S/N: ${escapeHtml(r.sn||'—')} · Modelo: ${escapeHtml(r.modelo||'—')}">
+        <input type="checkbox" value="${r.id}" ${checked} onchange="alternarCheckboxRadioLote(this)" style="width:auto; margin:0;">
+        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${label}</span>
+      </label>`;
+  }).join('');
+
+  atualizarContadorSelecaoLote();
+  atualizarGradePreviewLote();
+}
+
+function alternarCheckboxRadioLote(checkbox){
+  if(checkbox.checked){
+    window.radiosSelecionadosLote.add(checkbox.value);
+  } else {
+    window.radiosSelecionadosLote.delete(checkbox.value);
+  }
+  atualizarContadorSelecaoLote();
+  atualizarGradePreviewLote();
+}
+
+function marcarTodosRadiosLote(marcar){
+  const checkboxes = document.querySelectorAll('#listaCheckboxesRadiosLote input[type="checkbox"]');
+  checkboxes.forEach(cb => { cb.checked = marcar; });
+  if(marcar){
+    const radios = obterRadiosDisponiveisParaLote();
+    window.radiosSelecionadosLote = new Set(radios.map(r => r.id));
+  } else {
+    window.radiosSelecionadosLote.clear();
+  }
+  atualizarContadorSelecaoLote();
+  atualizarGradePreviewLote();
+}
+
+function atualizarContadorSelecaoLote(){
+  const el = document.getElementById('contadorSelecaoRadiosLote');
+  if(el){
+    el.textContent = `${window.radiosSelecionadosLote.size} selecionados`;
+  }
+}
+
+function atualizarGradePreviewLote(){
+  const layout = (document.getElementById('selectLayoutFolhaLote') || {}).value || 'padrao';
+  const lista = carregar('radios');
+  const selecionados = lista.filter(r => window.radiosSelecionadosLote.has(r.id));
+  const container = document.getElementById('gradeEtiquetasLotePreview');
+  if(!container) return;
+
+  if(selecionados.length === 0){
+    container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--texto-suave); font-size:12px;">Nenhum rádio selecionado para impressão.</div>`;
+    return;
+  }
+
+  const formatoEtiqueta = layout === 'compacta' ? 'compacto' : 'padrao';
+  container.innerHTML = selecionados.map(r => {
+    return `<div class="item-impressao-wrap" style="background:#fff; border:1px dashed #cbd5e1; border-radius:8px; padding:6px;">
+      ${montarHtmlEtiquetaRadio(r, { formato: formatoEtiqueta, modoImpressao: false })}
+    </div>`;
+  }).join('');
+}
+
+function imprimirEtiquetasLoteRadios(){
+  const layout = (document.getElementById('selectLayoutFolhaLote') || {}).value || 'padrao';
+  const lista = carregar('radios');
+  const selecionados = lista.filter(r => window.radiosSelecionadosLote.has(r.id));
+  if(selecionados.length === 0){
+    alert('Selecione ao menos um rádio para imprimir as etiquetas.');
+    return;
+  }
+
+  const formatoEtiqueta = layout === 'compacta' ? 'compacto' : 'padrao';
+  const classeGrade = layout === 'compacta' ? 'folha-grade-etiquetas compacta' : (layout === 'rolo' ? 'folha-grade-etiquetas rolo' : 'folha-grade-etiquetas');
+
+  const itensHtml = selecionados.map(r => {
+    return `
+      <div class="item-impressao-wrap">
+        ${montarHtmlEtiquetaRadio(r, { formato: formatoEtiqueta, modoImpressao: true })}
+      </div>`;
+  }).join('');
+
+  const area = document.getElementById('areaImpressaoEtiquetas');
+  area.innerHTML = `
+    <div class="${classeGrade}" style="padding:2mm;">
+      ${itensHtml}
+    </div>`;
+
+  document.body.classList.add('imprimindo-etiquetas');
+  window.print();
+
+  setTimeout(() => {
+    document.body.classList.remove('imprimindo-etiquetas');
+    area.innerHTML = '';
+  }, 1000);
 }
 function abrirMateriais(){
   document.getElementById('buscaMateriais').value = '';
