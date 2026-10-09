@@ -2283,6 +2283,7 @@ var qrcode = function() {
     }
     return toUTF8Array(s);
   };
+  qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
 
 }();
 
