@@ -635,6 +635,9 @@
   window.addEventListener('storage', function(ev){
     if (ev && ev.key && ev.key.indexOf('mtc_') === 0){
       aplicarAtualizacaoNaUI();
+      if (ev.key === 'mtc_presenca_perfis' && window.GerenciadorPresenca && typeof GerenciadorPresenca.notificarMudancaPresenca === 'function'){
+        GerenciadorPresenca.notificarMudancaPresenca();
+      }
     }
   });
 
@@ -671,6 +674,14 @@
       fonteEventosNuvem.addEventListener('put', lidarComEvento);
       fonteEventosNuvem.addEventListener('patch', lidarComEvento);
       fonteEventosNuvem.addEventListener('message', lidarComEvento);
+      fonteEventosNuvem.addEventListener('presenca', function(ev){
+        try {
+          var dados = JSON.parse(ev.data);
+          if (window.GerenciadorPresenca && typeof GerenciadorPresenca.atualizarPerfisServidor === 'function'){
+            GerenciadorPresenca.atualizarPerfisServidor(dados);
+          }
+        } catch(err){}
+      });
       fonteEventosNuvem.onerror = function(){
         try { if (fonteEventosNuvem) fonteEventosNuvem.close(); } catch(e){}
         fonteEventosNuvem = null;
@@ -1597,6 +1608,39 @@ function restaurarManualNuvem(){
   .item-cartao.alerta .coluna-numero-chave .valor-numero-chave{
     color:var(--alerta);
   }
+  .coluna-numero-chave.coluna-numero-chave-copiavel{
+    cursor:pointer;
+    position:relative;
+    transition:all .18s ease;
+  }
+  .coluna-numero-chave.coluna-numero-chave-copiavel:hover{
+    background:#e2e8f0;
+    border-color:var(--verde-800);
+    transform:translateY(-1px);
+    box-shadow:0 2px 6px rgba(0,0,0,0.08);
+  }
+  .coluna-numero-chave.coluna-numero-chave-copiavel:active{
+    transform:scale(0.96);
+  }
+  .coluna-numero-chave.coluna-numero-chave-copiavel:hover .prefixo-n{
+    color:var(--verde-800);
+  }
+  .coluna-numero-chave.copiado{
+    background:#dcfce7 !important;
+    border-color:#86efac !important;
+    animation:pulsoCopiado .4s ease;
+  }
+  .coluna-numero-chave.copiado .valor-numero-chave{
+    color:#15803d !important;
+  }
+  .coluna-numero-chave.copiado .prefixo-n{
+    color:#16a34a !important;
+  }
+  @keyframes pulsoCopiado{
+    0%{ transform:scale(0.95); }
+    50%{ transform:scale(1.06); }
+    100%{ transform:scale(1); }
+  }
 
   /* Botão de marcação para sinalizar atividade concluída ao lado esquerdo da barra */
   .coluna-marcador-atividade{
@@ -2443,6 +2487,146 @@ function restaurarManualNuvem(){
     font-size: 14.5px;
   }
 
+  /* Visualização da Etiqueta Adesiva de Equipamento */
+  .etiqueta-equip-preview-wrap {
+    background: #E2E8F0;
+    border: 1px dashed #94A3B8;
+    border-radius: 12px;
+    padding: 20px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 12px 0 16px;
+    min-height: 180px;
+    position: relative;
+    overflow-x: auto;
+  }
+  .etiqueta-equip-card {
+    background: #FFFFFF;
+    color: #0F172A;
+    border: 2px solid #0F172A;
+    border-radius: 8px;
+    padding: 10px 14px;
+    box-sizing: border-box;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    user-select: none;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    transition: all .18s ease;
+  }
+  .etiqueta-equip-card.tam-padrao {
+    width: 300px;
+    min-height: 125px;
+    padding: 10px 14px;
+    gap: 14px;
+  }
+  .etiqueta-equip-card.tam-vertical {
+    width: 185px;
+    min-height: 220px;
+    flex-direction: column;
+    padding: 14px 10px;
+    gap: 10px;
+    text-align: center;
+  }
+  .etiqueta-equip-card.tam-compacto {
+    width: 235px;
+    min-height: 95px;
+    padding: 6px 10px;
+    gap: 10px;
+  }
+  .etiqueta-equip-qr-svg {
+    flex-shrink: 0;
+    background: #FFFFFF;
+    padding: 0;
+    border: none;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .etiqueta-equip-qr-svg svg {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+  }
+  .etiqueta-equip-card.tam-padrao .etiqueta-equip-qr-svg {
+    width: 105px;
+    height: 105px;
+  }
+  .etiqueta-equip-card.tam-vertical .etiqueta-equip-qr-svg {
+    width: 125px;
+    height: 125px;
+  }
+  .etiqueta-equip-card.tam-compacto .etiqueta-equip-qr-svg {
+    width: 80px;
+    height: 80px;
+  }
+  .etiqueta-equip-info-bloco {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+    min-width: 0;
+  }
+  .etiqueta-equip-card.tam-vertical .etiqueta-equip-info-bloco {
+    align-items: center;
+    width: 100%;
+  }
+  .etiqueta-equip-rotulo {
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #64748B;
+    margin-bottom: 2px;
+    line-height: 1;
+  }
+  .etiqueta-equip-nome {
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1.15;
+    color: #0F172A;
+    text-transform: uppercase;
+    word-break: break-word;
+    letter-spacing: -0.2px;
+    margin-bottom: 3px;
+  }
+  .etiqueta-equip-card.tam-vertical .etiqueta-equip-nome {
+    font-size: 14.5px;
+  }
+  .etiqueta-equip-card.tam-compacto .etiqueta-equip-nome {
+    font-size: 13.5px;
+  }
+  .etiqueta-equip-meta {
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+    line-height: 1.25;
+  }
+  .etiqueta-equip-badges {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+  .etiqueta-equip-card.tam-vertical .etiqueta-equip-badges {
+    justify-content: center;
+  }
+  .etiqueta-equip-badge {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: #F1F5F9;
+    border: 1px solid #CBD5E1;
+    color: #334155;
+    text-transform: uppercase;
+  }
+
   /* Painel de Opções da Etiqueta */
   .painel-opcoes-etiqueta {
     background: #F8FAFC;
@@ -2511,7 +2695,8 @@ function restaurarManualNuvem(){
       size: auto;
       margin: 6mm;
     }
-    .etiqueta-radio-card {
+    .etiqueta-radio-card,
+    .etiqueta-equip-card {
       box-shadow: none !important;
       border: 1.5pt solid #000000 !important;
       page-break-inside: avoid !important;
@@ -2548,6 +2733,117 @@ function restaurarManualNuvem(){
       justify-content: center;
       align-items: center;
     }
+  }
+
+  /* ============================================================
+     ESTILOS DO MODAL DE PERFIS & PRESENÇA (ONLINE / OFFLINE)
+     ============================================================ */
+  .ponto-status-cinza {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #94A3B8;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .btn-filtro-presenca {
+    font-size: 11.5px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+  .btn-filtro-presenca.ativo {
+    background: var(--verde-800) !important;
+    color: #FFFFFF !important;
+    border-color: var(--verde-800) !important;
+    font-weight: 700;
+  }
+  .card-perfil-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--linha);
+    background: #FFFFFF;
+    transition: all .15s ease;
+    gap: 12px;
+  }
+  .card-perfil-item:hover {
+    border-color: #94A3B8;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  }
+  .card-perfil-item.online {
+    border-left: 4px solid #22C55E;
+    background: #FFFFFF;
+  }
+  .card-perfil-item.offline {
+    border-left: 4px solid #CBD5E1;
+    opacity: 0.88;
+    background: #FAFAFA;
+  }
+  .badge-status-online {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #DCFCE7;
+    color: #15803D;
+    border: 1px solid #86EFAC;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .badge-status-offline {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #F1F5F9;
+    color: #64748B;
+    border: 1px solid #CBD5E1;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* PESQUISA GERAL DE ITENS DO ESTOQUE (TODOS OS KPIS) */
+  .tag-kpi-busca {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .tag-kpi-deposito { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+  .tag-kpi-solicitacoes { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+  .tag-kpi-limpeza { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+  .tag-kpi-uniforme { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+  .tag-kpi-escritorio { background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+  .tag-kpi-alimentos { background: #ffedd5; color: #c2410c; border: 1px solid #fed7aa; }
+  .tag-kpi-outros { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+  .tag-kpi-custom { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
+
+  .btn-filtro-kpi-geral {
+    padding: 4px 10px;
+    font-size: 11.5px;
+    border-radius: 20px;
+    border: 1px solid var(--linha);
+    background: #fff;
+    cursor: pointer;
+    transition: all .15s ease;
+    white-space: nowrap;
+  }
+  .btn-filtro-kpi-geral.ativo {
+    background: var(--verde-800) !important;
+    color: #fff !important;
+    border-color: var(--verde-800) !important;
+    font-weight: 700;
   }
 </style>
 <script src="./qrcode.js"></script>
@@ -2622,6 +2918,101 @@ function restaurarManualNuvem(){
     <div class="rodape-login-google">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
       <span>Ambiente Operacional Seguro • Minas Tênis Clube</span>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DE PERFIS CONECTADOS E STATUS ONLINE / OFFLINE -->
+<div class="modal-fundo" id="modalPerfisConectados" onclick="if(event.target===this) fecharModalPerfisConectados()">
+  <div class="modal-caixa modal-caixa-larga" style="max-width: 680px; width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+    <div class="modal-cabecalho" style="border-bottom: 1px solid var(--linha); padding-bottom: 12px; margin-bottom: 12px;">
+      <div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <h3 style="margin:0; font-size:18px; color:var(--texto);">👥 Perfis &amp; Operadores Conectados</h3>
+          <span id="badgePerfisOnlineTotal" style="background:#DCFCE7; color:#15803D; border:1px solid #86EFAC; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;">
+            <span class="ponto-status-verde" style="width:6px; height:6px;"></span>
+            <span id="txtQtdOnlineTopo">1 Online</span>
+          </span>
+        </div>
+        <p style="font-size:12px; color:var(--texto-suave); margin:4px 0 0;">Status de conexão e acompanhamento de perfis em tempo real no aplicativo</p>
+      </div>
+      <button class="modal-fechar" onclick="fecharModalPerfisConectados()">✕</button>
+    </div>
+
+    <div style="overflow-y: auto; flex: 1; padding-right: 4px;">
+      <!-- CARD DO PERFIL ATUAL (ESTE DISPOSITIVO) -->
+      <div id="cardMeuPerfilConectado" style="background: linear-gradient(135deg, #F0FDF4 0%, #F8FAFC 100%); border: 1.5px solid #86EFAC; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div style="position:relative; flex-shrink:0;">
+              <div id="avatarMeuPerfil" style="width:42px; height:42px; border-radius:50%; background:#0A2647; color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700;">👤</div>
+              <span class="ponto-status-verde" style="position:absolute; bottom:0; right:0; width:10px; height:10px; border:2px solid #fff;"></span>
+            </div>
+            <div>
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <strong id="nomeMeuPerfil" style="font-size:15px; color:#0F172A;">Operador de Plantão</strong>
+                <span style="background:#2563EB; color:#fff; font-size:9.5px; font-weight:700; padding:2px 6px; border-radius:4px; text-transform:uppercase;">Você (este aparelho)</span>
+                <span id="tagTipoMeuPerfil" style="background:#DCFCE7; color:#15803D; border:1px solid #86EFAC; font-size:10px; font-weight:700; padding:1px 6px; border-radius:4px;">Sem Login</span>
+              </div>
+              <div style="font-size:11.5px; color:var(--texto-suave); display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:3px;">
+                <span id="emailMeuPerfil">—</span>
+                <span>•</span>
+                <span id="dispositivoMeuPerfil">💻 Computador</span>
+                <span>•</span>
+                <span style="color:#16A34A; font-weight:700;">🟢 Online agora</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-secundario" style="font-size:11.5px; padding:5px 10px;" onclick="alternarFormEdicaoMeuNome()">✏️ Trocar Nome</button>
+            <button type="button" class="btn btn-secundario" style="font-size:11.5px; padding:5px 10px;" onclick="LoginGoogleApp.login()">🔑 Conectar Google</button>
+            <button type="button" class="btn btn-secundario" style="font-size:11.5px; padding:5px 10px; color:#B91C1C;" onclick="LoginGoogleApp.logout()">Sair</button>
+          </div>
+        </div>
+
+        <!-- FORMULÁRIO RÁPIDO PARA TROCAR NOME (INLINE, EXPANSÍVEL) -->
+        <div id="boxEdicaoMeuNome" style="display:none; margin-top:10px; padding-top:10px; border-top:1px dashed #CBD5E1;">
+          <div style="font-size:11.5px; font-weight:700; color:#334155; margin-bottom:5px;">Definir nome de exibição do operador neste aparelho:</div>
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="inputNovoNomeOperador" placeholder="Digite seu nome (Ex: Gilson, Carlos, Portaria 1...)" style="flex:1; padding:6px 10px; font-size:12.5px; border:1px solid #CBD5E1; border-radius:6px;">
+            <button type="button" class="btn btn-primario" style="font-size:12px; padding:6px 14px;" onclick="salvarNovoNomeOperadorModal()">Salvar</button>
+            <button type="button" class="btn btn-secundario" style="font-size:12px; padding:6px 10px;" onclick="alternarFormEdicaoMeuNome(false)">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAINEL DE CONTROLE DE FILTROS & BUSCA -->
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-secundario btn-filtro-presenca ativo" id="filtroPresencaTodos" onclick="definirFiltroPresenca('todos')">Todos (<span id="countFiltroTodos">0</span>)</button>
+          <button type="button" class="btn btn-secundario btn-filtro-presenca" id="filtroPresencaOnline" onclick="definirFiltroPresenca('online')">🟢 Online (<span id="countFiltroOnline">0</span>)</button>
+          <button type="button" class="btn btn-secundario btn-filtro-presenca" id="filtroPresencaOffline" onclick="definirFiltroPresenca('offline')">⚪ Offline (<span id="countFiltroOffline">0</span>)</button>
+        </div>
+
+        <div style="flex:1; min-width:180px; max-width:260px;">
+          <input type="search" id="buscaPerfisConectados" placeholder="Buscar por perfil..." oninput="renderizarListaPerfisConectados()" style="width:100%; padding:6px 10px; font-size:12px; border:1px solid #CBD5E1; border-radius:6px;">
+        </div>
+      </div>
+
+      <!-- LISTA DE PERFIS E STATUS -->
+      <div id="listaPerfisConectadosContainer" style="display:flex; flex-direction:column; gap:8px;">
+        <!-- Inserido dinamicamente via JS -->
+      </div>
+    </div>
+
+    <!-- RODAPÉ DO MODAL -->
+    <div class="modal-acoes" style="border-top: 1px solid var(--linha); padding-top: 12px; margin-top: 12px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; align-items:center;">
+      <div style="display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--texto-suave);">
+        <span class="ponto-status-verde" style="width:6px; height:6px;"></span>
+        <span>Sincronização em tempo real ativa</span>
+        <span>•</span>
+        <span id="txtUltimoSincPresenca">—</span>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn btn-secundario" onclick="forcarAtualizacaoPresenca()">🔄 Atualizar agora</button>
+        <button type="button" class="btn btn-primario" onclick="fecharModalPerfisConectados()">Fechar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2841,6 +3232,121 @@ function restaurarManualNuvem(){
     <div class="modal-acoes">
       <button class="btn btn-secundario" onclick="fecharModalEtiquetasLoteRadios()">Fechar</button>
       <button class="btn btn-primario" onclick="imprimirEtiquetasLoteRadios()" style="background:var(--verde-800); border-color:var(--verde-800);">🖨️ Imprimir Todas as Selecionadas</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DE QR CODE E ETIQUETA DE EQUIPAMENTO -->
+<div class="modal-fundo" id="modalQrEquipamento" onclick="if(event.target===this) fecharModalQrEquipamento()">
+  <div class="modal-caixa modal-caixa-larga">
+    <div class="modal-cabecalho">
+      <div>
+        <h3 id="modalQrEquipamentoTitulo" style="margin:0;">QR Code &amp; Etiqueta de Identificação</h3>
+        <p id="modalQrEquipamentoSubtitulo" style="font-size:12px; color:var(--texto-suave); margin:3px 0 0;">Identificação patrimonial pronta para colar no equipamento</p>
+      </div>
+      <button class="modal-fechar" onclick="fecharModalQrEquipamento()">✕</button>
+    </div>
+
+    <!-- Painel de configurações / formato da etiqueta -->
+    <div class="painel-opcoes-etiqueta">
+      <div class="linha-opcoes-etiqueta" style="margin-bottom:6px;">
+        <span style="font-weight:700; color:var(--texto);">Formato da etiqueta:</span>
+        <button type="button" class="seletor-tam-btn ativo" id="btnTamEquipPadrao" onclick="definirTamanhoEtiquetaEquipamento('padrao')">Padrão Horizontal (60 × 30 mm)</button>
+        <button type="button" class="seletor-tam-btn" id="btnTamEquipVertical" onclick="definirTamanhoEtiquetaEquipamento('vertical')">Vertical (45 × 50 mm)</button>
+        <button type="button" class="seletor-tam-btn" id="btnTamEquipCompacto" onclick="definirTamanhoEtiquetaEquipamento('compacto')">Compacto (40 × 20 mm)</button>
+      </div>
+      <div class="linha-opcoes-etiqueta" style="margin-bottom:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <span style="font-weight:700; color:var(--texto);">Conteúdo do QR:</span>
+        <select id="selectTipoPayloadQrEquip" onchange="alterarTipoPayloadQrEquipamento(this.value)" style="padding:4px 8px; font-size:12px; border-radius:6px; border:1px solid #CBD5E1; background:#FFFFFF;">
+          <option value="url" selected>📱 Link Direto (Abre o equipamento na câmera do celular / navegador - Recomendado)</option>
+          <option value="texto">📄 Ficha Técnica Completa (Nome, Tipo, Status, Local, Voltagem, Responsável)</option>
+          <option value="codigo">🔢 Apenas Identificador / Código</option>
+        </select>
+      </div>
+      <div style="font-size:11.5px; color:var(--texto-suave); display:flex; align-items:center; gap:8px;">
+        <span>🏷️ <strong>Etiqueta com QR Code + Nome do Equipamento</strong> (ao escanear com a câmera do celular, todos os dados completos do equipamento são exibidos no painel).</span>
+      </div>
+    </div>
+
+    <!-- Área de prévia visual da etiqueta física -->
+    <div class="etiqueta-equip-preview-wrap">
+      <div id="etiquetaEquipamentoCardPreview"></div>
+    </div>
+
+    <!-- Payload / Informações que a câmera do celular lê ao escanear -->
+    <div style="margin-bottom:14px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:10px 12px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+        <span style="font-size:11.5px; font-weight:700; color:var(--texto-suave);">Conteúdo lido pela câmera do celular ao escanear:</span>
+        <button type="button" onclick="copiarTextoQrEquipamento()" class="btn btn-secundario" style="padding:2px 8px; font-size:11px;">📋 Copiar dados</button>
+      </div>
+      <pre id="prePayloadQrEquipamento" style="font-size:11px; color:#1E293B; background:#FFFFFF; border:1px solid #CBD5E1; border-radius:6px; padding:8px 10px; margin:0; white-space:pre-wrap; font-family:ui-monospace, monospace; max-height:100px; overflow:auto;"></pre>
+    </div>
+
+    <!-- Ações: Imprimir, Baixar imagem, Fechar -->
+    <div class="modal-acoes" style="flex-wrap:wrap;">
+      <button class="btn btn-secundario" onclick="fecharModalQrEquipamento()">Fechar</button>
+      <button class="btn btn-secundario" onclick="baixarQrEquipamentoPng()">📥 Baixar QR Code (PNG)</button>
+      <button class="btn btn-secundario" onclick="baixarEtiquetaEquipamentoPng()">🖼️ Baixar Etiqueta (PNG)</button>
+      <button class="btn btn-primario" onclick="imprimirEtiquetaEquipamentoIndividual()" style="background:var(--verde-800); border-color:var(--verde-800);">🖨️ Imprimir Etiqueta</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DE IMPRESSÃO DE ETIQUETAS EM LOTE (EQUIPAMENTOS) -->
+<div class="modal-fundo" id="modalEtiquetasLoteEquipamentos" onclick="if(event.target===this) fecharModalEtiquetasLoteEquipamentos()">
+  <div class="modal-caixa modal-caixa-larga">
+    <div class="modal-cabecalho">
+      <div>
+        <h3 style="margin:0;">Imprimir Etiquetas QR de Equipamentos em Lote</h3>
+        <p style="font-size:12px; color:var(--texto-suave); margin:3px 0 0;">Gere folhas prontas para recorte ou impressão de etiquetas adesivas para múltiplos equipamentos</p>
+      </div>
+      <button class="modal-fechar" onclick="fecharModalEtiquetasLoteEquipamentos()">✕</button>
+    </div>
+
+    <!-- Barra de controle de seleção e formato -->
+    <div class="painel-opcoes-etiqueta">
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button type="button" class="btn btn-secundario" style="padding:4px 9px; font-size:11.5px;" onclick="marcarTodosEquipamentosLote(true)">Selecionar todos</button>
+          <button type="button" class="btn btn-secundario" style="padding:4px 9px; font-size:11.5px;" onclick="marcarTodosEquipamentosLote(false)">Desmarcar todos</button>
+          <span id="contadorSelecaoEquipamentosLote" style="font-size:12px; font-weight:700; color:var(--texto);">0 selecionados</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:11.5px; font-weight:600; color:var(--texto-suave);">Layout de folha:</span>
+          <select id="selectLayoutFolhaLoteEquip" onchange="atualizarGradePreviewLoteEquipamentos()" style="padding:4px 8px; font-size:12px; border-radius:6px; border:1px solid #CBD5E1;">
+            <option value="padrao">Folha A4 — Grade Horizontal (60 × 30 mm)</option>
+            <option value="vertical">Folha A4 — Grade Vertical (45 × 50 mm)</option>
+            <option value="compacta">Folha A4 — Grade Compacta (40 × 20 mm)</option>
+            <option value="rolo">Fita Contínua / Impressora Térmica</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+        <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:11.5px; margin:0;">
+          <input type="checkbox" id="chkLoteApenasOperacionaisEquip" onchange="carregarListaSelecaoEquipamentosLote()" style="width:auto;">
+          Apenas operacionais (ocultar manutenção e inativos)
+        </label>
+      </div>
+    </div>
+
+    <!-- Lista com checkboxes para escolher os equipamentos -->
+    <div style="margin-bottom:12px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+        <span style="font-size:12px; font-weight:700; color:var(--texto);">Selecione os equipamentos que deseja incluir na impressão:</span>
+      </div>
+      <div id="listaCheckboxesEquipamentosLote" style="max-height:160px; overflow-y:auto; border:1px solid #CBD5E1; border-radius:8px; padding:6px 10px; background:#FFFFFF; display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:6px;"></div>
+    </div>
+
+    <!-- Pré-visualização da grade de etiquetas prontas -->
+    <div style="margin-bottom:14px;">
+      <span style="font-size:12px; font-weight:700; color:var(--texto); display:block; margin-bottom:6px;">Prévia da folha / etiquetas prontas com QR Code:</span>
+      <div class="grade-etiquetas-lote-preview" id="gradeEtiquetasLoteEquipamentosPreview"></div>
+    </div>
+
+    <!-- Ações do lote -->
+    <div class="modal-acoes">
+      <button class="btn btn-secundario" onclick="fecharModalEtiquetasLoteEquipamentos()">Fechar</button>
+      <button class="btn btn-primario" onclick="imprimirEtiquetasLoteEquipamentos()" style="background:var(--verde-800); border-color:var(--verde-800);">🖨️ Imprimir Todas as Selecionadas</button>
     </div>
   </div>
 </div>
@@ -3691,6 +4197,61 @@ function restaurarManualNuvem(){
   </div>
 </div>
 
+<!-- MODAL DE PESQUISA GERAL DE ITENS DO ESTOQUE (TODOS OS KPIS) -->
+<div class="modal-fundo" id="modalBuscaGeralEstoque" onclick="if(event.target===this) fecharBuscaGeralEstoque()">
+  <div class="modal-caixa modal-caixa-larga" style="max-width: 820px; width: 96%; max-height: 92vh; display: flex; flex-direction: column;">
+    <div class="modal-cabecalho" style="border-bottom: 1px solid var(--linha); padding-bottom: 12px; margin-bottom: 12px;">
+      <div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <h3 style="margin:0; font-size:18px; color:var(--texto);">🔍 Pesquisa Geral do Estoque</h3>
+          <span id="badgeTotalItensBuscaGeral" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-size:11px; font-weight:700; padding:2px 8px; border-radius:12px;">0 itens</span>
+        </div>
+        <p style="font-size:12px; color:var(--texto-suave); margin:4px 0 0;">Pesquise em todos os KPIs do estoque simultaneamente por <strong>nome</strong> ou <strong>código</strong>.</p>
+      </div>
+      <button class="modal-fechar" onclick="fecharBuscaGeralEstoque()">✕</button>
+    </div>
+
+    <!-- Campo de Busca em Destaque -->
+    <div style="margin-bottom: 10px;">
+      <div style="position:relative; display:flex; align-items:center;">
+        <span style="position:absolute; left:12px; font-size:16px; color:#64748b; pointer-events:none;">🔍</span>
+        <input type="search" id="inputBuscaGeralEstoque" placeholder="Digite o nome do item ou código (ex: 2011, detergente, caneta, camisa...)" oninput="executarBuscaGeralEstoque()" style="width:100%; padding:10px 38px 10px 38px; font-size:14px; border:2px solid var(--verde-800); border-radius:10px; box-sizing:border-box; outline:none; background:#ffffff;" autofocus>
+        <button type="button" onclick="limparBuscaGeralEstoque()" style="position:absolute; right:10px; background:none; border:none; color:#94a3b8; font-size:16px; cursor:pointer; padding:4px;" title="Limpar busca">✕</button>
+      </div>
+    </div>
+
+    <!-- Filtros de KPI -->
+    <div style="display:flex; gap:6px; overflow-x:auto; padding-bottom:8px; margin-bottom:10px; border-bottom:1px solid var(--linha); -webkit-overflow-scrolling:touch;">
+      <button type="button" class="btn-filtro-kpi-geral ativo" id="filtroKpiGeral-todos" onclick="filtrarBuscaGeralPorKpi('todos')">Todos os KPIs (<span id="contFiltroKpi-todos">0</span>)</button>
+      <button type="button" class="btn-filtro-kpi-geral" id="filtroKpiGeral-deposito" onclick="filtrarBuscaGeralPorKpi('deposito')">📦 Depósito (<span id="contFiltroKpi-deposito">0</span>)</button>
+      <button type="button" class="btn-filtro-kpi-geral" id="filtroKpiGeral-solicitacoes" onclick="filtrarBuscaGeralPorKpi('solicitacoes')">📋 Solicitações (<span id="contFiltroKpi-solicitacoes">0</span>)</button>
+      <button type="button" class="btn-filtro-kpi-geral" id="filtroKpiGeral-limpeza" onclick="filtrarBuscaGeralPorKpi('limpeza')">🧴 Limpeza (<span id="contFiltroKpi-limpeza">0</span>)</button>
+      <button type="button" class="btn-filtro-kpi-geral" id="filtroKpiGeral-uniformes" onclick="filtrarBuscaGeralPorKpi('uniformes')">👕 Uniforme (<span id="contFiltroKpi-uniformes">0</span>)</button>
+      <button type="button" class="btn-filtro-kpi-geral" id="filtroKpiGeral-escritorio" onclick="filtrarBuscaGeralPorKpi('escritorio')">🖇️ Escritório (<span id="contFiltroKpi-escritorio">0</span>)</button>
+      <button type="button" class="btn-filtro-kpi-geral" id="filtroKpiGeral-alimentos" onclick="filtrarBuscaGeralPorKpi('alimentos')">🍽️ Alimentos (<span id="contFiltroKpi-alimentos">0</span>)</button>
+      <button type="button" class="btn-filtro-kpi-geral" id="filtroKpiGeral-outros" onclick="filtrarBuscaGeralPorKpi('outros')">📦 Outros (<span id="contFiltroKpi-outros">0</span>)</button>
+      <button type="button" class="btn-filtro-kpi-geral" id="filtroKpiGeral-custom" onclick="filtrarBuscaGeralPorKpi('custom')">🏷️ Customizados (<span id="contFiltroKpi-custom">0</span>)</button>
+    </div>
+
+    <!-- Indicador de Resultados -->
+    <div id="resumoResultadoBuscaGeral" style="font-size:12px; color:var(--texto-suave); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+      <span id="textoQtdResultadosBuscaGeral">Mostrando resultados da busca</span>
+      <span style="font-size:11px; color:#64748b;">Dica: clique em <strong>CÓD</strong> para copiar o código</span>
+    </div>
+
+    <!-- Lista de Resultados -->
+    <div class="lista-cartoes" id="lista-busca-geral-estoque" style="overflow-y:auto; flex:1; max-height:56vh; padding-right:4px;">
+      <!-- Preenchido via JS -->
+    </div>
+
+    <!-- Rodapé -->
+    <div class="modal-acoes" style="border-top: 1px solid var(--linha); padding-top: 10px; margin-top: 10px; display:flex; justify-content:space-between; align-items:center;">
+      <span style="font-size:11.5px; color:var(--texto-suave);">Total cadastrado no catálogo: <strong id="totalGeralEstoqueCatalogo">0</strong> itens</span>
+      <button type="button" class="btn btn-primario" onclick="fecharBuscaGeralEstoque()">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-fundo" id="modalOrganizarSolicitacao" onclick="if(event.target===this) fecharOrganizarSolicitacao()">
   <div class="modal-caixa">
     <div class="modal-cabecalho">
@@ -3762,7 +4323,8 @@ function restaurarManualNuvem(){
     <h1 id="tituloPagina">Painel Operacional</h1>
   </div>
   <div style="display:flex; flex-direction:column; gap:6px; flex-shrink:0; align-items:flex-end;">
-    <div id="usuarioGoogleTopo" style="display:none; align-items:center; gap:6px; background:rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.3); border-radius:20px; padding:3px 10px; font-size:11.5px; color:#fff; cursor:pointer;" onclick="if(event.target.tagName!=='BUTTON') LoginGoogleApp.abrirOpcoesPerfil();" title="Perfil ativo (clique para trocar operador ou login)">
+    <div id="usuarioGoogleTopo" style="display:none; align-items:center; gap:6px; background:rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.3); border-radius:20px; padding:3px 10px; font-size:11.5px; color:#fff; cursor:pointer;" onclick="if(event.target.tagName!=='BUTTON') abrirModalPerfisConectados();" title="Perfis conectados (clique para ver status online e offline)">
+      <span class="ponto-status-verde" style="margin-right:2px; width:7px; height:7px;" title="Status: Online"></span>
       <span style="font-size:12px;">👤</span>
       <span id="usuarioGoogleNome" style="max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600;"></span>
       <button onclick="LoginGoogleApp.logout()" title="Sair da conta" style="background:none; border:none; color:rgba(255,255,255,0.9); cursor:pointer; font-size:11px; padding:0 2px; text-decoration:underline;">Sair</button>
@@ -3984,6 +4546,7 @@ function restaurarManualNuvem(){
     <div id="kpisCustomContainer" style="display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-bottom:16px;"></div>
     <div class="barra-acoes">
       <div class="campo-busca"><input type="search" id="buscaEstoque" placeholder="Buscar item ou categoria..." oninput="renderEstoque()"></div>
+      <button class="btn btn-primario" onclick="abrirBuscaGeralEstoque()" style="background:#0284c7; border-color:#0284c7;" title="Pesquisar em todos os KPIs do estoque por nome ou código">🔍 Pesquisar em Todos os KPIs</button>
       <button class="btn btn-primario" onclick="novoForm('estoque')">+ Item</button>
       <button class="btn btn-secundario" onclick="compartilharEstoqueEmail()">📧 Compartilhar por e-mail</button>
       <button class="btn btn-secundario" id="btnNotifEstoque" onclick="alternarNotificacoesEstoque()">🔔 Ativar alerta de estoque baixo</button>
@@ -4187,6 +4750,8 @@ function restaurarManualNuvem(){
     <div class="barra-acoes">
       <div class="campo-busca"><input type="search" id="buscaEquipamentos" placeholder="Buscar por equipamento ou responsável..." oninput="renderEquipamentos()"></div>
       <button class="btn btn-primario" onclick="novoForm('equipamentos')">+ Equipamento</button>
+      <button class="btn btn-secundario" onclick="abrirModalEtiquetasLoteEquipamentos()" title="Imprimir etiquetas com QR Code em lote ou folha A4">🏷️ Imprimir Etiquetas QR</button>
+      <button class="btn btn-secundario" onclick="abrirScannerQrEquipamento()" title="Escanear QR Code de um equipamento usando a câmera">📷 Escanear QR</button>
       <button class="btn btn-secundario" onclick="compartilhar('equipamentos')">Compartilhar</button>
     </div>
     <div class="painel-form" id="form-equipamentos">
@@ -4247,6 +4812,7 @@ function restaurarManualNuvem(){
       </div>
       <div class="acoes-form">
         <button class="btn btn-secundario" onclick="fecharForm('equipamentos')">Cancelar</button>
+        <button type="button" class="btn btn-secundario" id="btnQrFormEquipamento" style="display:none;" onclick="const id=document.getElementById('id-equipamentos').value; if(id) abrirModalQrEquipamento(id);" title="Gerar QR Code deste equipamento">🔲 QR Code</button>
         <button class="btn btn-primario" onclick="salvar('equipamentos')">Salvar</button>
       </div>
     </div>
@@ -4838,6 +5404,8 @@ function novoForm(mod){
     document.getElementById('equipamentos-foto-camera').value = ''; document.getElementById('equipamentos-foto-galeria').value = '';
     document.getElementById('previewFotoEquipamento').src = '';
     document.getElementById('previewFotoEquipamentoBox').style.display = 'none';
+    const btnQrForm = document.getElementById('btnQrFormEquipamento');
+    if(btnQrForm) btnQrForm.style.display = 'none';
   }
   document.getElementById('tituloForm-' + mod).textContent = mod === 'chaves' ? 'Nova chave' : 'Novo registro';
   document.getElementById('form-' + mod).classList.add('aberto');
@@ -4891,6 +5459,8 @@ function editar(mod, id){
       document.getElementById('previewFotoEquipamento').src = '';
       document.getElementById('previewFotoEquipamentoBox').style.display = 'none';
     }
+    const btnQrForm = document.getElementById('btnQrFormEquipamento');
+    if(btnQrForm) btnQrForm.style.display = 'inline-flex';
   }
   document.getElementById('tituloForm-' + mod).textContent = 'Editar registro';
   document.getElementById('form-' + mod).classList.add('aberto');
@@ -6563,6 +7133,511 @@ function imprimirEtiquetasLoteRadios(){
 }
 
 /* ============================================================
+   SISTEMA DE QR CODE E IMPRESSÃO DE ETIQUETAS DE EQUIPAMENTOS
+   ============================================================ */
+window.formatoEtiquetaEquipamentoAtivo = 'padrao';
+window.tipoPayloadQrEquipAtivo = 'url'; // 'url' (Link Direto) | 'texto' (Ficha) | 'codigo' (Código puro)
+window.equipamentoSelecionadoQrId = null;
+window.equipamentosSelecionadosLote = new Set();
+
+// Gera a URL direta do equipamento para escaneamento instantâneo por câmera de celular
+function gerarUrlEquipamento(eq){
+  if (!eq) return '';
+  const cod = (eq.id || eq.nome || '').toString().trim();
+  const origin = (window.location.origin && window.location.origin !== 'null' && window.location.protocol.startsWith('http'))
+    ? window.location.origin + window.location.pathname
+    : window.location.href.split('?')[0];
+  return `${origin}?equipamento=${encodeURIComponent(cod)}`;
+}
+
+// Gera o conteúdo do QR Code conforme o tipo selecionado
+function gerarPayloadEquipamento(eq, tipo){
+  if(!eq) return '';
+  tipo = tipo || window.tipoPayloadQrEquipAtivo || 'url';
+
+  if (tipo === 'codigo') {
+    return (eq.id ? `EQ-${eq.id.toString().slice(-6).toUpperCase()}` : (eq.nome || 'MINAS2')).toString().trim();
+  }
+
+  if (tipo === 'texto') {
+    const linhas = [
+      'MINAS TÊNIS CLUBE — MINAS II',
+      'CONTROLE DE EQUIPAMENTOS',
+      '------------------------------',
+      `Equipamento: ${eq.nome || '—'}`,
+      `Tipo: ${eq.tipo || eq.categoria || '—'}`,
+      `Status: ${eq.status || 'Disponível'}`,
+      `Localização: ${eq.localizacao || '—'}`,
+      `Estado: ${eq.estado || '—'}`,
+      `Voltagem: ${eq.voltagem || '—'}`,
+      `Responsável: ${eq.responsavel || '—'}`
+    ];
+    if(eq.obs) linhas.push(`Obs: ${eq.obs}`);
+    linhas.push(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`);
+    return linhas.join('\n');
+  }
+
+  // Padrão: URL direta interativa (reconhecida instantaneamente por qualquer câmera de smartphone)
+  return gerarUrlEquipamento(eq);
+}
+
+function gerarPayloadTextoEquipamento(eq){
+  return gerarPayloadEquipamento(eq, window.tipoPayloadQrEquipAtivo || 'url');
+}
+
+// Monta o cartão físico adesivo do equipamento
+function montarHtmlEtiquetaEquipamento(eq, opcoes){
+  if(!eq) return '';
+  opcoes = opcoes || {};
+  const formato = opcoes.formato || window.formatoEtiquetaEquipamentoAtivo || 'padrao';
+  const tipo = opcoes.tipoPayload || window.tipoPayloadQrEquipAtivo || 'url';
+
+  const payload = gerarPayloadEquipamento(eq, tipo);
+  const cellSize = formato === 'compacto' ? 2 : (formato === 'vertical' ? 4 : 3);
+  const qrSvg = gerarSvgQrRadio(payload, cellSize, 4);
+
+  const nomeTxt = escapeHtml(eq.nome || 'Equipamento');
+  const tipoTxt = escapeHtml(eq.tipo || eq.categoria || '');
+  const localTxt = escapeHtml(eq.localizacao || eq.responsavel || '');
+  const statusTxt = escapeHtml(eq.status || 'Disponível');
+  const emAlerta = eq.status === 'Manutenção' || eq.status === 'Inativo';
+  const statusBadgeStyle = emAlerta 
+    ? 'background:#FEE2E2; color:#991B1B; border:1px solid #FCA5A5;'
+    : (eq.status === 'Em uso' ? 'background:#FEF3C7; color:#92400E; border:1px solid #FCD34D;' : 'background:#DCFCE7; color:#166534; border:1px solid #86EFAC;');
+
+  return `
+    <div class="etiqueta-equip-card tam-${formato} ${opcoes.modoImpressao ? 'etiqueta-impressao-item' : ''}" data-equipamento-id="${eq.id}">
+      <div class="etiqueta-equip-qr-svg" title="Escaneie com a câmera do celular para abrir">${qrSvg}</div>
+      <div class="etiqueta-equip-info-bloco">
+        <span class="etiqueta-equip-rotulo">EQUIPAMENTO</span>
+        <span class="etiqueta-equip-nome">${nomeTxt}</span>
+        <div class="etiqueta-equip-meta">
+          ${tipoTxt ? `<span>${tipoTxt}</span>` : ''}
+          ${localTxt ? `<span> · ${localTxt}</span>` : ''}
+        </div>
+        <div class="etiqueta-equip-badges">
+          <span class="etiqueta-equip-badge" style="${statusBadgeStyle}">${statusTxt}</span>
+          ${eq.voltagem && eq.voltagem !== 'Não se aplica' ? `<span class="etiqueta-equip-badge">${escapeHtml(eq.voltagem)}</span>` : ''}
+          ${eq.estado ? `<span class="etiqueta-equip-badge">${escapeHtml(eq.estado)}</span>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+function abrirModalQrEquipamento(equipId){
+  const lista = carregar('equipamentos');
+  const eq = lista.find(item => item.id === equipId);
+  if(!eq) return;
+  window.equipamentoSelecionadoQrId = equipId;
+  window.formatoEtiquetaEquipamentoAtivo = 'padrao';
+
+  ['btnTamEquipPadrao', 'btnTamEquipVertical', 'btnTamEquipCompacto'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.classList.remove('ativo');
+  });
+  const btnPadrao = document.getElementById('btnTamEquipPadrao');
+  if(btnPadrao) btnPadrao.classList.add('ativo');
+
+  const selTipo = document.getElementById('selectTipoPayloadQrEquip');
+  if(selTipo) selTipo.value = window.tipoPayloadQrEquipAtivo || 'url';
+
+  const tit = document.getElementById('modalQrEquipamentoTitulo');
+  if(tit) tit.textContent = `Etiqueta & QR Code — ${eq.nome || 'Equipamento'}`;
+  const sub = document.getElementById('modalQrEquipamentoSubtitulo');
+  if(sub) sub.textContent = `Tipo: ${eq.tipo || '—'} · Status: ${eq.status || '—'} · Local/Resp: ${eq.localizacao || eq.responsavel || '—'}`;
+
+  atualizarPreviewEtiquetaEquipamento();
+  document.getElementById('modalQrEquipamento').classList.add('aberto');
+}
+
+function fecharModalQrEquipamento(){
+  document.getElementById('modalQrEquipamento').classList.remove('aberto');
+}
+
+function alterarTipoPayloadQrEquipamento(tipo){
+  window.tipoPayloadQrEquipAtivo = tipo || 'url';
+  atualizarPreviewEtiquetaEquipamento();
+}
+
+function definirTamanhoEtiquetaEquipamento(tam){
+  window.formatoEtiquetaEquipamentoAtivo = tam;
+  const botoes = {
+    padrao: document.getElementById('btnTamEquipPadrao'),
+    vertical: document.getElementById('btnTamEquipVertical'),
+    compacto: document.getElementById('btnTamEquipCompacto')
+  };
+  Object.keys(botoes).forEach(k => {
+    if(botoes[k]) botoes[k].classList.toggle('ativo', k === tam);
+  });
+  atualizarPreviewEtiquetaEquipamento();
+}
+
+function atualizarPreviewEtiquetaEquipamento(){
+  const id = window.equipamentoSelecionadoQrId;
+  const eq = carregar('equipamentos').find(item => item.id === id);
+  if(!eq) return;
+
+  const opcoes = {
+    formato: window.formatoEtiquetaEquipamentoAtivo || 'padrao',
+    tipoPayload: window.tipoPayloadQrEquipAtivo || 'url'
+  };
+
+  const previewEl = document.getElementById('etiquetaEquipamentoCardPreview');
+  if(previewEl){
+    previewEl.innerHTML = montarHtmlEtiquetaEquipamento(eq, opcoes);
+  }
+
+  const preEl = document.getElementById('prePayloadQrEquipamento');
+  if(preEl){
+    preEl.textContent = gerarPayloadEquipamento(eq, window.tipoPayloadQrEquipAtivo || 'url');
+  }
+}
+
+function imprimirEtiquetaEquipamentoIndividual(){
+  const id = window.equipamentoSelecionadoQrId;
+  const eq = carregar('equipamentos').find(item => item.id === id);
+  if(!eq) return;
+
+  const opcoes = {
+    formato: window.formatoEtiquetaEquipamentoAtivo || 'padrao',
+    tipoPayload: window.tipoPayloadQrEquipAtivo || 'url',
+    modoImpressao: true
+  };
+
+  const area = document.getElementById('areaImpressaoEtiquetas');
+  area.innerHTML = `
+    <div style="padding:10mm; display:flex; justify-content:center; align-items:flex-start;">
+      <div class="item-impressao-wrap">
+        ${montarHtmlEtiquetaEquipamento(eq, opcoes)}
+      </div>
+    </div>`;
+
+  document.body.classList.add('imprimindo-etiquetas');
+  window.print();
+
+  setTimeout(() => {
+    document.body.classList.remove('imprimindo-etiquetas');
+    area.innerHTML = '';
+  }, 1000);
+}
+
+function baixarQrEquipamentoPng(){
+  const id = window.equipamentoSelecionadoQrId;
+  const eq = carregar('equipamentos').find(item => item.id === id);
+  if(!eq) return;
+
+  const payload = gerarPayloadEquipamento(eq, window.tipoPayloadQrEquipAtivo || 'url');
+  const dataUrl = gerarDataUrlQrRadio(payload, 500);
+  if(!dataUrl){
+    alert('Não foi possível gerar a imagem PNG do QR Code.');
+    return;
+  }
+
+  const link = document.createElement('a');
+  const codOrNome = (eq.nome || eq.id || 'equipamento').toString().replace(/[^a-zA-Z0-9]/g, '_');
+  const nomeArquivo = `qrcode-equipamento-${codOrNome}.png`;
+  link.href = dataUrl;
+  link.download = nomeArquivo;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function baixarEtiquetaEquipamentoPng(){
+  const id = window.equipamentoSelecionadoQrId;
+  const eq = carregar('equipamentos').find(item => item.id === id);
+  if(!eq) return;
+
+  const payload = gerarPayloadEquipamento(eq, window.tipoPayloadQrEquipAtivo || 'url');
+  const qr = qrcode(0, 'M');
+  qr.addData(payload);
+  qr.make();
+  const count = qr.getModuleCount();
+  const qrMargin = 4;
+  const totalModules = count + (qrMargin * 2);
+
+  const formato = window.formatoEtiquetaEquipamentoAtivo || 'padrao';
+  const isVertical = formato === 'vertical';
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+
+  if (isVertical) {
+    const cellSize = 6;
+    const qrSize = totalModules * cellSize;
+    const w = Math.max(380, qrSize + 48);
+    const h = qrSize + 150;
+    canvas.width = w;
+    canvas.height = h;
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#0F172A';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(4, 4, w - 8, h - 8);
+
+    const qrStartX = Math.floor((w - qrSize) / 2);
+    const qrStartY = 24;
+
+    ctx.fillStyle = '#000000';
+    for (let row = 0; row < count; row++) {
+      for (let col = 0; col < count; col++) {
+        if (qr.isDark(row, col)) {
+          ctx.fillRect(qrStartX + (col + qrMargin) * cellSize, qrStartY + (row + qrMargin) * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+
+    ctx.fillStyle = '#64748B';
+    ctx.font = 'bold 15px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('EQUIPAMENTO', w / 2, qrStartY + qrSize + 28);
+
+    ctx.fillStyle = '#0F172A';
+    ctx.font = '900 24px Inter, sans-serif';
+    const nomeEquip = (eq.nome || 'EQUIPAMENTO').toUpperCase();
+    if (ctx.measureText(nomeEquip).width > (w - 30)) {
+      ctx.font = '900 18px Inter, sans-serif';
+    }
+    ctx.fillText(nomeEquip, w / 2, qrStartY + qrSize + 60);
+
+    ctx.fillStyle = '#475569';
+    ctx.font = '600 14px Inter, sans-serif';
+    const subInfo = [eq.tipo, eq.status, eq.localizacao || eq.responsavel].filter(Boolean).join(' · ');
+    ctx.fillText(subInfo, w / 2, qrStartY + qrSize + 90);
+  } else {
+    // Padrão Horizontal
+    const cellSize = 5;
+    const qrSize = totalModules * cellSize;
+    const w = qrSize + 320;
+    const h = Math.max(220, qrSize + 40);
+    canvas.width = w;
+    canvas.height = h;
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#0F172A';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(4, 4, w - 8, h - 8);
+
+    const qrStartX = 20;
+    const qrStartY = Math.floor((h - qrSize) / 2);
+
+    ctx.fillStyle = '#000000';
+    for (let row = 0; row < count; row++) {
+      for (let col = 0; col < count; col++) {
+        if (qr.isDark(row, col)) {
+          ctx.fillRect(qrStartX + (col + qrMargin) * cellSize, qrStartY + (row + qrMargin) * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+
+    const infoX = qrStartX + qrSize + 24;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#64748B';
+    ctx.font = 'bold 15px Inter, sans-serif';
+    ctx.fillText('EQUIPAMENTO', infoX, Math.floor(h / 2) - 35);
+
+    ctx.fillStyle = '#0F172A';
+    ctx.font = '900 24px Inter, sans-serif';
+    const nomeEquip = (eq.nome || 'EQUIPAMENTO').toUpperCase();
+    if (ctx.measureText(nomeEquip).width > (w - infoX - 20)) {
+      ctx.font = '900 18px Inter, sans-serif';
+    }
+    ctx.fillText(nomeEquip, infoX, Math.floor(h / 2) - 5);
+
+    ctx.fillStyle = '#334155';
+    ctx.font = '600 14px Inter, sans-serif';
+    const tipoLocal = [eq.tipo, eq.localizacao || eq.responsavel].filter(Boolean).join(' · ');
+    ctx.fillText(tipoLocal, infoX, Math.floor(h / 2) + 24);
+
+    ctx.fillStyle = '#059669';
+    ctx.font = 'bold 13px Inter, sans-serif';
+    const statusVolt = [`Status: ${eq.status || 'Disponível'}`, eq.voltagem ? `Voltagem: ${eq.voltagem}` : ''].filter(Boolean).join(' | ');
+    ctx.fillText(statusVolt, infoX, Math.floor(h / 2) + 48);
+  }
+
+  const codOrNome = (eq.nome || eq.id || 'equipamento').toString().replace(/[^a-zA-Z0-9]/g, '_');
+  const link = document.createElement('a');
+  link.href = canvas.toDataURL('image/png');
+  link.download = `etiqueta-equipamento-${codOrNome}.png`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function copiarTextoQrEquipamento(){
+  const id = window.equipamentoSelecionadoQrId;
+  const eq = carregar('equipamentos').find(item => item.id === id);
+  if(!eq) return;
+  const texto = gerarPayloadTextoEquipamento(eq);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(texto).then(() => {
+      alert('Dados do equipamento copiados para a área de transferência!');
+    }).catch(() => fallbackCopiarTextoEquip(texto));
+  } else {
+    fallbackCopiarTextoEquip(texto);
+  }
+}
+
+function fallbackCopiarTextoEquip(texto){
+  const pre = document.getElementById('prePayloadQrEquipamento');
+  if(pre) {
+    const range = document.createRange();
+    range.selectNodeContents(pre);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    try {
+      document.execCommand('copy');
+      alert('Dados copiados para a área de transferência!');
+    } catch(e) {
+      alert('Selecione e copie o texto exibido.');
+    }
+  }
+}
+
+/* --- Impressão em Lote de Equipamentos --- */
+function abrirModalEtiquetasLoteEquipamentos(){
+  window.equipamentosSelecionadosLote = new Set();
+  carregarListaSelecaoEquipamentosLote();
+  document.getElementById('modalEtiquetasLoteEquipamentos').classList.add('aberto');
+}
+
+function fecharModalEtiquetasLoteEquipamentos(){
+  document.getElementById('modalEtiquetasLoteEquipamentos').classList.remove('aberto');
+}
+
+function obterEquipamentosDisponiveisParaLote(){
+  let lista = carregar('equipamentos');
+  const apenasOp = document.getElementById('chkLoteApenasOperacionaisEquip');
+  if(apenasOp && apenasOp.checked){
+    lista = lista.filter(e => e.status !== 'Manutenção' && e.status !== 'Inativo');
+  }
+  return lista;
+}
+
+function carregarListaSelecaoEquipamentosLote(){
+  const lista = obterEquipamentosDisponiveisParaLote();
+  const container = document.getElementById('listaCheckboxesEquipamentosLote');
+  if(!container) return;
+
+  // Seleciona todos por padrão
+  window.equipamentosSelecionadosLote = new Set(lista.map(e => e.id));
+
+  container.innerHTML = lista.map(e => {
+    const checked = window.equipamentosSelecionadosLote.has(e.id) ? 'checked' : '';
+    const label = escapeHtml(e.nome || 'Sem nome');
+    const tipo = e.tipo ? `[${escapeHtml(e.tipo)}]` : '';
+    return `
+      <label style="display:flex; align-items:center; gap:6px; font-size:11.5px; cursor:pointer; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; padding:4px 8px; margin:0;" title="Local: ${escapeHtml(e.localizacao||e.responsavel||'—')} · Status: ${escapeHtml(e.status||'—')}">
+        <input type="checkbox" value="${e.id}" ${checked} onchange="alternarCheckboxEquipamentoLote(this)" style="width:auto; margin:0;">
+        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${tipo} ${label}</span>
+      </label>`;
+  }).join('');
+
+  atualizarContadorSelecaoEquipamentosLote();
+  atualizarGradePreviewLoteEquipamentos();
+}
+
+function alternarCheckboxEquipamentoLote(checkbox){
+  if(checkbox.checked){
+    window.equipamentosSelecionadosLote.add(checkbox.value);
+  } else {
+    window.equipamentosSelecionadosLote.delete(checkbox.value);
+  }
+  atualizarContadorSelecaoEquipamentosLote();
+  atualizarGradePreviewLoteEquipamentos();
+}
+
+function marcarTodosEquipamentosLote(marcar){
+  const checkboxes = document.querySelectorAll('#listaCheckboxesEquipamentosLote input[type="checkbox"]');
+  checkboxes.forEach(cb => { cb.checked = marcar; });
+  if(marcar){
+    const lista = obterEquipamentosDisponiveisParaLote();
+    window.equipamentosSelecionadosLote = new Set(lista.map(e => e.id));
+  } else {
+    window.equipamentosSelecionadosLote.clear();
+  }
+  atualizarContadorSelecaoEquipamentosLote();
+  atualizarGradePreviewLoteEquipamentos();
+}
+
+function atualizarContadorSelecaoEquipamentosLote(){
+  const el = document.getElementById('contadorSelecaoEquipamentosLote');
+  if(el){
+    el.textContent = `${window.equipamentosSelecionadosLote.size} selecionados`;
+  }
+}
+
+function atualizarGradePreviewLoteEquipamentos(){
+  const layout = (document.getElementById('selectLayoutFolhaLoteEquip') || {}).value || 'padrao';
+  const lista = carregar('equipamentos');
+  const selecionados = lista.filter(e => window.equipamentosSelecionadosLote.has(e.id));
+  const container = document.getElementById('gradeEtiquetasLoteEquipamentosPreview');
+  if(!container) return;
+
+  if(selecionados.length === 0){
+    container.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:20px; color:var(--texto-suave); font-size:12px;">Nenhum equipamento selecionado para impressão.</div>`;
+    return;
+  }
+
+  container.innerHTML = selecionados.map(e => {
+    return `<div class="item-impressao-wrap" style="background:#fff; border:1px dashed #cbd5e1; border-radius:8px; padding:6px;">
+      ${montarHtmlEtiquetaEquipamento(e, { formato: layout, modoImpressao: false })}
+    </div>`;
+  }).join('');
+}
+
+function imprimirEtiquetasLoteEquipamentos(){
+  const layout = (document.getElementById('selectLayoutFolhaLoteEquip') || {}).value || 'padrao';
+  const lista = carregar('equipamentos');
+  const selecionados = lista.filter(e => window.equipamentosSelecionadosLote.has(e.id));
+  if(selecionados.length === 0){
+    alert('Selecione ao menos um equipamento para imprimir as etiquetas.');
+    return;
+  }
+
+  let classeGrade = 'folha-grade-etiquetas';
+  if (layout === 'compacta') classeGrade = 'folha-grade-etiquetas compacta';
+  else if (layout === 'vertical') classeGrade = 'folha-grade-etiquetas vertical';
+  else if (layout === 'rolo') classeGrade = 'folha-grade-etiquetas rolo';
+
+  const itensHtml = selecionados.map(e => {
+    return `
+      <div class="item-impressao-wrap">
+        ${montarHtmlEtiquetaEquipamento(e, { formato: layout, modoImpressao: true })}
+      </div>`;
+  }).join('');
+
+  const area = document.getElementById('areaImpressaoEtiquetas');
+  area.innerHTML = `
+    <div class="${classeGrade}" style="padding:2mm;">
+      ${itensHtml}
+    </div>`;
+
+  document.body.classList.add('imprimindo-etiquetas');
+  window.print();
+
+  setTimeout(() => {
+    document.body.classList.remove('imprimindo-etiquetas');
+    area.innerHTML = '';
+  }, 1000);
+}
+
+function abrirScannerQrEquipamento(){
+  window.scannerModoAtual = 'equipamento';
+  const modal = document.getElementById('modalScannerQrRadio');
+  if(!modal) return;
+  const tit = modal.querySelector('h3');
+  if(tit) tit.textContent = '📷 Escanear QR Code do Equipamento';
+  const sub = modal.querySelector('p');
+  if(sub) sub.textContent = 'Aponte a câmera para a etiqueta do equipamento ou envie uma imagem';
+  abrirScannerQrRadio();
+}
+
+/* ============================================================
    SCANNER QR CODE VIA CÂMERA DO DISPOSITIVO / CELULAR
    ============================================================ */
 let scannerVideoTrack = null;
@@ -6723,22 +7798,95 @@ function escanearArquivoImagemQr(input){
   reader.readAsDataURL(file);
 }
 
+function tratarEquipamentoEscaneado(termo){
+  const termoLower = (termo || '').trim().toLowerCase();
+  const equipamentos = carregar('equipamentos') || [];
+  const equipEncontrado = equipamentos.find(e => 
+    (e.id && e.id.toString().trim().toLowerCase() === termoLower) ||
+    (e.nome && e.nome.toString().trim().toLowerCase() === termoLower) ||
+    (e.responsavel && e.responsavel.toString().trim().toLowerCase() === termoLower)
+  );
+
+  tocarBeepSucessoQr();
+  fecharScannerQrRadio();
+
+  if (equipEncontrado) {
+    if (typeof abrirSecao === 'function') {
+      abrirSecao('equipamentos');
+    }
+    setTimeout(() => {
+      const card = document.querySelector(`[data-equipamento-id="${equipEncontrado.id}"]`) ||
+                   document.getElementById(`equipamento-card-${equipEncontrado.id}`) ||
+                   document.getElementById(`equipamento-card-tipo-${equipEncontrado.id}`);
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.style.transition = 'all 0.5s ease';
+        card.style.boxShadow = '0 0 0 4px #10B981, 0 8px 24px rgba(16,185,129,0.3)';
+        setTimeout(() => { card.style.boxShadow = ''; }, 4000);
+      }
+    }, 250);
+  } else {
+    alert(`QR Code de equipamento lido com sucesso:\n"${termo}"\n\nNenhum equipamento cadastrado com este nome/código.`);
+    if (typeof abrirSecao === 'function') abrirSecao('equipamentos');
+    const campoBusca = document.getElementById('buscaEquipamentos');
+    if (campoBusca) {
+      campoBusca.value = termo;
+      renderEquipamentos();
+    }
+  }
+}
+
 function processarCodigoEscaneado(codigoTexto){
   if (!codigoTexto || typeof codigoTexto !== 'string') return;
   const raw = codigoTexto.trim();
 
-  // 1. Tenta extrair da URL (?radio=...)
-  let termo = '';
+  // 1. Tenta extrair da URL (?radio=... ou ?equipamento=...)
+  let termoRadio = '';
+  let termoEquip = '';
   try {
     if (raw.startsWith('http://') || raw.startsWith('https://')) {
       const url = new URL(raw);
+      if (url.searchParams.has('equipamento')) {
+        termoEquip = url.searchParams.get('equipamento').trim();
+      }
       if (url.searchParams.has('radio')) {
-        termo = url.searchParams.get('radio').trim();
+        termoRadio = url.searchParams.get('radio').trim();
       }
     }
   } catch(e) {}
 
-  // 2. Se não encontrou, procura por "Código: XXX"
+  if (termoEquip) {
+    tratarEquipamentoEscaneado(termoEquip);
+    return;
+  }
+
+  // 2. Se for texto de ficha técnica de equipamento ou modo scanner equipamento
+  if (raw.includes('CONTROLE DE EQUIPAMENTOS') || raw.startsWith('EQ-') || window.scannerModoAtual === 'equipamento') {
+    let termo = '';
+    const matchEq = raw.match(/Equipamento\s*:\s*([^\n\r]+)/i);
+    if (matchEq) {
+      termo = matchEq[1].trim();
+    } else if (raw.startsWith('EQ-')) {
+      termo = raw;
+    } else if (window.scannerModoAtual === 'equipamento') {
+      termo = raw;
+    }
+    if (termo) {
+      const eqLista = carregar('equipamentos') || [];
+      const eqAchado = eqLista.find(e => 
+        (e.id && e.id.toString().trim().toLowerCase() === termo.toLowerCase()) ||
+        (e.nome && e.nome.toString().trim().toLowerCase() === termo.toLowerCase()) ||
+        (e.id && `eq-${e.id.toString().slice(-6).toLowerCase()}` === termo.toLowerCase())
+      );
+      if (eqAchado || window.scannerModoAtual === 'equipamento') {
+        tratarEquipamentoEscaneado(eqAchado ? eqAchado.id : termo);
+        return;
+      }
+    }
+  }
+
+  // 3. Rádio
+  let termo = termoRadio;
   if (!termo) {
     const matchCod = raw.match(/C[óo]digo\s*:\s*([^\n\r]+)/i);
     if (matchCod) {
@@ -6746,7 +7894,6 @@ function processarCodigoEscaneado(codigoTexto){
     }
   }
 
-  // 3. Se não encontrou, procura por "S/N: XXX"
   if (!termo) {
     const matchSn = raw.match(/S\/N\s*:\s*([^\n\r]+)/i);
     if (matchSn) {
@@ -6754,7 +7901,6 @@ function processarCodigoEscaneado(codigoTexto){
     }
   }
 
-  // 4. Se for linha única curta
   if (!termo) {
     termo = raw;
   }
@@ -6768,29 +7914,48 @@ function processarCodigoEscaneado(codigoTexto){
     (r.setor && r.setor.toString().trim().toLowerCase() === termoLower)
   );
 
+  if (radioEncontrado || window.scannerModoAtual === 'radio') {
+    tocarBeepSucessoQr();
+    fecharScannerQrRadio();
+
+    if (radioEncontrado) {
+      abrirDetalheRadio(radioEncontrado.id);
+      setTimeout(() => {
+        const card = document.querySelector(`[data-radio-id="${radioEncontrado.id}"]`) ||
+                     document.getElementById(`radio-card-${radioEncontrado.id}`);
+        if (card) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          card.style.transition = 'all 0.5s ease';
+          card.style.boxShadow = '0 0 0 4px #10B981, 0 8px 24px rgba(16,185,129,0.3)';
+          setTimeout(() => { card.style.boxShadow = ''; }, 4000);
+        }
+      }, 250);
+    } else {
+      alert(`QR Code lido com sucesso:\n"${termo}"\n\nNenhum rádio com este código/setor foi localizado no cadastro.`);
+      const campoBusca = document.getElementById('buscaRadios');
+      if (campoBusca) {
+        campoBusca.value = termo;
+        renderRadios();
+      }
+    }
+    return;
+  }
+
+  // Se não foi rádio, verifica se é equipamento
+  const equipamentos = carregar('equipamentos') || [];
+  const equipEncontrado = equipamentos.find(e => 
+    (e.id && e.id.toString().trim().toLowerCase() === termoLower) ||
+    (e.nome && e.nome.toString().trim().toLowerCase() === termoLower)
+  );
+  if (equipEncontrado) {
+    tratarEquipamentoEscaneado(equipEncontrado.id);
+    return;
+  }
+
+  // Fallback padrão
   tocarBeepSucessoQr();
   fecharScannerQrRadio();
-
-  if (radioEncontrado) {
-    abrirDetalheRadio(radioEncontrado.id);
-    setTimeout(() => {
-      const card = document.querySelector(`[data-radio-id="${radioEncontrado.id}"]`) ||
-                   document.getElementById(`radio-card-${radioEncontrado.id}`);
-      if (card) {
-        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        card.style.transition = 'all 0.5s ease';
-        card.style.boxShadow = '0 0 0 4px #10B981, 0 8px 24px rgba(16,185,129,0.3)';
-        setTimeout(() => { card.style.boxShadow = ''; }, 4000);
-      }
-    }, 250);
-  } else {
-    alert(`QR Code lido com sucesso:\n"${termo}"\n\nNenhum rádio com este código/setor foi localizado no cadastro.`);
-    const campoBusca = document.getElementById('buscaRadios');
-    if (campoBusca) {
-      campoBusca.value = termo;
-      renderRadios();
-    }
-  }
+  alert(`QR Code lido com sucesso:\n"${termo}"\n\nItem não localizado nos cadastros.`);
 }
 
 // Processamento automático de URL aberta via escaneamento externo (?radio=...)
@@ -6834,6 +7999,49 @@ function processarParametroUrlRadio(){
       if (campoBusca) {
         campoBusca.value = termo;
         if (typeof renderRadios === 'function') renderRadios();
+      }
+    }
+  }, 250);
+}
+
+// Processamento automático de URL aberta via escaneamento externo (?equipamento=...)
+function processarParametroUrlEquipamento(){
+  const params = new URLSearchParams(window.location.search);
+  const equipParam = params.get('equipamento');
+  if (!equipParam) return;
+
+  const termo = decodeURIComponent(equipParam).trim();
+  const termoLower = termo.toLowerCase();
+
+  if (typeof abrirSecao === 'function') {
+    abrirSecao('equipamentos');
+  }
+
+  setTimeout(() => {
+    const equipamentos = carregar('equipamentos') || [];
+    const equipEncontrado = equipamentos.find(e => 
+      (e.id && e.id.toString().trim().toLowerCase() === termoLower) ||
+      (e.nome && e.nome.toString().trim().toLowerCase() === termoLower) ||
+      (e.responsavel && e.responsavel.toString().trim().toLowerCase() === termoLower)
+    );
+
+    if (equipEncontrado) {
+      setTimeout(() => {
+        const card = document.querySelector(`[data-equipamento-id="${equipEncontrado.id}"]`) ||
+                     document.getElementById(`equipamento-card-${equipEncontrado.id}`) ||
+                     document.getElementById(`equipamento-card-tipo-${equipEncontrado.id}`);
+        if (card) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          card.style.transition = 'all 0.5s ease';
+          card.style.boxShadow = '0 0 0 4px #2563EB, 0 8px 24px rgba(37,99,235,0.35)';
+          setTimeout(() => { card.style.boxShadow = ''; }, 4000);
+        }
+      }, 200);
+    } else {
+      const campoBusca = document.getElementById('buscaEquipamentos');
+      if (campoBusca) {
+        campoBusca.value = termo;
+        if (typeof renderEquipamentos === 'function') renderEquipamentos();
       }
     }
   }, 250);
@@ -7535,10 +8743,17 @@ function renderEstoqueBaixo(){
   cont.innerHTML = lista.map(i => {
     const cod = (typeof obterCodigoSolicitacao === 'function' ? obterCodigoSolicitacao(i) : (i.codigo || '—'));
     const classeTamanho = (cod && cod.length > 5) ? 'codigo-longo' : '';
+    const codLimpo = (cod && cod !== '—') ? cod : '';
+    const onclickCod = codLimpo 
+      ? `event.stopPropagation(); copiarCodigoSolicitacao(this, '${escapeHtml(codLimpo)}', '${escapeHtml(i.nome || '')}');`
+      : `event.stopPropagation(); copiarCodigoSolicitacao(this, '', '${escapeHtml(i.nome || '')}');`;
+    const titleCod = codLimpo 
+      ? `Clique para copiar o código: ${escapeHtml(codLimpo)}` 
+      : `Item sem código cadastrado`;
     return `
     <div class="item-cartao" style="cursor:pointer;" onclick="abrirOrganizarSolicitacao('${i.id}')">
-      <div class="coluna-numero-chave" title="Código ${escapeHtml(cod || '—')}">
-        <span class="prefixo-n">CÓD</span>
+      <div class="coluna-numero-chave coluna-numero-chave-copiavel" onclick="${onclickCod}" title="${titleCod}">
+        <span class="prefixo-n" style="display:flex; align-items:center; gap:2px; justify-content:center;">CÓD <span style="font-size:8px; opacity:0.8;">📋</span></span>
         <span class="valor-numero-chave ${classeTamanho}">${escapeHtml(cod || '—')}</span>
       </div>
       <div class="franja"></div>
@@ -7557,6 +8772,47 @@ function renderEstoqueBaixo(){
     </div>`;
   }).join('');
 }
+
+function copiarCodigoSolicitacao(elemento, codigo, nomeItem){
+  const cod = (codigo || '').trim();
+  if(!cod || cod === '—'){
+    mostrarNotificacaoPresenca('Este item não possui código cadastrado para copiar.');
+    return;
+  }
+
+  const copiarSucesso = () => {
+    if(elemento){
+      elemento.classList.add('copiado');
+      setTimeout(() => elemento.classList.remove('copiado'), 1200);
+    }
+    mostrarNotificacaoPresenca(`Código "${cod}" copiado para a área de transferência!`);
+  };
+
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(cod).then(copiarSucesso).catch(() => {
+      fallbackCopiarSimples(cod);
+      copiarSucesso();
+    });
+  } else {
+    fallbackCopiarSimples(cod);
+    copiarSucesso();
+  }
+}
+
+function fallbackCopiarSimples(texto){
+  try {
+    const input = document.createElement('input');
+    input.setAttribute('value', texto);
+    input.style.position = 'fixed';
+    input.style.opacity = '0';
+    document.body.appendChild(input);
+    input.select();
+    input.setSelectionRange(0, 99999);
+    document.execCommand('copy');
+    document.body.removeChild(input);
+  } catch(e){}
+}
+
 function abrirOrganizarSolicitacao(id){
   window.solicitacaoOrganizarId = id;
   const item = carregar('solicitacoes').find(i => i.id === id);
@@ -7858,6 +9114,390 @@ function renderDepositoTudo(){
   );
   document.getElementById('lista-deposito-tudo').innerHTML = montarHtmlEstoqueAgrupado(lista);
 }
+
+/* ============================================================
+   PESQUISA GERAL DE ITENS DO ESTOQUE (TODOS OS KPIS)
+   Permite pesquisar em todos os catálogos/KPIs por nome ou código
+   ============================================================ */
+let _filtroKpiGeralAtivo = 'todos';
+
+function abrirBuscaGeralEstoque(termoInicial = ''){
+  const modal = document.getElementById('modalBuscaGeralEstoque');
+  if(!modal) return;
+  modal.classList.add('aberto');
+  const input = document.getElementById('inputBuscaGeralEstoque');
+  if(input){
+    if(termoInicial) input.value = termoInicial;
+    setTimeout(() => { input.focus(); input.select(); }, 100);
+  }
+  _filtroKpiGeralAtivo = 'todos';
+  atualizarBotoesFiltroKpiGeral();
+  executarBuscaGeralEstoque();
+}
+
+function fecharBuscaGeralEstoque(){
+  const modal = document.getElementById('modalBuscaGeralEstoque');
+  if(modal) modal.classList.remove('aberto');
+}
+
+function limparBuscaGeralEstoque(){
+  const input = document.getElementById('inputBuscaGeralEstoque');
+  if(input){
+    input.value = '';
+    input.focus();
+  }
+  executarBuscaGeralEstoque();
+}
+
+function filtrarBuscaGeralPorKpi(tipo){
+  _filtroKpiGeralAtivo = tipo || 'todos';
+  atualizarBotoesFiltroKpiGeral();
+  executarBuscaGeralEstoque();
+}
+
+function atualizarBotoesFiltroKpiGeral(){
+  const tipos = ['todos','deposito','solicitacoes','limpeza','uniformes','escritorio','alimentos','outros','custom'];
+  tipos.forEach(t => {
+    const btn = document.getElementById('filtroKpiGeral-' + t);
+    if(btn){
+      btn.classList.toggle('ativo', _filtroKpiGeralAtivo === t);
+    }
+  });
+}
+
+function coletarTodosItensEstoqueParaBusca(){
+  const todos = [];
+
+  // 1. Depósito (mtc_estoque)
+  const itensDeposito = carregar('estoque') || [];
+  itensDeposito.forEach(i => {
+    const cod = (typeof obterCodigoSolicitacao === 'function' ? obterCodigoSolicitacao(i) : (i.codigo || '—'));
+    todos.push({
+      origem: 'deposito',
+      kpiNome: 'Depósito',
+      kpiClasse: 'tag-kpi-deposito',
+      icone: '📦',
+      id: i.id,
+      nome: i.nome || 'Sem nome',
+      codigo: (cod && cod !== '—') ? cod : (i.codigo || ''),
+      unidade: i.unidade || 'un',
+      categoria: i.categoria || 'Depósito',
+      detalhes: `Qtd atual: ${i.quantidade || 0} ${i.unidade || 'un'} · Mín: ${i.minimo || 0}`,
+      dadosOriginais: i,
+      acao: () => {
+        fecharBuscaGeralEstoque();
+        abrirDepositoTudo();
+        const b = document.getElementById('buscaDepositoTudo');
+        if(b){ b.value = i.nome || ''; renderDepositoTudo(); }
+      }
+    });
+  });
+
+  // 2. Solicitações de Materiais (mtc_solicitacoes_materiais)
+  const itensSolicitacoes = carregar('solicitacoes') || [];
+  itensSolicitacoes.forEach(i => {
+    const cod = (typeof obterCodigoSolicitacao === 'function' ? obterCodigoSolicitacao(i) : (i.codigo || '—'));
+    todos.push({
+      origem: 'solicitacoes',
+      kpiNome: 'Solicitações',
+      kpiClasse: 'tag-kpi-solicitacoes',
+      icone: '📋',
+      id: i.id,
+      nome: i.nome || 'Sem nome',
+      codigo: (cod && cod !== '—') ? cod : (i.codigo || ''),
+      unidade: i.unidade || 'un',
+      categoria: i.categoria || 'Solicitação',
+      detalhes: `Categoria: ${i.categoria || '—'} · Unidade: ${i.unidade || 'un'}`,
+      dadosOriginais: i,
+      acao: () => {
+        fecharBuscaGeralEstoque();
+        abrirEstoqueBaixo();
+      }
+    });
+  });
+
+  // 3. Material de Limpeza (mtc_materiais_catalogo)
+  const itensLimpeza = carregar('materiaisCatalogo') || [];
+  itensLimpeza.forEach(i => {
+    todos.push({
+      origem: 'limpeza',
+      kpiNome: 'Limpeza',
+      kpiClasse: 'tag-kpi-limpeza',
+      icone: '🧴',
+      id: i.id,
+      nome: i.descricaoCompleta || i.descricao || 'Sem descrição',
+      codigo: String(i.codigo || '').trim(),
+      unidade: i.unidade || 'un',
+      categoria: 'Material de Limpeza',
+      detalhes: `Código: ${i.codigo || '—'} · Unidade: ${i.unidade || '—'}${i.tipo ? ' · ' + i.tipo : ''}`,
+      dadosOriginais: i,
+      acao: () => {
+        fecharBuscaGeralEstoque();
+        abrirMateriais();
+        const b = document.getElementById('buscaMateriais');
+        if(b){ b.value = i.codigo || i.descricao || ''; renderMateriais(); }
+      }
+    });
+  });
+
+  // 4. Material de Uniforme (mtc_uniformes_catalogo)
+  const itensUniformes = carregar('uniformesCatalogo') || [];
+  itensUniformes.forEach(i => {
+    todos.push({
+      origem: 'uniformes',
+      kpiNome: 'Uniforme',
+      kpiClasse: 'tag-kpi-uniforme',
+      icone: '👕',
+      id: i.id,
+      nome: i.descricaoCompleta || i.descricao || 'Sem descrição',
+      codigo: String(i.codigo || '').trim(),
+      unidade: i.unidade || 'un',
+      categoria: i.funcao ? `Uniforme (${i.funcao})` : 'Material de Uniforme',
+      detalhes: `Código: ${i.codigo || '—'}${i.funcao ? ' · Função: ' + i.funcao : ''}${i.tipo ? ' · ' + i.tipo : ''}`,
+      dadosOriginais: i,
+      acao: () => {
+        fecharBuscaGeralEstoque();
+        abrirUniformes();
+        const b = document.getElementById('buscaUniformes');
+        if(b){ b.value = i.codigo || i.descricao || ''; renderUniformes(); }
+      }
+    });
+  });
+
+  // 5. Material de Escritório (mtc_escritorio_catalogo)
+  const itensEscritorio = carregar('escritorioCatalogo') || [];
+  itensEscritorio.forEach(i => {
+    todos.push({
+      origem: 'escritorio',
+      kpiNome: 'Escritório',
+      kpiClasse: 'tag-kpi-escritorio',
+      icone: '🖇️',
+      id: i.id,
+      nome: i.descricaoCompleta || i.descricao || 'Sem descrição',
+      codigo: String(i.codigo || '').trim(),
+      unidade: i.unidade || 'un',
+      categoria: i.categoria || 'Material de Escritório',
+      detalhes: `Código: ${i.codigo || '—'} · Categoria: ${i.categoria || '—'} · Unidade: ${i.unidade || '—'}`,
+      dadosOriginais: i,
+      acao: () => {
+        fecharBuscaGeralEstoque();
+        abrirEscritorio();
+        const b = document.getElementById('buscaEscritorio');
+        if(b){ b.value = i.codigo || i.descricao || ''; renderEscritorio(); }
+      }
+    });
+  });
+
+  // 6. Alimentos e Perecíveis
+  const itensAlimentos = (typeof listaAlimentosCompleta === 'function' ? listaAlimentosCompleta() : (ALIMENTOS_SEED || [])) || [];
+  itensAlimentos.forEach(r => {
+    todos.push({
+      origem: 'alimentos',
+      kpiNome: 'Alimentos',
+      kpiClasse: 'tag-kpi-alimentos',
+      icone: '🍽️',
+      id: 'alim_' + r[0],
+      nome: r[1] || 'Sem descrição',
+      codigo: String(r[0] || '').trim(),
+      unidade: r[3] || 'un',
+      categoria: 'Alimentos e Perecíveis',
+      detalhes: `Código: ${r[0] || '—'}${r[3] ? ' · Unidade: ' + r[3] : ''}`,
+      dadosOriginais: r,
+      acao: () => {
+        fecharBuscaGeralEstoque();
+        abrirAlimentos();
+        const b = document.getElementById('buscaAlimentos');
+        if(b){ b.value = r[0] || r[1] || ''; renderAlimentos(); }
+      }
+    });
+  });
+
+  // 7. Outros Materiais (catálogo geral de outros)
+  const removidosOutros = new Set(typeof itensRemovidosDeOutros === 'function' ? itensRemovidosDeOutros() : []);
+  const itensOutros = (OUTROS_SEED || []).filter(r => !removidosOutros.has(r[0]));
+  itensOutros.forEach(r => {
+    todos.push({
+      origem: 'outros',
+      kpiNome: 'Outros',
+      kpiClasse: 'tag-kpi-outros',
+      icone: '📦',
+      id: 'out_' + r[0],
+      nome: r[1] || 'Sem descrição',
+      codigo: String(r[0] || '').trim(),
+      unidade: r[3] || 'un',
+      categoria: r[2] ? `Grupo ${r[2]}` : 'Outros Materiais',
+      detalhes: `Código: ${r[0] || '—'} · Grupo: ${r[2] || '—'}${r[3] ? ' · Unidade: ' + r[3] : ''}`,
+      dadosOriginais: r,
+      acao: () => {
+        fecharBuscaGeralEstoque();
+        abrirOutros();
+        const b = document.getElementById('buscaOutros');
+        if(b){ b.value = r[0] || r[1] || ''; renderOutros(); }
+      }
+    });
+  });
+
+  // 8. Categorias Personalizadas / Customizadas
+  if(typeof carregarCategoriasCustom === 'function' && typeof carregarItensCustom === 'function'){
+    const categoriasCustom = carregarCategoriasCustom() || [];
+    categoriasCustom.forEach(cat => {
+      const itensCat = carregarItensCustom(cat.id) || [];
+      itensCat.forEach(r => {
+        todos.push({
+          origem: 'custom',
+          kpiNome: cat.nome || 'Custom',
+          kpiClasse: 'tag-kpi-custom',
+          icone: '🏷️',
+          id: 'custom_' + cat.id + '_' + r[0],
+          nome: r[1] || 'Sem descrição',
+          codigo: String(r[0] || '').trim(),
+          unidade: r[3] || 'un',
+          categoria: cat.nome || 'Personalizado',
+          detalhes: `Código: ${r[0] || '—'} · KPI: ${cat.nome || '—'}${r[3] ? ' · Unidade: ' + r[3] : ''}`,
+          dadosOriginais: r,
+          acao: () => {
+            fecharBuscaGeralEstoque();
+            abrirCategoriaCustom(cat.id);
+            const b = document.getElementById('buscaCategoriaCustom');
+            if(b){ b.value = r[0] || r[1] || ''; renderCategoriaCustom(); }
+          }
+        });
+      });
+    });
+  }
+
+  return todos;
+}
+
+function executarBuscaGeralEstoque(){
+  const container = document.getElementById('lista-busca-geral-estoque');
+  if(!container) return;
+
+  const input = document.getElementById('inputBuscaGeralEstoque');
+  const termo = (input ? input.value : '').trim().toLowerCase();
+
+  const todos = coletarTodosItensEstoqueParaBusca();
+
+  // Contadores por KPI
+  const contadores = {
+    todos: todos.length,
+    deposito: 0,
+    solicitacoes: 0,
+    limpeza: 0,
+    uniformes: 0,
+    escritorio: 0,
+    alimentos: 0,
+    outros: 0,
+    custom: 0
+  };
+
+  todos.forEach(item => {
+    if(contadores[item.origem] !== undefined) contadores[item.origem]++;
+  });
+
+  // Atualiza indicadores e badges de contagem
+  const elTotalCatalogo = document.getElementById('totalGeralEstoqueCatalogo');
+  if(elTotalCatalogo) elTotalCatalogo.textContent = todos.length.toLocaleString('pt-BR');
+
+  ['todos','deposito','solicitacoes','limpeza','uniformes','escritorio','alimentos','outros','custom'].forEach(t => {
+    const el = document.getElementById('contFiltroKpi-' + t);
+    if(el) el.textContent = contadores[t].toLocaleString('pt-BR');
+  });
+
+  // Aplica filtro por KPI
+  let filtrados = (_filtroKpiGeralAtivo === 'todos')
+    ? todos
+    : todos.filter(i => i.origem === _filtroKpiGeralAtivo);
+
+  // Aplica busca por nome ou código
+  if(termo){
+    filtrados = filtrados.filter(i => {
+      const nomeLower = (i.nome || '').toLowerCase();
+      const codLower = (i.codigo || '').toLowerCase();
+      const catLower = (i.categoria || '').toLowerCase();
+      return nomeLower.includes(termo) || codLower.includes(termo) || catLower.includes(termo);
+    });
+  }
+
+  const elBadgeTotal = document.getElementById('badgeTotalItensBuscaGeral');
+  if(elBadgeTotal) elBadgeTotal.textContent = `${filtrados.length} encontrado(s)`;
+
+  const elTextoResumo = document.getElementById('textoQtdResultadosBuscaGeral');
+  if(elTextoResumo){
+    if(termo){
+      elTextoResumo.innerHTML = `Resultados para "<strong>${escapeHtml(termo)}</strong>": <strong>${filtrados.length}</strong> itens`;
+    } else {
+      elTextoResumo.innerHTML = `Mostrando itens (${_filtroKpiGeralAtivo === 'todos' ? 'todos os KPIs' : 'filtro ativo'}): <strong>${filtrados.length}</strong>`;
+    }
+  }
+
+  if(filtrados.length === 0){
+    container.innerHTML = `
+      <div style="text-align:center; padding:36px 16px; background:#F8FAFC; border-radius:12px; border:1px dashed #CBD5E1; color:var(--texto-suave);">
+        <div style="font-size:32px; margin-bottom:8px;">🔍</div>
+        <strong style="display:block; font-size:15px; color:#1E293B; margin-bottom:4px;">Nenhum item encontrado</strong>
+        <span style="font-size:12.5px;">Não localizamos nenhum material ou código correspondente a "${escapeHtml(termo)}".</span>
+      </div>
+    `;
+    return;
+  }
+
+  // Limite de renderização para manter máxima fluidez
+  const LIMITE_EXIBICAO = 120;
+  const exibidos = filtrados.slice(0, LIMITE_EXIBICAO);
+
+  container.innerHTML = exibidos.map((i, index) => {
+    const cod = (i.codigo && i.codigo !== '—') ? i.codigo : '';
+    const classeTamanho = (cod && cod.length > 5) ? 'codigo-longo' : '';
+    const codExibido = cod ? escapeHtml(cod) : '—';
+    const onclickCopiar = cod
+      ? `event.stopPropagation(); copiarCodigoSolicitacao(this, '${escapeHtml(cod)}', '${escapeHtml(i.nome)}');`
+      : `event.stopPropagation(); mostrarNotificacaoPresenca('Este item não possui código cadastrado.');`;
+
+    return `
+      <div class="item-cartao ok" style="cursor:pointer; transition:all .15s ease;" onclick="window._executarAcaoItemBuscaGeral(${index})">
+        <div class="coluna-numero-chave coluna-numero-chave-copiavel" onclick="${onclickCopiar}" title="${cod ? `Clique para copiar o código: ${escapeHtml(cod)}` : 'Item sem código'}">
+          <span class="prefixo-n" style="display:flex; align-items:center; gap:2px; justify-content:center;">CÓD <span style="font-size:8px; opacity:0.8;">📋</span></span>
+          <span class="valor-numero-chave ${classeTamanho}">${codExibido}</span>
+        </div>
+        <div class="franja"></div>
+        <div class="item-corpo">
+          <div class="item-titulo" style="display:flex; align-items:flex-start; justify-content:space-between; gap:8px;">
+            <strong style="font-size:14px; color:#0F172A;">${escapeHtml(i.nome)}</strong>
+            <span class="tag-kpi-busca ${i.kpiClasse}" title="Pertence ao KPI ${escapeHtml(i.kpiNome)}">
+              <span>${i.icone}</span> ${escapeHtml(i.kpiNome)}
+            </span>
+          </div>
+          <div class="item-meta" style="margin-top:4px; font-size:12px; color:var(--texto-suave);">
+            ${escapeHtml(i.detalhes)}
+          </div>
+          <div class="item-acoes" onclick="event.stopPropagation()" style="margin-top:8px;">
+            <button type="button" class="btn btn-secundario" onclick="window._executarAcaoItemBuscaGeral(${index})" style="font-size:11.5px; padding:4px 10px;">
+              Ver no KPI (${escapeHtml(i.kpiNome)}) →
+            </button>
+            <button type="button" class="btn btn-primario" onclick="adicionarSolicitacao('${escapeHtml(i.nome)}', '${escapeHtml(i.kpiNome)}', '${escapeHtml(i.unidade || 'un')}', '${escapeHtml(cod)}')" style="font-size:11.5px; padding:4px 10px;">
+              + Solicitação de material
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('') + (filtrados.length > LIMITE_EXIBICAO
+    ? `<div class="vazio" style="text-align:center; padding:12px; font-size:12px; color:var(--texto-suave);">
+        Mostrando ${LIMITE_EXIBICAO} de ${filtrados.length.toLocaleString('pt-BR')} itens. Digite mais caracteres para refinar sua pesquisa.
+       </div>`
+    : '');
+
+  // Registra mapa de ações para os cards exibidos
+  window._itensBuscaGeralAtuais = exibidos;
+}
+
+window._executarAcaoItemBuscaGeral = function(index){
+  if(window._itensBuscaGeralAtuais && window._itensBuscaGeralAtuais[index] && typeof window._itensBuscaGeralAtuais[index].acao === 'function'){
+    window._itensBuscaGeralAtuais[index].acao();
+  }
+};
+
 
 /* ============================================================
    RENDERIZAÇÃO — EQUIPE DEM2
@@ -11523,18 +13163,25 @@ function renderTipoEquipamento(){
   const cont = document.getElementById('lista-tipo-equipamento');
   if(lista.length === 0){ cont.innerHTML = telaVazia('Nenhum equipamento cadastrado neste tipo ainda.'); return; }
   cont.innerHTML = lista.map(i => `
-    <div class="item-cartao ${i.status === 'Manutenção' ? 'alerta' : 'ok'}">
+    <div class="item-cartao ${i.status === 'Manutenção' ? 'alerta' : 'ok'}" data-equipamento-id="${i.id}" id="equipamento-card-tipo-${i.id}">
       <div class="franja"></div>
       <div class="item-corpo">
         <div class="item-titulo">
           <strong>${escapeHtml(i.nome)}</strong>
-          <span class="tag-status ${i.status === 'Manutenção' ? 'alerta' : 'ok'}">${escapeHtml(i.status||'—')}</span>
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <span class="tag-status ${i.status === 'Manutenção' ? 'alerta' : 'ok'}">${escapeHtml(i.status||'—')}</span>
+            <button type="button" class="btn-acao-cartao-qr" title="Gerar QR Code e Imprimir Etiqueta" onclick="event.stopPropagation(); fecharTipoEquipamento(); abrirModalQrEquipamento('${i.id}')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+              <span>QR Code</span>
+            </button>
+          </div>
         </div>
         <div class="item-meta">
           ${i.responsavel ? 'Responsável: ' + escapeHtml(i.responsavel) : ''}
           ${i.obs ? '<br>Obs: ' + escapeHtml(i.obs) : ''}
         </div>
         <div class="item-acoes">
+          <button type="button" class="btn-acao-cartao-qr" onclick="event.stopPropagation(); fecharTipoEquipamento(); abrirModalQrEquipamento('${i.id}')" title="Gerar QR Code">🔲 QR Code</button>
           <button onclick="fecharTipoEquipamento(); editar('equipamentos','${i.id}')">Editar</button>
         </div>
       </div>
@@ -11558,18 +13205,27 @@ function renderEquipamentos(){
   cont.innerHTML = filtrada.map(i => {
     const emAlerta = i.status === 'Manutenção' || i.status === 'Inativo';
     return `
-    <div class="item-cartao ${emAlerta ? 'alerta' : 'ok'}">
+    <div class="item-cartao ${emAlerta ? 'alerta' : 'ok'}" data-equipamento-id="${i.id}" id="equipamento-card-${i.id}">
       <div class="franja"></div>
       <div class="item-corpo">
         <div class="item-titulo">
           <strong>${escapeHtml(i.nome)}</strong>
-          <span class="tag-status ${emAlerta ? 'alerta' : (i.status === 'Em uso' ? 'neutro' : 'ok')}">${escapeHtml(i.status||'—')}</span>
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <span class="tag-status ${emAlerta ? 'alerta' : (i.status === 'Em uso' ? 'neutro' : 'ok')}">${escapeHtml(i.status||'—')}</span>
+            <button type="button" class="btn-acao-cartao-qr" title="Gerar QR Code e Imprimir Etiqueta" onclick="event.stopPropagation(); abrirModalQrEquipamento('${i.id}')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+              <span>QR Code</span>
+            </button>
+          </div>
         </div>
         <div class="item-meta">
           Tipo: ${escapeHtml(i.tipo || i.categoria || '—')} · Responsável/Local: <code>${escapeHtml(i.responsavel||'—')}</code>
+          ${i.voltagem && i.voltagem !== 'Não se aplica' ? ' · Voltagem: <code>' + escapeHtml(i.voltagem) + '</code>' : ''}
+          ${i.estado ? ' · Estado: <code>' + escapeHtml(i.estado) + '</code>' : ''}
           ${i.obs ? '<br>Obs: ' + escapeHtml(i.obs) : ''}
         </div>
         <div class="item-acoes">
+          <button type="button" class="btn-acao-cartao-qr" onclick="event.stopPropagation(); abrirModalQrEquipamento('${i.id}')" title="Gerar QR Code e Etiqueta do Equipamento">🔲 QR Code</button>
           <button onclick="editar('equipamentos','${i.id}')">Editar</button>
           <button class="excluir" onclick="excluir('equipamentos','${i.id}')">Excluir</button>
         </div>
@@ -14653,6 +16309,7 @@ recomprimirFotosChavesExistentes().then(repararCatalogosPosEspaco).catch(reparar
 atualizarSelosHub();
 aplicarAcessoRestrito();
 processarParametroUrlRadio();
+processarParametroUrlEquipamento();
 </script>
 
 <script>
@@ -14983,6 +16640,554 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
         getUsuario: () => currentUser
       };
     })();
+
+    /* ============================================================
+       GERENCIADOR DE PRESENÇA E STATUS DE PERFIS (ONLINE / OFFLINE)
+       ============================================================ */
+    window.GerenciadorPresenca = (function() {
+      const CHAVE_SESSAO_ID = 'mtc_presenca_sessao_id';
+      const CHAVE_STORAGE_PERFIS = 'mtc_presenca_perfis';
+      const LIMITE_ONLINE_MS = 75 * 1000; // 75 segundos sem heartbeat = offline
+      let sessaoId = null;
+      let intervaloHeartbeat = null;
+      let filtroAtual = 'todos';
+      let perfisServidor = [];
+
+      function obterSessaoId() {
+        if (sessaoId) return sessaoId;
+        try {
+          sessaoId = sessionStorage.getItem(CHAVE_SESSAO_ID);
+          if (!sessaoId) {
+            sessaoId = 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            sessionStorage.setItem(CHAVE_SESSAO_ID, sessaoId);
+          }
+        } catch(e) {
+          sessaoId = 'sess_' + Date.now();
+        }
+        return sessaoId;
+      }
+
+      function detectarDispositivo() {
+        try {
+          const ua = navigator.userAgent || '';
+          if (/android/i.test(ua)) return '📱 Celular (Android)';
+          if (/iphone|ipad|ipod/i.test(ua)) return '📱 Celular/Tablet (iOS)';
+          if (/tablet/i.test(ua)) return '📱 Tablet';
+          if (/windows/i.test(ua)) return '💻 PC (Windows)';
+          if (/macintosh|mac os x/i.test(ua)) return '💻 Mac';
+          if (/linux/i.test(ua)) return '💻 Linux';
+          return '🌐 Navegador Web';
+        } catch(e) {
+          return '💻 Computador';
+        }
+      }
+
+      function obterInfoMeuPerfil() {
+        const u = (window.LoginGoogleApp && typeof LoginGoogleApp.getUsuario === 'function')
+          ? LoginGoogleApp.getUsuario()
+          : null;
+        const nomeSalvo = (localStorage.getItem('painel_operador_identificacao') || '').trim();
+        let nome = 'Operador de Plantão';
+        let email = '';
+        let tipo = 'Sem Login';
+        let foto = '';
+        let uid = '';
+
+        if (u) {
+          nome = u.displayName || u.email || nomeSalvo || 'Operador de Plantão';
+          email = u.email || '';
+          uid = u.uid || '';
+          foto = u.photoURL || '';
+          if (u.isLocal) {
+            tipo = 'DEM2 (Modo Local)';
+          } else if (u.isAnonymous || u.semLogin) {
+            tipo = 'Operador (Plantão)';
+          } else if (u.email) {
+            tipo = 'Conta Google';
+          }
+        } else if (nomeSalvo) {
+          nome = nomeSalvo;
+          tipo = 'Operador Identificado';
+        }
+
+        return {
+          sessaoId: obterSessaoId(),
+          uid: uid,
+          nome: nome,
+          email: email,
+          tipo: tipo,
+          foto: foto,
+          dispositivo: detectarDispositivo(),
+          online: true,
+          ultimaAtividade: Date.now()
+        };
+      }
+
+      function salvarPerfisLocais(perfis) {
+        try {
+          localStorage.setItem(CHAVE_STORAGE_PERFIS, JSON.stringify(perfis));
+        } catch(e){}
+      }
+
+      function obterPerfisLocais() {
+        try {
+          const salvo = localStorage.getItem(CHAVE_STORAGE_PERFIS);
+          if (salvo) return JSON.parse(salvo);
+        } catch(e){}
+        return [];
+      }
+
+      async function enviarHeartbeat(onlineStatus = true) {
+        const info = obterInfoMeuPerfil();
+        info.online = onlineStatus;
+
+        // 1. Atualiza registro em localStorage para sincronia local imediata
+        let listaLocal = obterPerfisLocais();
+        const idx = listaLocal.findIndex(p => p.sessaoId === info.sessaoId);
+        if (idx >= 0) {
+          listaLocal[idx] = { ...listaLocal[idx], ...info };
+        } else {
+          listaLocal.push(info);
+        }
+        salvarPerfisLocais(listaLocal);
+
+        // 2. Notifica servidor Node / Backend se disponível
+        try {
+          if (window.location && window.location.origin && window.location.origin.startsWith('http')) {
+            const resp = await fetch('/api/presenca', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(info)
+            });
+            if (resp.ok) {
+              const dados = await resp.json();
+              if (dados && Array.isArray(dados.perfis)) {
+                atualizarPerfisServidor(dados.perfis);
+              }
+            }
+          }
+        } catch(e) {
+          // Backend indisponível ou offline: mantém modo local
+        }
+
+        atualizarCartaoMeuPerfil();
+      }
+
+      async function desconectarOffline() {
+        try {
+          const info = obterInfoMeuPerfil();
+          info.online = false;
+          let listaLocal = obterPerfisLocais();
+          const idx = listaLocal.findIndex(p => p.sessaoId === info.sessaoId);
+          if (idx >= 0) {
+            listaLocal[idx].online = false;
+            listaLocal[idx].ultimaAtividade = Date.now();
+            salvarPerfisLocais(listaLocal);
+          }
+          if (navigator.sendBeacon && window.location && window.location.origin && window.location.origin.startsWith('http')) {
+            navigator.sendBeacon('/api/presenca/offline', JSON.stringify({ sessaoId: info.sessaoId }));
+          }
+        } catch(e){}
+      }
+
+      function atualizarPerfisServidor(novosPerfis) {
+        if (Array.isArray(novosPerfis)) {
+          perfisServidor = novosPerfis;
+          salvarPerfisLocais(novosPerfis);
+          renderizarListaPerfisConectados();
+        }
+      }
+
+      function obterPerfisConsolidados() {
+        const agora = Date.now();
+        const mapa = new Map();
+
+        // Perfis cadastrados da Equipe DEM2 como base para visualização
+        const equipeCadastrada = (typeof carregar === 'function' ? carregar('equipe') : []) || [];
+        equipeCadastrada.forEach(m => {
+          if (m && m.nome && !m.nome.toLowerCase().includes('recrutamento') && !m.nome.toLowerCase().includes('terceirizado')) {
+            const idKey = 'equipe_' + (m.matricula || m.nome.trim().toLowerCase());
+            mapa.set(idKey, {
+              id: idKey,
+              nome: m.nome,
+              email: m.email || '',
+              funcao: m.funcao || 'Colaborador DEM2',
+              turno: m.turno || '',
+              horario: m.horario || '',
+              matricula: m.matricula || '',
+              dispositivo: 'App / Painel Operacional',
+              online: false,
+              tipo: m.funcao || 'Equipe DEM2',
+              ultimaAtividade: 0,
+              origem: 'equipe'
+            });
+          }
+        });
+
+        // Adiciona perfis com sessões ativas conhecidas (servidor e local)
+        const fontes = [...perfisServidor, ...obterPerfisLocais()];
+        fontes.forEach(p => {
+          if (!p || !p.nome) return;
+          const inativoMs = agora - (p.ultimaAtividade || 0);
+          const estaOnline = p.online !== false && inativoMs < LIMITE_ONLINE_MS;
+
+          // Tenta associar com membro da equipe pelo nome
+          let chaveAssociada = null;
+          for (let [k, item] of mapa.entries()) {
+            if (item.nome.trim().toLowerCase() === p.nome.trim().toLowerCase()) {
+              chaveAssociada = k;
+              break;
+            }
+          }
+
+          if (chaveAssociada) {
+            const existente = mapa.get(chaveAssociada);
+            mapa.set(chaveAssociada, {
+              ...existente,
+              ...p,
+              online: estaOnline || existente.online,
+              sessaoId: p.sessaoId || existente.sessaoId,
+              dispositivo: p.dispositivo || existente.dispositivo,
+              ultimaAtividade: Math.max(existente.ultimaAtividade || 0, p.ultimaAtividade || 0)
+            });
+          } else {
+            // Perfil independente
+            const idPerfil = p.sessaoId || p.uid || ('perfil_' + p.nome);
+            mapa.set(idPerfil, {
+              ...p,
+              id: idPerfil,
+              online: estaOnline
+            });
+          }
+        });
+
+        // Garante que o MEU perfil atual conste como Online
+        const meu = obterInfoMeuPerfil();
+        let achouMeu = false;
+        for (let [k, item] of mapa.entries()) {
+          if (item.sessaoId === meu.sessaoId || item.nome.trim().toLowerCase() === meu.nome.trim().toLowerCase()) {
+            mapa.set(k, {
+              ...item,
+              ...meu,
+              online: true,
+              souEu: true,
+              ultimaAtividade: agora
+            });
+            achouMeu = true;
+            break;
+          }
+        }
+        if (!achouMeu) {
+          mapa.set('meu_' + meu.sessaoId, {
+            ...meu,
+            id: 'meu_' + meu.sessaoId,
+            online: true,
+            souEu: true,
+            ultimaAtividade: agora
+          });
+        }
+
+        // Ordena: Meu perfil primeiro, depois Onlines, depois mais recentes, depois ordem alfabética
+        return Array.from(mapa.values()).sort((a, b) => {
+          if (a.souEu && !b.souEu) return -1;
+          if (!a.souEu && b.souEu) return 1;
+          if (a.online && !b.online) return -1;
+          if (!a.online && b.online) return 1;
+          if ((b.ultimaAtividade || 0) !== (a.ultimaAtividade || 0)) {
+            return (b.ultimaAtividade || 0) - (a.ultimaAtividade || 0);
+          }
+          return (a.nome || '').localeCompare(b.nome || '');
+        });
+      }
+
+      function atualizarCartaoMeuPerfil() {
+        const meu = obterInfoMeuPerfil();
+        const elNome = document.getElementById('nomeMeuPerfil');
+        const elEmail = document.getElementById('emailMeuPerfil');
+        const elTipo = document.getElementById('tagTipoMeuPerfil');
+        const elDisp = document.getElementById('dispositivoMeuPerfil');
+        const elAvatar = document.getElementById('avatarMeuPerfil');
+
+        if (elNome) elNome.textContent = meu.nome;
+        if (elEmail) elEmail.textContent = meu.email || 'Identificado no aparelho';
+        if (elTipo) elTipo.textContent = meu.tipo;
+        if (elDisp) elDisp.textContent = meu.dispositivo;
+        if (elAvatar) {
+          if (meu.foto) {
+            elAvatar.innerHTML = `<img src="${meu.foto}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt="Avatar">`;
+          } else {
+            const inicial = (meu.nome || 'O').trim().charAt(0).toUpperCase();
+            elAvatar.textContent = inicial;
+          }
+        }
+      }
+
+      function formatarTempoDecorrido(ms) {
+        if (!ms || ms <= 0) return 'Recentemente';
+        const seg = Math.floor(ms / 1000);
+        if (seg < 60) return `há ${seg}s`;
+        const min = Math.floor(seg / 60);
+        if (min < 60) return `há ${min} min`;
+        const horas = Math.floor(min / 60);
+        if (horas < 24) return `há ${horas}h`;
+        const dias = Math.floor(horas / 24);
+        return `há ${dias}d`;
+      }
+
+      function renderizarLista() {
+        const container = document.getElementById('listaPerfisConectadosContainer');
+        if (!container) return;
+
+        atualizarCartaoMeuPerfil();
+
+        const buscaInput = document.getElementById('buscaPerfisConectados');
+        const termoBusca = (buscaInput ? buscaInput.value : '').trim().toLowerCase();
+
+        const todosPerfis = obterPerfisConsolidados();
+        const agora = Date.now();
+
+        // Contagens para os botões de filtro
+        let qtdOnline = 0;
+        let qtdOffline = 0;
+        todosPerfis.forEach(p => {
+          if (p.online) qtdOnline++;
+          else qtdOffline++;
+        });
+
+        const elBadgeOnline = document.getElementById('badgePerfisOnlineTotal');
+        const elTxtQtdOnline = document.getElementById('txtQtdOnlineTopo');
+        const elCountTodos = document.getElementById('countFiltroTodos');
+        const elCountOnline = document.getElementById('countFiltroOnline');
+        const elCountOffline = document.getElementById('countFiltroOffline');
+        const elUltimoSinc = document.getElementById('txtUltimoSincPresenca');
+
+        if (elCountTodos) elCountTodos.textContent = todosPerfis.length;
+        if (elCountOnline) elCountOnline.textContent = qtdOnline;
+        if (elCountOffline) elCountOffline.textContent = qtdOffline;
+        if (elTxtQtdOnline) elTxtQtdOnline.textContent = `${qtdOnline} Online`;
+        if (elBadgeOnline) {
+          elBadgeOnline.style.background = qtdOnline > 0 ? '#DCFCE7' : '#F1F5F9';
+          elBadgeOnline.style.color = qtdOnline > 0 ? '#15803D' : '#64748B';
+          elBadgeOnline.style.borderColor = qtdOnline > 0 ? '#86EFAC' : '#CBD5E1';
+        }
+        if (elUltimoSinc) {
+          elUltimoSinc.textContent = 'Atualizado às ' + new Date().toLocaleTimeString('pt-BR');
+        }
+
+        // Filtra perfis pela aba selecionada e busca
+        const filtrados = todosPerfis.filter(p => {
+          if (filtroAtual === 'online' && !p.online) return false;
+          if (filtroAtual === 'offline' && p.online) return false;
+          if (termoBusca) {
+            const texto = [p.nome, p.email, p.funcao, p.turno, p.dispositivo, p.tipo, p.matricula].filter(Boolean).join(' ').toLowerCase();
+            if (!texto.includes(termoBusca)) return false;
+          }
+          return true;
+        });
+
+        if (filtrados.length === 0) {
+          container.innerHTML = `
+            <div style="text-align:center; padding:32px 16px; background:#F8FAFC; border-radius:10px; border:1px dashed #CBD5E1; color:var(--texto-suave);">
+              <div style="font-size:26px; margin-bottom:6px;">🔍</div>
+              <strong style="display:block; font-size:13.5px; color:#334155;">Nenhum perfil encontrado</strong>
+              <span style="font-size:12px;">Não foram localizados operadores com os filtros informados.</span>
+            </div>
+          `;
+          return;
+        }
+
+        let html = '';
+        filtrados.forEach(p => {
+          const estaOnline = !!p.online;
+          const statusClass = estaOnline ? 'online' : 'offline';
+          const inicial = (p.nome || 'O').trim().charAt(0).toUpperCase();
+          const avatarBg = estaOnline ? '#0A2647' : '#64748B';
+          const tempoAtivo = p.ultimaAtividade > 0 ? formatarTempoDecorrido(agora - p.ultimaAtividade) : 'Sem registro recente';
+          const subInfo = [
+            p.funcao || p.tipo || 'Operador',
+            p.turno ? `Turno: ${p.turno}` : null,
+            p.matricula ? `Matrícula: ${p.matricula}` : null,
+            p.email || null,
+            p.dispositivo || 'Computador'
+          ].filter(Boolean).join(' • ');
+
+          html += `
+            <div class="card-perfil-item ${statusClass}" style="position:relative;">
+              <div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">
+                <div style="position:relative; flex-shrink:0;">
+                  <div style="width:38px; height:38px; border-radius:50%; background:${avatarBg}; color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700;">
+                    ${p.foto ? `<img src="${p.foto}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;" alt="Avatar">` : inicial}
+                  </div>
+                  <span class="${estaOnline ? 'ponto-status-verde' : 'ponto-status-cinza'}" style="position:absolute; bottom:-1px; right:-1px; width:10px; height:10px; border:2px solid #fff;"></span>
+                </div>
+                <div style="min-width:0; flex:1;">
+                  <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                    <strong style="font-size:14px; color:#0F172A; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:260px;">${escapeHtml(p.nome)}</strong>
+                    ${p.souEu ? '<span style="background:#2563EB; color:#fff; font-size:9px; font-weight:700; padding:1px 5px; border-radius:3px; text-transform:uppercase;">Você</span>' : ''}
+                    <span style="font-size:10.5px; padding:1px 6px; border-radius:4px; background:#F1F5F9; color:#475569; font-weight:600;">${escapeHtml(p.funcao || p.tipo || 'Operador')}</span>
+                  </div>
+                  <div style="font-size:11px; color:var(--texto-suave); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;">
+                    ${escapeHtml(subInfo)}
+                  </div>
+                </div>
+              </div>
+
+              <div style="display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex-shrink:0;">
+                ${estaOnline
+                  ? `<span class="badge-status-online"><span class="ponto-status-verde" style="width:6px; height:6px;"></span>Online agora</span>`
+                  : `<span class="badge-status-offline"><span class="ponto-status-cinza" style="width:6px; height:6px;"></span>Offline (${tempoAtivo})</span>`
+                }
+                <span style="font-size:10.5px; color:#94A3B8;">${p.dispositivo ? escapeHtml(p.dispositivo) : 'Sistema'}</span>
+              </div>
+            </div>
+          `;
+        });
+
+        container.innerHTML = html;
+      }
+
+      function definirFiltro(tipo) {
+        filtroAtual = tipo;
+        ['filtroPresencaTodos', 'filtroPresencaOnline', 'filtroPresencaOffline'].forEach(id => {
+          const btn = document.getElementById(id);
+          if (btn) btn.classList.remove('ativo');
+        });
+        if (tipo === 'todos') {
+          const b = document.getElementById('filtroPresencaTodos');
+          if (b) b.classList.add('ativo');
+        } else if (tipo === 'online') {
+          const b = document.getElementById('filtroPresencaOnline');
+          if (b) b.classList.add('ativo');
+        } else if (tipo === 'offline') {
+          const b = document.getElementById('filtroPresencaOffline');
+          if (b) b.classList.add('ativo');
+        }
+        renderizarLista();
+      }
+
+      function iniciar() {
+        obterSessaoId();
+        enviarHeartbeat(true);
+
+        // Heartbeat periódico a cada 25 segundos
+        if (intervaloHeartbeat) clearInterval(intervaloHeartbeat);
+        intervaloHeartbeat = setInterval(() => {
+          enviarHeartbeat(true);
+        }, 25000);
+
+        // Eventos de presença na janela
+        window.addEventListener('beforeunload', () => {
+          desconectarOffline();
+        });
+        window.addEventListener('pagehide', () => {
+          desconectarOffline();
+        });
+        window.addEventListener('focus', () => {
+          enviarHeartbeat(true);
+        });
+      }
+
+      return {
+        iniciar,
+        enviarHeartbeat,
+        atualizarPerfisServidor,
+        notificarMudancaPresenca: () => {
+          renderizarLista();
+        },
+        renderizarLista,
+        definirFiltro,
+        forcarAtualizacao: async () => {
+          await enviarHeartbeat(true);
+          renderizarLista();
+        }
+      };
+    })();
+
+    /* Funções globais chamadas pelos botões do HTML */
+    window.abrirModalPerfisConectados = function() {
+      const modal = document.getElementById('modalPerfisConectados');
+      if (modal) {
+        modal.style.display = 'flex';
+        GerenciadorPresenca.enviarHeartbeat(true);
+        GerenciadorPresenca.renderizarLista();
+      }
+    };
+
+    window.fecharModalPerfisConectados = function() {
+      const modal = document.getElementById('modalPerfisConectados');
+      if (modal) modal.style.display = 'none';
+      alternarFormEdicaoMeuNome(false);
+    };
+
+    window.renderizarListaPerfisConectados = function() {
+      GerenciadorPresenca.renderizarLista();
+    };
+
+    window.definirFiltroPresenca = function(tipo) {
+      GerenciadorPresenca.definirFiltro(tipo);
+    };
+
+    window.forcarAtualizacaoPresenca = function() {
+      GerenciadorPresenca.forcarAtualizacao();
+    };
+
+    window.alternarFormEdicaoMeuNome = function(forcar) {
+      const box = document.getElementById('boxEdicaoMeuNome');
+      const input = document.getElementById('inputNovoNomeOperador');
+      if (!box) return;
+      const deveAbrir = (typeof forcar === 'boolean') ? forcar : (box.style.display === 'none' || !box.style.display);
+      box.style.display = deveAbrir ? 'block' : 'none';
+      if (deveAbrir && input) {
+        const u = (window.LoginGoogleApp && typeof LoginGoogleApp.getUsuario === 'function')
+          ? LoginGoogleApp.getUsuario()
+          : null;
+        input.value = (u && u.displayName) ? u.displayName : (localStorage.getItem('painel_operador_identificacao') || '');
+        setTimeout(() => input.focus(), 50);
+      }
+    };
+
+    window.salvarNovoNomeOperadorModal = function() {
+      const input = document.getElementById('inputNovoNomeOperador');
+      if (!input) return;
+      const novoNome = input.value.trim();
+      if (!novoNome) {
+        alert('Por favor, informe um nome ou apelido para identificação.');
+        input.focus();
+        return;
+      }
+      localStorage.setItem('painel_operador_identificacao', novoNome);
+      const u = (window.LoginGoogleApp && typeof LoginGoogleApp.getUsuario === 'function')
+        ? LoginGoogleApp.getUsuario()
+        : null;
+      if (u) {
+        u.displayName = novoNome;
+        try { localStorage.setItem('painel_usuario_google', JSON.stringify(u)); } catch(e){}
+      } else {
+        const novoUser = {
+          uid: 'custom_' + Date.now(),
+          displayName: novoNome,
+          isCustom: true,
+          semLogin: true
+        };
+        try { localStorage.setItem('painel_usuario_google', JSON.stringify(novoUser)); } catch(e){}
+      }
+
+      // Atualiza badge no topo da página
+      const topoNome = document.getElementById('usuarioGoogleNome');
+      if (topoNome) topoNome.textContent = novoNome.split(' ')[0].slice(0, 14);
+
+      alternarFormEdicaoMeuNome(false);
+      GerenciadorPresenca.enviarHeartbeat(true);
+      GerenciadorPresenca.renderizarLista();
+      if (typeof renderAtividadeSemanal === 'function') renderAtividadeSemanal();
+    };
+
+    // Inicialização do Gerenciador de Presença
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => GerenciadorPresenca.iniciar());
+    } else {
+      GerenciadorPresenca.iniciar();
+    }
   </script>
 </body>
 </html>

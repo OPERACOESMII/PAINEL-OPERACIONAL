@@ -36,6 +36,44 @@ try {
 }
 
 let clientesSse = [];
+let presencaPerfis = {};
+
+// Retorna lista com status online/offline calculado pelo tempo de heartbeat
+function obterListaPresenca() {
+  const agora = Date.now();
+  const LIMITE_ONLINE_MS = 75 * 1000; // 75 segundos
+  const lista = Object.values(presencaPerfis).map(p => {
+    const inativoMs = agora - (p.ultimaAtividade || 0);
+    const estaOnline = p.online !== false && inativoMs < LIMITE_ONLINE_MS;
+    return {
+      ...p,
+      online: estaOnline,
+      tempoInativoSegundos: Math.floor(inativoMs / 1000)
+    };
+  });
+  return lista.sort((a, b) => {
+    if (a.online && !b.online) return -1;
+    if (!a.online && b.online) return 1;
+    return (b.ultimaAtividade || 0) - (a.ultimaAtividade || 0);
+  });
+}
+
+function transmitirPresenca() {
+  const lista = obterListaPresenca();
+  const payload = JSON.stringify(lista);
+  clientesSse.forEach(c => {
+    try {
+      c.write(`event: presenca\ndata: ${payload}\n\n`);
+    } catch(e){}
+  });
+}
+
+// Limpeza periódica para transmitir transições de online -> offline
+setInterval(() => {
+  if (clientesSse.length > 0 && Object.keys(presencaPerfis).length > 0) {
+    transmitirPresenca();
+  }
+}, 30000);
 
 app.all('/painel_minas_ii.json', (req, res) => {
   if (req.method === 'GET') {
@@ -45,6 +83,7 @@ app.all('/painel_minas_ii.json', (req, res) => {
       res.setHeader('Connection', 'keep-alive');
       res.flushHeaders?.();
       res.write(`event: put\ndata: ${JSON.stringify({ path: '/', data: dadosNuvemLocal || {} })}\n\n`);
+      res.write(`event: presenca\ndata: ${JSON.stringify(obterListaPresenca())}\n\n`);
       clientesSse.push(res);
       req.on('close', () => {
         clientesSse = clientesSse.filter(c => c !== res);
@@ -74,6 +113,55 @@ app.all('/painel_minas_ii.json', (req, res) => {
   }
 
   res.sendStatus(405);
+});
+
+// Endpoint para consulta de presença e perfis conectados
+app.get('/api/presenca', (req, res) => {
+  res.json(obterListaPresenca());
+});
+
+// Heartbeat de presença de um perfil
+app.post('/api/presenca', (req, res) => {
+  let body = req.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch(e){}
+  }
+  if (!body || !body.sessaoId) {
+    return res.status(400).json({ error: 'sessaoId obrigatorio' });
+  }
+
+  const agora = Date.now();
+  const sessaoId = body.sessaoId;
+
+  presencaPerfis[sessaoId] = {
+    sessaoId: sessaoId,
+    uid: body.uid || '',
+    nome: body.nome || 'Operador',
+    email: body.email || '',
+    tipo: body.tipo || 'Operador',
+    foto: body.foto || '',
+    dispositivo: body.dispositivo || 'Navegador Web',
+    online: body.online !== false,
+    ultimaAtividade: agora,
+    conectadoEm: presencaPerfis[sessaoId]?.conectadoEm || agora
+  };
+
+  transmitirPresenca();
+  res.json({ ok: true, perfis: obterListaPresenca() });
+});
+
+// Desconexão manual imediata (offline)
+app.post('/api/presenca/offline', (req, res) => {
+  let body = req.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch(e){}
+  }
+  if (body && body.sessaoId && presencaPerfis[body.sessaoId]) {
+    presencaPerfis[body.sessaoId].online = false;
+    presencaPerfis[body.sessaoId].ultimaAtividade = Date.now();
+    transmitirPresenca();
+  }
+  res.json({ ok: true });
 });
 
 // Serve static assets from project root
