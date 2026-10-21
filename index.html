@@ -2405,6 +2405,22 @@ function restaurarManualNuvem(){
     padding: 6px 10px;
     gap: 10px;
   }
+  .etiqueta-radio-card.tam-pequeno {
+    width: 170px;
+    min-height: 72px;
+    padding: 5px 8px;
+    gap: 8px;
+    border-width: 1.5px;
+    border-radius: 6px;
+  }
+  .etiqueta-radio-card.tam-mini {
+    width: 135px;
+    min-height: 58px;
+    padding: 4px 6px;
+    gap: 6px;
+    border-width: 1.5px;
+    border-radius: 5px;
+  }
 
   .etiqueta-radio-qr-svg {
     flex-shrink: 0;
@@ -2433,6 +2449,14 @@ function restaurarManualNuvem(){
   .etiqueta-radio-card.tam-compacto .etiqueta-radio-qr-svg {
     width: 80px;
     height: 80px;
+  }
+  .etiqueta-radio-card.tam-pequeno .etiqueta-radio-qr-svg {
+    width: 62px;
+    height: 62px;
+  }
+  .etiqueta-radio-card.tam-mini .etiqueta-radio-qr-svg {
+    width: 48px;
+    height: 48px;
   }
 
   /* Animações e Mira do Scanner de QR Code com Câmera */
@@ -2471,6 +2495,17 @@ function restaurarManualNuvem(){
     margin-bottom: 2px;
     line-height: 1;
   }
+  .etiqueta-radio-card.tam-pequeno .etiqueta-radio-setor-rotulo {
+    font-size: 8px;
+    letter-spacing: 0.5px;
+    margin-bottom: 1px;
+  }
+  .etiqueta-radio-card.tam-mini .etiqueta-radio-setor-rotulo {
+    font-size: 7px;
+    letter-spacing: 0.4px;
+    margin-bottom: 1px;
+  }
+
   .etiqueta-radio-setor-nome {
     font-size: 19px;
     font-weight: 900;
@@ -2485,6 +2520,14 @@ function restaurarManualNuvem(){
   }
   .etiqueta-radio-card.tam-compacto .etiqueta-radio-setor-nome {
     font-size: 14.5px;
+  }
+  .etiqueta-radio-card.tam-pequeno .etiqueta-radio-setor-nome {
+    font-size: 12px;
+    line-height: 1.1;
+  }
+  .etiqueta-radio-card.tam-mini .etiqueta-radio-setor-nome {
+    font-size: 10px;
+    line-height: 1.05;
   }
 
   /* Visualização da Etiqueta Adesiva de Equipamento */
@@ -2712,6 +2755,14 @@ function restaurarManualNuvem(){
       grid-template-columns: repeat(4, 1fr) !important;
       gap: 3mm !important;
     }
+    .folha-grade-etiquetas.pequena {
+      grid-template-columns: repeat(5, 1fr) !important;
+      gap: 2.5mm !important;
+    }
+    .folha-grade-etiquetas.mini {
+      grid-template-columns: repeat(6, 1fr) !important;
+      gap: 2mm !important;
+    }
     .folha-grade-etiquetas.vertical {
       grid-template-columns: repeat(4, 1fr) !important;
       gap: 4mm !important;
@@ -2806,6 +2857,57 @@ function restaurarManualNuvem(){
     border-radius: 12px;
     font-size: 11px;
     font-weight: 600;
+  }
+
+  /* Estilos do Modal de STATUS da Equipe DEM2 */
+  .card-status-colab {
+    background: var(--cartao);
+    border: 1px solid var(--borda);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: all .18s ease;
+  }
+  .card-status-colab:hover {
+    border-color: var(--verde-800);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.06);
+  }
+  .card-status-colab.top-1 {
+    border-left: 4px solid #10B981;
+    background: linear-gradient(to right, rgba(16,185,129,0.04), var(--cartao));
+  }
+  .card-status-colab.ausente-alerta {
+    border-left: 4px solid #EF4444;
+  }
+  .card-status-colab.atestado-alerta {
+    border-left: 4px solid #3B82F6;
+  }
+  .barra-progresso-frequencia-trilha {
+    width: 100%;
+    height: 6px;
+    background: #E2E8F0;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .barra-progresso-frequencia-valor {
+    height: 100%;
+    border-radius: 3px;
+    transition: width .3s ease;
+  }
+  .detalhes-historico-colab {
+    background: var(--fundo);
+    border: 1px dashed var(--borda);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 11.5px;
+    margin-top: 6px;
+    display: none;
+  }
+  .detalhes-historico-colab.aberto {
+    display: block;
   }
 
   /* PESQUISA GERAL DE ITENS DO ESTOQUE (TODOS OS KPIS) */
@@ -3091,6 +3193,8 @@ function restaurarManualNuvem(){
         <button type="button" class="seletor-tam-btn ativo" id="btnTamPadrao" onclick="definirTamanhoEtiqueta('padrao')">Padrão Horizontal (60 × 30 mm)</button>
         <button type="button" class="seletor-tam-btn" id="btnTamVertical" onclick="definirTamanhoEtiqueta('vertical')">Vertical (45 × 50 mm)</button>
         <button type="button" class="seletor-tam-btn" id="btnTamCompacto" onclick="definirTamanhoEtiqueta('compacto')">Compacto (40 × 20 mm)</button>
+        <button type="button" class="seletor-tam-btn" id="btnTamPequeno" onclick="definirTamanhoEtiqueta('pequeno')">Pequeno (35 × 18 mm)</button>
+        <button type="button" class="seletor-tam-btn" id="btnTamMini" onclick="definirTamanhoEtiqueta('mini')">Mini / Micro (28 × 14 mm)</button>
       </div>
       <div class="linha-opcoes-etiqueta" style="margin-bottom:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
         <span style="font-weight:700; color:var(--texto);">Conteúdo do QR:</span>
@@ -3198,6 +3302,8 @@ function restaurarManualNuvem(){
             <option value="padrao">Folha A4 — Grade Horizontal (60 × 30 mm)</option>
             <option value="vertical">Folha A4 — Grade Vertical (45 × 50 mm)</option>
             <option value="compacta">Folha A4 — Grade Compacta (40 × 20 mm)</option>
+            <option value="pequeno">Folha A4 — Grade Pequena (35 × 18 mm)</option>
+            <option value="mini">Folha A4 — Grade Mini / Micro (28 × 14 mm)</option>
             <option value="rolo">Fita Contínua / Impressora Térmica</option>
           </select>
         </div>
@@ -3569,6 +3675,111 @@ function restaurarManualNuvem(){
 
     <!-- Lista de Colaboradores Agrupados/Filtrados -->
     <div class="lista-cartoes" id="lista-colaboradores-funcao"></div>
+  </div>
+</div>
+
+<!-- MODAL DE STATUS DA EQUIPE DEM2 (Frequentes, Ausentes, Atestados) -->
+<div class="modal-fundo" id="modalStatusEquipe" onclick="if(event.target===this) fecharModalStatusEquipe()">
+  <div class="modal-caixa" style="max-width:820px; width:95%;">
+    <div class="modal-cabecalho" style="align-items:flex-start; margin-bottom:12px;">
+      <div>
+        <h3 id="modalStatusEquipeTitulo" style="font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:0.5px; color:var(--verde-800); margin:0; display:flex; align-items:center; gap:8px;">
+          <span>STATUS DE ASSIDUIDADE · EQUIPE DEM2</span>
+          <span style="font-family:Inter,sans-serif; font-size:11px; font-weight:700; background:rgba(16,185,129,0.12); color:var(--verde-800); border:1px solid rgba(16,185,129,0.3); padding:2px 8px; border-radius:12px; letter-spacing:0;">KPI STATUS</span>
+        </h3>
+        <p style="font-size:12px; color:var(--texto-suave); margin:3px 0 0;">
+          Ranking dos colaboradores mais frequentes, maiores índices de ausências e controle de atestados médicos
+        </p>
+      </div>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <button type="button" class="btn btn-secundario" onclick="copiarRelatorioStatusEquipe()" style="font-size:11.5px; padding:4px 9px;" title="Copiar resumo do relatório de status">
+          📋 Copiar Relatório
+        </button>
+        <button class="modal-fechar" onclick="fecharModalStatusEquipe()" style="margin-top:2px;">✕</button>
+      </div>
+    </div>
+
+    <!-- Barra de Filtros: Período, Turno e Busca -->
+    <div style="background:var(--fundo-alt); border:1px solid var(--borda); border-radius:10px; padding:10px 12px; margin-bottom:14px; display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between;">
+      <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; flex:1; min-width:240px;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:11.5px; font-weight:700; color:var(--texto-suave);">Período:</span>
+          <select id="selectPeriodoStatusEquipe" onchange="renderModalStatusEquipe()" style="padding:4px 8px; font-size:12px; border-radius:6px; border:1px solid var(--borda); background:var(--fundo); color:var(--texto);">
+            <option value="mesAtual" selected>Este mês</option>
+            <option value="30d">Últimos 30 dias</option>
+            <option value="60d">Últimos 60 dias</option>
+            <option value="todo">Todo o histórico</option>
+          </select>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:11.5px; font-weight:700; color:var(--texto-suave);">Turno:</span>
+          <select id="selectTurnoStatusEquipe" onchange="renderModalStatusEquipe()" style="padding:4px 8px; font-size:12px; border-radius:6px; border:1px solid var(--borda); background:var(--fundo); color:var(--texto);">
+            <option value="todos">Todos os turnos</option>
+            <option value="Plantão A">Plantão A</option>
+            <option value="Plantão B">Plantão B</option>
+            <option value="Manhã">Manhã</option>
+            <option value="Tarde">Tarde</option>
+            <option value="Noite">Noite</option>
+          </select>
+        </div>
+      </div>
+      <div style="flex:1; min-width:200px;">
+        <input type="search" id="buscaStatusEquipe" placeholder="Buscar por colaborador..." oninput="renderModalStatusEquipe()" style="width:100%; padding:6px 10px; border:1px solid var(--borda); border-radius:6px; font-size:12px; background:var(--fundo); color:var(--texto);">
+      </div>
+    </div>
+
+    <!-- 4 Mini KPIs de Destaque no Topo do Modal -->
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:10px; margin-bottom:14px;">
+      <!-- Mais Frequente -->
+      <div class="kpi" style="padding:10px; text-align:left; border-left:4px solid #10B981; cursor:pointer;" onclick="selecionarAbaStatusEquipe('frequentes')">
+        <div style="font-size:11px; font-weight:700; color:#059669; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px;">🏆 Mais Frequente</div>
+        <div id="kpiStatusMaisFrequenteNome" style="font-size:13.5px; font-weight:800; color:var(--texto); line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">—</div>
+        <div id="kpiStatusMaisFrequenteSub" style="font-size:11px; color:var(--texto-suave); margin-top:2px;">0 presenças</div>
+      </div>
+
+      <!-- Mais Ausente -->
+      <div class="kpi" style="padding:10px; text-align:left; border-left:4px solid #EF4444; cursor:pointer;" onclick="selecionarAbaStatusEquipe('ausentes')">
+        <div style="font-size:11px; font-weight:700; color:#DC2626; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px;">⚠️ Mais Ausente</div>
+        <div id="kpiStatusMaisAusenteNome" style="font-size:13.5px; font-weight:800; color:var(--texto); line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">—</div>
+        <div id="kpiStatusMaisAusenteSub" style="font-size:11px; color:var(--texto-suave); margin-top:2px;">0 faltas</div>
+      </div>
+
+      <!-- Mais Atestados -->
+      <div class="kpi" style="padding:10px; text-align:left; border-left:4px solid #3B82F6; cursor:pointer;" onclick="selecionarAbaStatusEquipe('atestados')">
+        <div style="font-size:11px; font-weight:700; color:#2563EB; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px;">🩺 Mais Atestados</div>
+        <div id="kpiStatusMaisAtestadosNome" style="font-size:13.5px; font-weight:800; color:var(--texto); line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">—</div>
+        <div id="kpiStatusMaisAtestadosSub" style="font-size:11px; color:var(--texto-suave); margin-top:2px;">0 atestados</div>
+      </div>
+
+      <!-- Assiduidade Geral -->
+      <div class="kpi" style="padding:10px; text-align:left; border-left:4px solid #8B5CF6; cursor:pointer;" onclick="selecionarAbaStatusEquipe('geral')">
+        <div style="font-size:11px; font-weight:700; color:#7C3AED; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:2px;">📈 Assiduidade Geral</div>
+        <div id="kpiStatusTaxaGeral" style="font-size:18px; font-weight:900; color:var(--texto); line-height:1.2;">100%</div>
+        <div id="kpiStatusTotalRegistros" style="font-size:11px; color:var(--texto-suave); margin-top:2px;">0 registros</div>
+      </div>
+    </div>
+
+    <!-- Abas de Navegação -->
+    <div style="display:flex; gap:6px; margin-bottom:12px; border-bottom:1px solid var(--borda); padding-bottom:8px; overflow-x:auto;">
+      <button type="button" class="btn-chip ativo" id="abaStatusFrequentes" onclick="selecionarAbaStatusEquipe('frequentes')">
+        🏆 Mais Frequentes (<span id="contStatusFrequentes">0</span>)
+      </button>
+      <button type="button" class="btn-chip" id="abaStatusAusentes" onclick="selecionarAbaStatusEquipe('ausentes')">
+        ⚠️ Mais Ausentes (<span id="contStatusAusentes">0</span>)
+      </button>
+      <button type="button" class="btn-chip" id="abaStatusAtestados" onclick="selecionarAbaStatusEquipe('atestados')">
+        🩺 Mais Atestados (<span id="contStatusAtestados">0</span>)
+      </button>
+      <button type="button" class="btn-chip" id="abaStatusGeral" onclick="selecionarAbaStatusEquipe('geral')">
+        📋 Visão Completa (<span id="contStatusGeral">0</span>)
+      </button>
+    </div>
+
+    <!-- Subtítulo e Dica da Aba Ativa -->
+    <div id="infoAbaStatusEquipe" style="font-size:12px; color:var(--texto-suave); margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;"></div>
+
+    <!-- Lista de Colaboradores Renderizados -->
+    <div class="lista-cartoes" id="listaStatusEquipe" style="max-height:55vh; overflow-y:auto; padding-right:4px;"></div>
   </div>
 </div>
 
@@ -4581,15 +4792,20 @@ function restaurarManualNuvem(){
   <!-- ============ EQUIPE DEM2 ============ -->
   <section class="secao" id="secao-equipe">
     <div class="cabecalho-secao"><h2>Equipe DEM2</h2></div>
-    <div class="kpis" style="grid-template-columns:repeat(2,1fr);">
+    <div class="kpis" style="grid-template-columns:repeat(auto-fit, minmax(135px, 1fr));">
       <div class="kpi" style="cursor:pointer;" onclick="abrirColaboradoresPorFuncao()" title="Clique para ver todos os colaboradores separados por função (Encarregados, ASG, Apoios, etc.)"><div class="valor" id="kpiEquipeTotal">0</div><div class="rotulo">Colaboradores (por função) 👥</div></div>
       <div class="kpi" style="cursor:pointer;" onclick="abrirPlantao('A')"><div class="valor" id="kpiEquipeManha">0</div><div class="rotulo">Plantão A</div></div>
       <div class="kpi" style="cursor:pointer;" onclick="abrirPlantao('B')"><div class="valor" id="kpiEquipeTarde">0</div><div class="rotulo">Plantão B</div></div>
       <div class="kpi" style="cursor:pointer;" onclick="abrirVagas()"><div class="valor" id="kpiEquipeVagas">0</div><div class="rotulo">Aguardando recrutamento</div></div>
+      <div class="kpi kpi-status-equipe" id="kpiCardStatusEquipe" style="cursor:pointer; background:linear-gradient(135deg, rgba(16,185,129,0.08), rgba(2,132,199,0.08)); border:1.5px solid rgba(16,185,129,0.4);" onclick="abrirModalStatusEquipe()" title="Clique para ver o painel STATUS: Mais frequentes, mais ausentes e mais atestados">
+        <div class="valor" id="kpiEquipeStatus" style="font-size:18px; color:var(--verde-800); display:flex; align-items:center; justify-content:center; gap:4px;">📊 STATUS</div>
+        <div class="rotulo" id="rotuloKpiStatus">Frequência · Ausências · Atestados</div>
+      </div>
     </div>
     <div class="barra-acoes">
       <div class="campo-busca"><input type="search" id="buscaEquipe" placeholder="Buscar por nome ou função..." oninput="renderEquipe()"></div>
       <button class="btn btn-primario" onclick="novoForm('equipe')">+ Colaborador</button>
+      <button class="btn btn-secundario" onclick="abrirModalStatusEquipe()" style="font-weight:700; color:var(--verde-900); border-color:var(--verde-800); display:inline-flex; align-items:center; gap:5px;" title="Ver ranking de colaboradores mais frequentes, mais ausentes e com mais atestados">📊 STATUS</button>
       <button class="btn btn-secundario" onclick="abrirColaboradoresPorFuncao()" title="Ver quadro completo de colaboradores separados por função">👥 Ver por Função</button>
       <button class="btn btn-secundario" onclick="abrirAtribuicaoPlantao()">Atribuir Plantão</button>
       <button class="btn btn-secundario" onclick="compartilhar('equipe')">Compartilhar</button>
@@ -6696,14 +6912,30 @@ function gerarDataUrlQrRadio(texto, tamanhoDesejado){
 // Monta o cartão físico adesivo (contendo apenas QR Code + Nome do Setor)
 function montarHtmlEtiquetaRadio(r, opcoes){
   if(!r) return '';
-  opcoes = opcoes || {};
-  const formato = opcoes.formato || window.formatoEtiquetaRadioAtivo || 'padrao';
+  const formatoBruto = opcoes.formato || window.formatoEtiquetaRadioAtivo || 'padrao';
+  let formato = formatoBruto;
+  if(formato === 'compacta') formato = 'compacto';
+  if(formato === 'pequena') formato = 'pequeno';
   const tipo = opcoes.tipoPayload || window.tipoPayloadQrAtivo || 'url';
 
   const payload = gerarPayloadRadio(r, tipo);
-  const cellSize = formato === 'compacto' ? 2 : (formato === 'vertical' ? 4 : 3);
-  const qrSvg = gerarSvgQrRadio(payload, cellSize, 4);
+  let cellSize = 3;
+  let quietZone = 4;
+  if(formato === 'mini'){
+    cellSize = 1;
+    quietZone = 2;
+  } else if(formato === 'pequeno'){
+    cellSize = 2;
+    quietZone = 3;
+  } else if(formato === 'compacto'){
+    cellSize = 2;
+    quietZone = 4;
+  } else if(formato === 'vertical'){
+    cellSize = 4;
+    quietZone = 4;
+  }
 
+  const qrSvg = gerarSvgQrRadio(payload, cellSize, quietZone);
   const setorTxt = escapeHtml(r.setor || (r.manutencao ? 'Manutenção' : 'Rádio'));
 
   return `
@@ -6723,7 +6955,7 @@ function abrirModalQrRadio(radioId){
   window.radioSelecionadoQrId = radioId;
   window.formatoEtiquetaRadioAtivo = 'padrao';
 
-  ['btnTamPadrao', 'btnTamVertical', 'btnTamCompacto'].forEach(id => {
+  ['btnTamPadrao', 'btnTamVertical', 'btnTamCompacto', 'btnTamPequeno', 'btnTamMini'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.classList.remove('ativo');
   });
@@ -6756,7 +6988,9 @@ function definirTamanhoEtiqueta(tam){
   const botoes = {
     padrao: document.getElementById('btnTamPadrao'),
     vertical: document.getElementById('btnTamVertical'),
-    compacto: document.getElementById('btnTamCompacto')
+    compacto: document.getElementById('btnTamCompacto'),
+    pequeno: document.getElementById('btnTamPequeno'),
+    mini: document.getElementById('btnTamMini')
   };
   Object.keys(botoes).forEach(k => {
     if(botoes[k]) botoes[k].classList.toggle('ativo', k === tam);
@@ -6893,6 +7127,129 @@ function baixarEtiquetaRadioPng(){
       ctx.font = '900 20px Inter, sans-serif';
     }
     ctx.fillText(nomeSetor, w / 2, qrStartY + qrSize + 66);
+  } else if (formato === 'mini') {
+    // Formato Mini / Micro (28 × 14 mm)
+    const margin = 2;
+    const cellSize = 3;
+    const qrSize = (count + margin * 2) * cellSize;
+    const w = qrSize + 160;
+    const h = Math.max(90, qrSize + 20);
+    canvas.width = w;
+    canvas.height = h;
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#0F172A';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(2, 2, w - 4, h - 4);
+
+    const qrStartX = 10;
+    const qrStartY = Math.floor((h - qrSize) / 2);
+
+    ctx.fillStyle = '#000000';
+    for (let row = 0; row < count; row++) {
+      for (let col = 0; col < count; col++) {
+        if (qr.isDark(row, col)) {
+          ctx.fillRect(qrStartX + (col + margin) * cellSize, qrStartY + (row + margin) * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+
+    const infoX = qrStartX + qrSize + 12;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#64748B';
+    ctx.font = 'bold 11px Inter, sans-serif';
+    ctx.fillText('SETOR', infoX, Math.floor(h / 2) - 8);
+
+    ctx.fillStyle = '#0F172A';
+    ctx.font = '900 16px Inter, sans-serif';
+    const nomeSetor = (r.setor || (r.manutencao ? 'MANUTENÇÃO' : 'RÁDIO')).toUpperCase();
+    if (ctx.measureText(nomeSetor).width > (w - infoX - 12)) {
+      ctx.font = '900 13px Inter, sans-serif';
+    }
+    ctx.fillText(nomeSetor, infoX, Math.floor(h / 2) + 14);
+  } else if (formato === 'pequeno' || formato === 'pequena') {
+    // Formato Pequeno (35 × 18 mm)
+    const margin = 3;
+    const cellSize = 4;
+    const qrSize = (count + margin * 2) * cellSize;
+    const w = qrSize + 200;
+    const h = Math.max(120, qrSize + 24);
+    canvas.width = w;
+    canvas.height = h;
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#0F172A';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(3, 3, w - 6, h - 6);
+
+    const qrStartX = 14;
+    const qrStartY = Math.floor((h - qrSize) / 2);
+
+    ctx.fillStyle = '#000000';
+    for (let row = 0; row < count; row++) {
+      for (let col = 0; col < count; col++) {
+        if (qr.isDark(row, col)) {
+          ctx.fillRect(qrStartX + (col + margin) * cellSize, qrStartY + (row + margin) * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+
+    const infoX = qrStartX + qrSize + 16;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#64748B';
+    ctx.font = 'bold 13px Inter, sans-serif';
+    ctx.fillText('SETOR', infoX, Math.floor(h / 2) - 10);
+
+    ctx.fillStyle = '#0F172A';
+    ctx.font = '900 20px Inter, sans-serif';
+    const nomeSetor = (r.setor || (r.manutencao ? 'MANUTENÇÃO' : 'RÁDIO')).toUpperCase();
+    if (ctx.measureText(nomeSetor).width > (w - infoX - 16)) {
+      ctx.font = '900 16px Inter, sans-serif';
+    }
+    ctx.fillText(nomeSetor, infoX, Math.floor(h / 2) + 18);
+  } else if (formato === 'compacto' || formato === 'compacta') {
+    // Compacto (40 × 20 mm)
+    const margin = 4;
+    const cellSize = 4;
+    const qrSize = (count + margin * 2) * cellSize;
+    const w = qrSize + 240;
+    const h = Math.max(150, qrSize + 28);
+    canvas.width = w;
+    canvas.height = h;
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#0F172A';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(3, 3, w - 6, h - 6);
+
+    const qrStartX = 16;
+    const qrStartY = Math.floor((h - qrSize) / 2);
+
+    ctx.fillStyle = '#000000';
+    for (let row = 0; row < count; row++) {
+      for (let col = 0; col < count; col++) {
+        if (qr.isDark(row, col)) {
+          ctx.fillRect(qrStartX + (col + margin) * cellSize, qrStartY + (row + margin) * cellSize, cellSize, cellSize);
+        }
+      }
+    }
+
+    const infoX = qrStartX + qrSize + 18;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#64748B';
+    ctx.font = 'bold 14px Inter, sans-serif';
+    ctx.fillText('SETOR', infoX, Math.floor(h / 2) - 12);
+
+    ctx.fillStyle = '#0F172A';
+    ctx.font = '900 24px Inter, sans-serif';
+    const nomeSetor = (r.setor || (r.manutencao ? 'MANUTENÇÃO' : 'RÁDIO')).toUpperCase();
+    if (ctx.measureText(nomeSetor).width > (w - infoX - 16)) {
+      ctx.font = '900 18px Inter, sans-serif';
+    }
+    ctx.fillText(nomeSetor, infoX, Math.floor(h / 2) + 20);
   } else {
     // Padrão Horizontal
     const cellSize = 5;
@@ -7106,7 +7463,9 @@ function imprimirEtiquetasLoteRadios(){
 
   const formatoEtiqueta = layout;
   let classeGrade = 'folha-grade-etiquetas';
-  if (layout === 'compacta') classeGrade = 'folha-grade-etiquetas compacta';
+  if (layout === 'compacta' || layout === 'compacto') classeGrade = 'folha-grade-etiquetas compacta';
+  else if (layout === 'pequeno' || layout === 'pequena') classeGrade = 'folha-grade-etiquetas pequena';
+  else if (layout === 'mini') classeGrade = 'folha-grade-etiquetas mini';
   else if (layout === 'vertical') classeGrade = 'folha-grade-etiquetas vertical';
   else if (layout === 'rolo') classeGrade = 'folha-grade-etiquetas rolo';
 
@@ -9697,6 +10056,511 @@ function fecharDetalheEquipe(){
 }
 
 /* ============================================================
+   STATUS DA EQUIPE DEM2 — MAIS FREQUENTES, MAIS AUSENTES & ATESTADOS
+   ============================================================ */
+let abaStatusEquipeAtiva = 'frequentes';
+
+function ehRegistroAtestado(registro){
+  if(!registro) return false;
+  const tipo = (registro.tipo || '').toLowerCase();
+  const motivo = (registro.motivo || (typeof registro === 'string' ? registro : '')).toLowerCase();
+  return tipo.includes('atestado') || 
+         tipo.includes('médico') || 
+         tipo.includes('medico') || 
+         tipo.includes('atendimento médico') ||
+         motivo.includes('atestado') || 
+         motivo.includes('médico') || 
+         motivo.includes('medico') || 
+         motivo.includes('cid') || 
+         motivo.includes('consulta');
+}
+
+function formatarDataBrStatus(iso){
+  if (!iso) return '—';
+  const partes = String(iso).split('-');
+  if (partes.length === 3) return partes[2].slice(0,2) + '/' + partes[1] + '/' + partes[0];
+  return iso;
+}
+
+function inicializarSeedPresencaStatus(){
+  try{
+    const jaInicializou = localStorage.getItem('mtc_presenca_status_seed_v1');
+    const mapaAtual = carregarPresenca();
+    const qtdDatas = Object.keys(mapaAtual).length;
+    if(jaInicializou || qtdDatas > 0) return;
+
+    const colabs = colaboradoresValidos();
+    if(!colabs || colabs.length === 0) return;
+
+    const mapa = {};
+    const hoje = new Date();
+
+    const colabAtestado1 = colabs[1] ? colabs[1].id : null; // ex: Aline
+    const colabAtestado2 = colabs[7] ? colabs[7].id : null; // ex: Andre
+    const colabFalta1 = colabs[9] ? colabs[9].id : null;
+    const colabFalta2 = colabs[15] ? colabs[15].id : null;
+
+    for(let i = 14; i >= 0; i--){
+      const d = new Date(hoje.getTime() - i * 24 * 60 * 60 * 1000);
+      const isoData = d.toISOString().slice(0, 10);
+      mapa[isoData] = {};
+
+      colabs.forEach(c => {
+        let statusObj = { status: 'Presente' };
+
+        if(c.id === colabAtestado1 && (i === 3 || i === 4 || i === 5)){
+          statusObj = { status: 'Falta', tipo: 'Atestado médico', motivo: 'Atestado médico (CID M54)' };
+        } else if(c.id === colabAtestado2 && (i === 8 || i === 9)){
+          statusObj = { status: 'Falta', tipo: 'Atestado médico', motivo: 'Atestado médico (2 dias)' };
+        } else if(c.id === colabFalta1 && (i === 2 || i === 6)){
+          statusObj = { status: 'Falta', tipo: 'Falta não justificada', motivo: 'Falta não justificada' };
+        } else if(c.id === colabFalta2 && i === 11){
+          statusObj = { status: 'Falta', tipo: 'Ausência programada', motivo: 'Ausência programada' };
+        }
+
+        mapa[isoData][c.id] = statusObj;
+      });
+    }
+
+    salvarPresenca(mapa);
+    localStorage.setItem('mtc_presenca_status_seed_v1', 'ok');
+  }catch(e){
+    console.error('Erro ao inicializar seed de status de presença:', e);
+  }
+}
+
+function obterDadosStatusEquipe(filtros){
+  filtros = filtros || {};
+  const periodo = filtros.periodo || 'todo';
+  const turno = filtros.turno || 'todos';
+  const busca = (filtros.busca || '').trim().toLowerCase();
+
+  const colabs = colaboradoresValidos();
+  const mapaPresenca = carregarPresenca();
+  const todasDatas = Object.keys(mapaPresenca).sort();
+
+  const hoje = new Date();
+  const limiteDias = periodo === '30d' ? 30 : (periodo === '60d' ? 60 : null);
+  const anoMesAtual = hoje.toISOString().slice(0, 7);
+
+  const datasFiltradas = todasDatas.filter(dStr => {
+    if(periodo === 'mesAtual'){
+      return dStr.startsWith(anoMesAtual);
+    }
+    if(limiteDias !== null){
+      const dataObj = new Date(dStr + 'T12:00:00');
+      const diffMs = hoje.getTime() - dataObj.getTime();
+      const diffDias = diffMs / (1000 * 60 * 60 * 24);
+      return diffDias >= 0 && diffDias <= limiteDias;
+    }
+    return true;
+  });
+
+  let dados = colabs.map(colab => {
+    let presencas = 0;
+    let faltas = 0;
+    let atestados = 0;
+    const historico = [];
+
+    datasFiltradas.forEach(dStr => {
+      const regDia = mapaPresenca[dStr];
+      if(!regDia) return;
+
+      const status = obterStatusColaborador(regDia, colab.id, colab.nome);
+      if(!status) return;
+
+      const motivo = obterMotivoColaborador(regDia, colab.id, colab.nome);
+      const entradaBruta = regDia[colab.id] || regDia[colab.nome] || 
+        (Object.values(regDia).find(v => v && (v.id === colab.id || v.colaboradorId === colab.id || v.nome === colab.nome)));
+      const tipo = (entradaBruta && entradaBruta.tipo) || '';
+
+      const isAtestado = ehRegistroAtestado({ tipo, motivo, status });
+
+      if(status === 'Presente'){
+        presencas++;
+        historico.push({ data: dStr, status: 'Presente', motivo: '', tipo: '' });
+      } else if(status === 'Falta'){
+        faltas++;
+        if(isAtestado) atestados++;
+        historico.push({ 
+          data: dStr, 
+          status: 'Falta', 
+          motivo: motivo || (isAtestado ? 'Atestado médico' : 'Falta registrada'), 
+          tipo: tipo, 
+          isAtestado: isAtestado 
+        });
+      }
+    });
+
+    const obsNorm = (colab.obs || '').toLowerCase();
+    if(atestados === 0 && (obsNorm.includes('atestado') || obsNorm.includes('médico') || obsNorm.includes('medico'))){
+      atestados += 1;
+      historico.push({ data: 'Obs', status: 'Falta', motivo: colab.obs, tipo: 'Atestado médico', isAtestado: true });
+    }
+
+    const totalRegistros = presencas + faltas;
+    const taxa = totalRegistros > 0 ? Math.round((presencas / totalRegistros) * 100) : 100;
+
+    return {
+      id: colab.id,
+      nome: colab.nome,
+      funcao: colab.funcao || 'Colaborador',
+      turno: colab.turno || 'Não definido',
+      matricula: colab.matricula || '',
+      presencas,
+      faltas,
+      atestados,
+      totalRegistros,
+      taxa,
+      historico: historico.sort((a,b) => b.data.localeCompare(a.data))
+    };
+  });
+
+  if(turno !== 'todos'){
+    dados = dados.filter(c => (c.turno || '').toLowerCase() === turno.toLowerCase());
+  }
+
+  if(busca){
+    dados = dados.filter(c => 
+      c.nome.toLowerCase().includes(busca) || 
+      c.funcao.toLowerCase().includes(busca) || 
+      c.matricula.includes(busca) ||
+      c.turno.toLowerCase().includes(busca)
+    );
+  }
+
+  return {
+    dados,
+    totalDiasAvaliados: datasFiltradas.length,
+    datasAvaliadas: datasFiltradas
+  };
+}
+
+function atualizarKpiStatusEquipe(){
+  inicializarSeedPresencaStatus();
+  const kpiEl = document.getElementById('kpiEquipeStatus');
+  const rotuloEl = document.getElementById('rotuloKpiStatus');
+  if(!kpiEl) return;
+
+  const resultado = obterDadosStatusEquipe({ periodo: 'mesAtual' });
+  const lista = resultado.dados;
+
+  let totalPres = 0, totalFaltas = 0, totalAtestados = 0;
+  lista.forEach(c => {
+    totalPres += c.presencas;
+    totalFaltas += c.faltas;
+    totalAtestados += c.atestados;
+  });
+
+  const total = totalPres + totalFaltas;
+  const taxaMedia = total > 0 ? Math.round((totalPres / total) * 100) : 100;
+
+  kpiEl.innerHTML = `<span>📊 STATUS</span> <span style="font-size:12px; font-weight:800; background:rgba(16,185,129,0.18); color:var(--verde-800); padding:2px 7px; border-radius:10px; margin-left:4px;">${taxaMedia}%</span>`;
+  if(rotuloEl){
+    rotuloEl.textContent = `Frequência · ${totalFaltas} Ausências · ${totalAtestados} Atestados`;
+  }
+}
+
+function abrirModalStatusEquipe(abaInicial){
+  if(abaInicial) abaStatusEquipeAtiva = abaInicial;
+  inicializarSeedPresencaStatus();
+  renderModalStatusEquipe();
+  const modal = document.getElementById('modalStatusEquipe');
+  if(modal) modal.classList.add('aberto');
+}
+
+function fecharModalStatusEquipe(){
+  const modal = document.getElementById('modalStatusEquipe');
+  if(modal) modal.classList.remove('aberto');
+}
+
+function selecionarAbaStatusEquipe(aba){
+  abaStatusEquipeAtiva = aba;
+  renderModalStatusEquipe();
+}
+
+function alternarHistoricoStatusColab(id){
+  const el = document.getElementById('histStatus_' + id);
+  const btn = document.getElementById('btnHistStatus_' + id);
+  if(!el) return;
+  const aberto = el.classList.contains('aberto');
+  if(aberto){
+    el.classList.remove('aberto');
+    if(btn) btn.innerHTML = 'Ver datas e ocorrências ▼';
+  } else {
+    el.classList.add('aberto');
+    if(btn) btn.innerHTML = 'Ocultar datas e ocorrências ▲';
+  }
+}
+
+function renderModalStatusEquipe(){
+  const selectPeriodo = document.getElementById('selectPeriodoStatusEquipe');
+  const selectTurno = document.getElementById('selectTurnoStatusEquipe');
+  const inputBusca = document.getElementById('buscaStatusEquipe');
+
+  const periodo = selectPeriodo ? selectPeriodo.value : 'mesAtual';
+  const turno = selectTurno ? selectTurno.value : 'todos';
+  const busca = inputBusca ? inputBusca.value : '';
+
+  const { dados, totalDiasAvaliados } = obterDadosStatusEquipe({ periodo, turno, busca });
+
+  let totalPres = 0, totalFaltas = 0, totalAtestados = 0;
+  dados.forEach(c => {
+    totalPres += c.presencas;
+    totalFaltas += c.faltas;
+    totalAtestados += c.atestados;
+  });
+
+  const totalReg = totalPres + totalFaltas;
+  const taxaGeral = totalReg > 0 ? Math.round((totalPres / totalReg) * 100) : 100;
+
+  const ordenadosFrequentes = [...dados].sort((a,b) => (b.presencas - a.presencas) || (b.taxa - a.taxa) || (a.faltas - b.faltas));
+  const ordenadosAusentes = [...dados].filter(c => c.faltas > 0).sort((a,b) => (b.faltas - a.faltas) || (b.atestados - a.atestados));
+  const ordenadosAtestados = [...dados].filter(c => c.atestados > 0).sort((a,b) => (b.atestados - a.atestados) || (b.faltas - a.faltas));
+
+  const topFrequente = ordenadosFrequentes[0];
+  const topAusente = ordenadosAusentes[0];
+  const topAtestado = ordenadosAtestados[0];
+
+  const elFreqNome = document.getElementById('kpiStatusMaisFrequenteNome');
+  const elFreqSub = document.getElementById('kpiStatusMaisFrequenteSub');
+  if(elFreqNome && topFrequente){
+    elFreqNome.textContent = topFrequente.presencas > 0 ? topFrequente.nome : 'Nenhum registro';
+    if(elFreqSub) elFreqSub.textContent = topFrequente.presencas > 0 ? `${topFrequente.presencas} presenças (${topFrequente.taxa}%)` : 'Sem presenças registradas';
+  }
+
+  const elAusNome = document.getElementById('kpiStatusMaisAusenteNome');
+  const elAusSub = document.getElementById('kpiStatusMaisAusenteSub');
+  if(elAusNome){
+    elAusNome.textContent = topAusente ? topAusente.nome : 'Nenhuma ausência';
+    if(elAusSub) elAusSub.textContent = topAusente ? `${topAusente.faltas} faltas registradas` : '100% de assiduidade';
+  }
+
+  const elAtestNome = document.getElementById('kpiStatusMaisAtestadosNome');
+  const elAtestSub = document.getElementById('kpiStatusMaisAtestadosSub');
+  if(elAtestNome){
+    elAtestNome.textContent = topAtestado ? topAtestado.nome : 'Nenhum atestado';
+    if(elAtestSub) elAtestSub.textContent = topAtestado ? `${topAtestado.atestados} atestado(s) médico(s)` : 'Sem atestados no período';
+  }
+
+  const elTaxa = document.getElementById('kpiStatusTaxaGeral');
+  const elReg = document.getElementById('kpiStatusTotalRegistros');
+  if(elTaxa) elTaxa.textContent = `${taxaGeral}%`;
+  if(elReg) elReg.textContent = `${totalDiasAvaliados} dia(s) avaliado(s) · ${totalReg} registros`;
+
+  ['frequentes', 'ausentes', 'atestados', 'geral'].forEach(aba => {
+    const btn = document.getElementById('abaStatus' + aba.charAt(0).toUpperCase() + aba.slice(1));
+    if(btn) btn.classList.toggle('ativo', abaStatusEquipeAtiva === aba);
+  });
+
+  const contFreq = document.getElementById('contStatusFrequentes');
+  const contAus = document.getElementById('contStatusAusentes');
+  const contAtest = document.getElementById('contStatusAtestados');
+  const contGeral = document.getElementById('contStatusGeral');
+  if(contFreq) contFreq.textContent = ordenadosFrequentes.filter(c => c.presencas > 0).length;
+  if(contAus) contAus.textContent = ordenadosAusentes.length;
+  if(contAtest) contAtest.textContent = ordenadosAtestados.length;
+  if(contGeral) contGeral.textContent = dados.length;
+
+  let listaExibicao = [];
+  let textoDica = '';
+
+  if(abaStatusEquipeAtiva === 'frequentes'){
+    listaExibicao = [...dados].sort((a,b) => (b.presencas - a.presencas) || (b.taxa - a.taxa) || (a.faltas - b.faltas));
+    textoDica = `🏆 <strong>Mais Frequentes:</strong> Ordenados pelo maior número de presenças e taxa de assiduidade.`;
+  } else if(abaStatusEquipeAtiva === 'ausentes'){
+    listaExibicao = ordenadosAusentes;
+    textoDica = `⚠️ <strong>Mais Ausentes:</strong> Colaboradores que possuem faltas/ausências registradas no período. Total: ${ordenadosAusentes.length}.`;
+  } else if(abaStatusEquipeAtiva === 'atestados'){
+    listaExibicao = ordenadosAtestados;
+    textoDica = `🩺 <strong>Mais Atestados:</strong> Colaboradores que apresentaram atestados médicos ou atendimento médico. Total: ${ordenadosAtestados.length}.`;
+  } else {
+    listaExibicao = [...dados].sort((a,b) => a.nome.localeCompare(b.nome));
+    textoDica = `📋 <strong>Visão Completa:</strong> Todos os colaboradores cadastrados na Equipe DEM2 (${dados.length} colaboradores).`;
+  }
+
+  const infoEl = document.getElementById('infoAbaStatusEquipe');
+  if(infoEl){
+    infoEl.innerHTML = `<span>${textoDica}</span><span style="font-weight:700; color:var(--texto);">${listaExibicao.length} colaborador(es)</span>`;
+  }
+
+  const containerLista = document.getElementById('listaStatusEquipe');
+  if(!containerLista) return;
+
+  if(listaExibicao.length === 0){
+    containerLista.innerHTML = `
+      <div style="text-align:center; padding:35px 20px; background:var(--fundo-alt); border-radius:10px; border:1px dashed var(--borda);">
+        <div style="font-size:32px; margin-bottom:8px;">
+          ${abaStatusEquipeAtiva === 'atestados' ? '🩺' : (abaStatusEquipeAtiva === 'ausentes' ? '🎉' : '🔍')}
+        </div>
+        <div style="font-size:14px; font-weight:700; color:var(--texto); margin-bottom:4px;">
+          ${abaStatusEquipeAtiva === 'atestados' ? 'Nenhum atestado médico registrado no período' : 
+           (abaStatusEquipeAtiva === 'ausentes' ? 'Nenhuma ausência registrada no período! Equipe 100% presente.' : 
+           'Nenhum colaborador encontrado com os filtros selecionados.')}
+        </div>
+        <p style="font-size:12px; color:var(--texto-suave); margin:0;">
+          Os registros são computados a partir das marcações diárias no módulo <strong>Presença</strong>.
+        </p>
+      </div>`;
+    return;
+  }
+
+  containerLista.innerHTML = listaExibicao.map((colab, idx) => {
+    const pos = idx + 1;
+    let badgePos = `<span style="font-size:11px; font-weight:800; color:var(--texto-suave); width:24px; text-align:center;">#${pos}</span>`;
+    if(abaStatusEquipeAtiva === 'frequentes'){
+      if(pos === 1) badgePos = `<span style="font-size:14px;" title="1º Lugar - Maior Assiduidade">🥇</span>`;
+      else if(pos === 2) badgePos = `<span style="font-size:14px;" title="2º Lugar">🥈</span>`;
+      else if(pos === 3) badgePos = `<span style="font-size:14px;" title="3º Lugar">🥉</span>`;
+    }
+
+    let corBarra = '#10B981';
+    if(colab.taxa < 75) corBarra = '#EF4444';
+    else if(colab.taxa < 90) corBarra = '#F59E0B';
+
+    const ausenciasOuAtestados = colab.historico.filter(h => h.status === 'Falta');
+
+    let classeDestaque = '';
+    if(pos === 1 && abaStatusEquipeAtiva === 'frequentes') classeDestaque = 'top-1';
+    else if(colab.atestados > 0 && (abaStatusEquipeAtiva === 'atestados' || colab.atestados >= 2)) classeDestaque = 'atestado-alerta';
+    else if(colab.faltas > 0 && abaStatusEquipeAtiva === 'ausentes') classeDestaque = 'ausente-alerta';
+
+    return `
+      <div class="card-status-colab ${classeDestaque}">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:220px;">
+            <div style="display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%; background:rgba(0,0,0,0.05); font-weight:800; font-size:12px; flex-shrink:0;">
+              ${badgePos}
+            </div>
+            <div style="min-width:0;">
+              <div style="font-weight:800; font-size:13.5px; color:var(--texto); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <span>${escapeHtml(colab.nome)}</span>
+                ${colab.matricula ? `<span style="font-size:10.5px; font-weight:600; color:var(--texto-suave); background:rgba(0,0,0,0.05); padding:1px 5px; border-radius:4px;">Mat: ${escapeHtml(colab.matricula)}</span>` : ''}
+              </div>
+              <div style="font-size:11.5px; color:var(--texto-suave); display:flex; gap:8px; flex-wrap:wrap; margin-top:2px;">
+                <span>🏷️ ${escapeHtml(colab.funcao)}</span>
+                <span>⏰ ${escapeHtml(colab.turno)}</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <span style="font-size:11px; font-weight:700; background:#DCFCE7; color:#15803D; border:1px solid #86EFAC; padding:3px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;" title="Dias marcados como presente">
+              ✅ ${colab.presencas} presenças
+            </span>
+            <span style="font-size:11px; font-weight:700; background:${colab.faltas > 0 ? '#FEE2E2' : '#F1F5F9'}; color:${colab.faltas > 0 ? '#DC2626' : '#64748B'}; border:1px solid ${colab.faltas > 0 ? '#FCA5A5' : '#CBD5E1'}; padding:3px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;" title="Total de faltas no período">
+              ❌ ${colab.faltas} faltas
+            </span>
+            <span style="font-size:11px; font-weight:700; background:${colab.atestados > 0 ? '#DBEAFE' : '#F1F5F9'}; color:${colab.atestados > 0 ? '#1D4ED8' : '#64748B'}; border:1px solid ${colab.atestados > 0 ? '#93C5FD' : '#CBD5E1'}; padding:3px 8px; border-radius:12px; display:inline-flex; align-items:center; gap:4px;" title="Atestados médicos apresentados">
+              🩺 ${colab.atestados} atestados
+            </span>
+            <span style="font-size:12px; font-weight:900; color:${corBarra}; min-width:44px; text-align:right;" title="Índice de assiduidade">
+              ${colab.taxa}%
+            </span>
+          </div>
+        </div>
+
+        <div style="margin-top:2px;">
+          <div class="barra-progresso-frequencia-trilha">
+            <div class="barra-progresso-frequencia-valor" style="width:${colab.taxa}%; background:${corBarra};"></div>
+          </div>
+        </div>
+
+        ${ausenciasOuAtestados.length > 0 ? `
+          <div style="margin-top:4px;">
+            <button type="button" id="btnHistStatus_${colab.id}" onclick="alternarHistoricoStatusColab('${colab.id}')" style="background:none; border:none; padding:0; color:var(--verde-800); font-size:11px; font-weight:700; cursor:pointer; text-decoration:underline;">
+              Ver datas e ocorrências (${ausenciasOuAtestados.length}) ▼
+            </button>
+            <div id="histStatus_${colab.id}" class="detalhes-historico-colab">
+              <div style="font-weight:700; margin-bottom:5px; color:var(--texto);">Detalhamento de Ausências &amp; Atestados:</div>
+              <div style="display:flex; flex-direction:column; gap:4px;">
+                ${ausenciasOuAtestados.map(h => {
+                  const dataFmt = h.data === 'Obs' ? 'Observação Cadastral' : formatarDataBrStatus(h.data);
+                  const icone = h.isAtestado ? '🩺' : '❌';
+                  const cor = h.isAtestado ? '#1D4ED8' : '#DC2626';
+                  return `
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:3px 6px; background:rgba(0,0,0,0.02); border-radius:4px;">
+                      <span style="font-weight:600; color:${cor};">${icone} ${escapeHtml(dataFmt)}</span>
+                      <span style="color:var(--texto-suave); text-align:right;">${escapeHtml(h.motivo || h.tipo || 'Falta registrada')}</span>
+                    </div>`;
+                }).join('')}
+              </div>
+            </div>
+          </div>
+        ` : ''}
+      </div>`;
+  }).join('');
+}
+
+function copiarRelatorioStatusEquipe(){
+  const selectPeriodo = document.getElementById('selectPeriodoStatusEquipe');
+  const periodoTxt = selectPeriodo ? selectPeriodo.options[selectPeriodo.selectedIndex].text : 'Este mês';
+  const { dados } = obterDadosStatusEquipe({ periodo: (selectPeriodo ? selectPeriodo.value : 'mesAtual') });
+
+  if(!dados || dados.length === 0){
+    alert('Nenhum dado para exportar.');
+    return;
+  }
+
+  let totalPres = 0, totalFaltas = 0, totalAtestados = 0;
+  dados.forEach(c => {
+    totalPres += c.presencas;
+    totalFaltas += c.faltas;
+    totalAtestados += c.atestados;
+  });
+  const totalReg = totalPres + totalFaltas;
+  const taxaGeral = totalReg > 0 ? Math.round((totalPres / totalReg) * 100) : 100;
+
+  const ordenadosFreq = [...dados].sort((a,b) => (b.presencas - a.presencas) || (b.taxa - a.taxa)).slice(0, 5);
+  const ordenadosAus = [...dados].filter(c => c.faltas > 0).sort((a,b) => (b.faltas - a.faltas)).slice(0, 5);
+  const ordenadosAtest = [...dados].filter(c => c.atestados > 0).sort((a,b) => (b.atestados - a.atestados)).slice(0, 5);
+
+  let texto = `📊 *RELATÓRIO DE STATUS & ASSIDUIDADE · EQUIPE DEM2*\n`;
+  texto += `🗓️ Período: ${periodoTxt}\n`;
+  texto += `📈 Assiduidade Geral da Equipe: ${taxaGeral}%\n`;
+  texto += `✅ Total de Presenças: ${totalPres} | ❌ Faltas: ${totalFaltas} | 🩺 Atestados: ${totalAtestados}\n\n`;
+
+  texto += `🏆 *MAIS FREQUENTES (TOP 5):*\n`;
+  if(ordenadosFreq.length > 0){
+    ordenadosFreq.forEach((c, i) => {
+      texto += `${i+1}. ${c.nome} - ${c.presencas} presenças (${c.taxa}%)\n`;
+    });
+  } else {
+    texto += `Sem registros no período.\n`;
+  }
+  texto += `\n`;
+
+  texto += `⚠️ *MAIS AUSENTES:*\n`;
+  if(ordenadosAus.length > 0){
+    ordenadosAus.forEach((c, i) => {
+      texto += `${i+1}. ${c.nome} - ${c.faltas} faltas (${c.atestados} atestados)\n`;
+    });
+  } else {
+    texto += `Nenhuma ausência registrada (100% de presença).\n`;
+  }
+  texto += `\n`;
+
+  texto += `🩺 *MAIS ATESTADOS MÉDICOS:*\n`;
+  if(ordenadosAtest.length > 0){
+    ordenadosAtest.forEach((c, i) => {
+      texto += `${i+1}. ${c.nome} - ${c.atestados} atestado(s) médico(s)\n`;
+    });
+  } else {
+    texto += `Nenhum atestado médico registrado no período.\n`;
+  }
+
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(texto).then(() => {
+      alert('Relatório de STATUS copiado com sucesso para a área de transferência!');
+    }).catch(() => {
+      prompt('Copie o relatório abaixo:', texto);
+    });
+  } else {
+    prompt('Copie o relatório abaixo:', texto);
+  }
+}
+
+/* ============================================================
    COLABORADORES POR FUNÇÃO (DEM2) — MODAL E KPIS POR FUNÇÃO
    ============================================================ */
 let filtroModalFuncaoAtivo = 'todos';
@@ -9949,6 +10813,9 @@ function renderEquipe(){
   document.getElementById('kpiEquipeVagas').textContent = vagas;
   document.getElementById('seloEquipe').textContent = total + ' membros';
   document.getElementById('seloEquipe').className = 'selo ok';
+
+  // Atualizar KPI de STATUS da equipe (mais frequentes, ausentes e atestados)
+  atualizarKpiStatusEquipe();
 
   // Renderizar chips de filtro por função na tela principal
   const contFiltros = document.getElementById('filtrosFuncaoEquipe');
@@ -14258,6 +15125,12 @@ const EQUIPE_SEED = [{"id": "equipe_v2_1783848176928_0", "nome": "Wandeir de Sou
   });
   if(alterou){ salvarLista('equipe', lista); }
   localStorage.setItem('mtc_equipe_aval_seed_v1', 'ok');
+})();
+
+(function inicializarPresencaSeedStatusAuto(){
+  if(typeof inicializarSeedPresencaStatus === 'function'){
+    inicializarSeedPresencaStatus();
+  }
 })();
 
 /* ============================================================
