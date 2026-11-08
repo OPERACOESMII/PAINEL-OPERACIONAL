@@ -666,6 +666,14 @@ window._setItemOriginal = setItemOriginal;
                 try {
                   var prNuv = JSON.parse(obj.dados[chave]) || {};
                   var prLoc = JSON.parse(localStorage.getItem('mtc_presenca') || '{}');
+                  var prHist = JSON.parse(localStorage.getItem('mtc_presenca_backup_historico') || '{}');
+
+                  // Redundância histórica: preserva qualquer data presente no backup histórico local (apenas datas passadas < 2026-11-08)
+                  Object.keys(prHist).forEach(function(d){
+                    if (d < '2026-11-08' && (!prLoc[d] || Object.keys(prLoc[d]).length === 0)){
+                      prLoc[d] = prHist[d];
+                    }
+                  });
 
                   Object.keys(prNuv).forEach(function(d){
                     var diaNuv = prNuv[d] || {};
@@ -674,7 +682,7 @@ window._setItemOriginal = setItemOriginal;
                       diaNormNuv[normId(k)] = diaNuv[k];
                     });
 
-                    if (!prLoc[d] || Object.keys(prLoc[d]).length === 0 || ehCargaInicial){
+                    if (!prLoc[d] || Object.keys(prLoc[d]).length === 0){
                       prLoc[d] = diaNormNuv;
                     } else {
                       var dLoc = prLoc[d];
@@ -688,7 +696,7 @@ window._setItemOriginal = setItemOriginal;
                         } else {
                           var tL = (regL && regL.atualizadoEm) ? new Date(regL.atualizadoEm).getTime() : 0;
                           var tN = (regN && regN.atualizadoEm) ? new Date(regN.atualizadoEm).getTime() : 0;
-                          var alteradoRecente = (window._ultimasAlteracoesPresencaPorColab && (Date.now() - (window._ultimasAlteracoesPresencaPorColab[kNorm] || 0) < 4000));
+                          var alteradoRecente = (window._ultimasAlteracoesPresencaPorColab && (Date.now() - (window._ultimasAlteracoesPresencaPorColab[kNorm] || 0) < 6000));
                           if (alteradoRecente || (tL > tN)){
                             dMesc[kNorm] = regL;
                           } else {
@@ -699,6 +707,24 @@ window._setItemOriginal = setItemOriginal;
                       prLoc[d] = dMesc;
                     }
                   });
+
+                  // Limpeza rigorosa: assegura que datas >= 2026-11-08 não tenham Presente/Folga automáticos e datas futuras não existam
+                  var hojeIsoSSE = new Date().toISOString().slice(0, 10);
+                  Object.keys(prLoc).forEach(function(dt){
+                    if (dt > hojeIsoSSE){
+                      delete prLoc[dt];
+                    } else if (dt >= '2026-11-08') {
+                      var dObj = prLoc[dt];
+                      if (dObj && typeof dObj === 'object') {
+                        Object.keys(dObj).forEach(function(idC){
+                          var stC = dObj[idC] && (dObj[idC].status || dObj[idC]);
+                          if (stC === 'Presente' || stC === 'Folga') delete dObj[idC];
+                        });
+                        if (Object.keys(dObj).length === 0) delete prLoc[dt];
+                      }
+                    }
+                  });
+
                   setItemOriginal.call(localStorage, chave, JSON.stringify(prLoc));
                   setItemOriginal.call(localStorage, 'mtc_presenca_backup_historico', JSON.stringify(prLoc));
                   return;
@@ -768,9 +794,30 @@ window._setItemOriginal = setItemOriginal;
                   return;
                 } catch(e){}
               }
+              // Sincronização de colaboradores excluídos da equipe
+              if (chave === 'mtc_equipe_excluidos' && obj.dados[chave]){
+                try {
+                  var excLoc1 = JSON.parse(localStorage.getItem('mtc_equipe_excluidos') || '[]');
+                  var excNuv1 = JSON.parse(obj.dados[chave] || '[]');
+                  var setExc1 = new Set(excLoc1.concat(excNuv1));
+                  setItemOriginal.call(localStorage, 'mtc_equipe_excluidos', JSON.stringify(Array.from(setExc1)));
+                  return;
+                } catch(eExc1){}
+              }
               // Proteção contra sobrescrita indevida ou reversão antiga da Equipe DEM2
               if (chave === 'mtc_equipe_dem2' && obj.dados[chave]){
                 try {
+                  var excList = JSON.parse(localStorage.getItem('mtc_equipe_excluidos') || '[]');
+                  if (obj.dados && obj.dados.mtc_equipe_excluidos){
+                    try {
+                      var excNuv = JSON.parse(obj.dados.mtc_equipe_excluidos);
+                      if (Array.isArray(excNuv)){
+                        excList = Array.from(new Set(excList.concat(excNuv)));
+                        setItemOriginal.call(localStorage, 'mtc_equipe_excluidos', JSON.stringify(excList));
+                      }
+                    } catch(eExc2){}
+                  }
+                  var excSet = new Set(excList);
                   var localModificadoEm = localStorage.getItem('mtc_equipe_dem2_modificado_em');
                   var nuvemModificadoEm = (obj.dados && obj.dados.mtc_equipe_dem2_modificado_em) || obj.enviadoEm;
                   var localEquipeRaw = localStorage.getItem('mtc_equipe_dem2');
@@ -782,7 +829,15 @@ window._setItemOriginal = setItemOriginal;
                   if (localEquipeRaw && typeof registrarSnapshotEquipe === 'function'){
                     try { registrarSnapshotEquipe(JSON.parse(localEquipeRaw), 'Snapshot automático antes de restaurar da nuvem'); } catch(eS){}
                   }
-                  setItemOriginal.call(localStorage, chave, obj.dados[chave]);
+                  var eqParsed = JSON.parse(obj.dados[chave] || '[]');
+                  if (Array.isArray(eqParsed)){
+                    eqParsed = eqParsed.filter(function(m){
+                      return m && !excSet.has(m.id) && !excSet.has(normId(m.id));
+                    });
+                    setItemOriginal.call(localStorage, chave, JSON.stringify(eqParsed));
+                  } else {
+                    setItemOriginal.call(localStorage, chave, obj.dados[chave]);
+                  }
                   if (obj.dados['mtc_equipe_dem2_modificado_em']){
                     setItemOriginal.call(localStorage, 'mtc_equipe_dem2_modificado_em', obj.dados['mtc_equipe_dem2_modificado_em']);
                   }
@@ -960,6 +1015,16 @@ window._setItemOriginal = setItemOriginal;
                   }
                 });
                 presencaLocal[d] = diaMesc;
+            Object.keys(presencaLocal).forEach(function(dt){
+              if (dt >= '2026-11-08') {
+                var dObj = presencaLocal[dt];
+                if (dObj && typeof dObj === 'object') {
+                  Object.keys(dObj).forEach(function(idC){
+                    var stC = dObj[idC] && (dObj[idC].status || dObj[idC]);
+                    if (stC === 'Presente' || stC === 'Folga') delete dObj[idC];
+                  });
+                  if (Object.keys(dObj).length === 0) delete presencaLocal[dt];
+                }
               }
             });
             setItemOriginal.call(localStorage, chave, JSON.stringify(presencaLocal));
@@ -1093,9 +1158,30 @@ window._setItemOriginal = setItemOriginal;
             return;
           } catch(e){}
         }
+        // Sincronização de colaboradores excluídos da equipe em segundo plano
+        if (chave === 'mtc_equipe_excluidos' && obj.dados[chave]){
+          try {
+            var excLoc2b = JSON.parse(localStorage.getItem('mtc_equipe_excluidos') || '[]');
+            var excNuv2b = JSON.parse(obj.dados[chave] || '[]');
+            var setExc2b = new Set(excLoc2b.concat(excNuv2b));
+            setItemOriginal.call(localStorage, 'mtc_equipe_excluidos', JSON.stringify(Array.from(setExc2b)));
+            return;
+          } catch(eExc2b){}
+        }
         // Proteção contra sobrescrita indevida ou reversão antiga da Equipe DEM2
         if (chave === 'mtc_equipe_dem2' && obj.dados[chave]){
           try {
+            var excList2 = JSON.parse(localStorage.getItem('mtc_equipe_excluidos') || '[]');
+            if (obj.dados && obj.dados.mtc_equipe_excluidos){
+              try {
+                var excNuv2 = JSON.parse(obj.dados.mtc_equipe_excluidos);
+                if (Array.isArray(excNuv2)){
+                  excList2 = Array.from(new Set(excList2.concat(excNuv2)));
+                  setItemOriginal.call(localStorage, 'mtc_equipe_excluidos', JSON.stringify(excList2));
+                }
+              } catch(eExc2c){}
+            }
+            var excSet2 = new Set(excList2);
             var localModificadoEm = localStorage.getItem('mtc_equipe_dem2_modificado_em');
             var nuvemModificadoEm = (obj.dados && obj.dados.mtc_equipe_dem2_modificado_em) || obj.enviadoEm;
             var localEquipeRaw = localStorage.getItem('mtc_equipe_dem2');
@@ -1107,7 +1193,15 @@ window._setItemOriginal = setItemOriginal;
             if (localEquipeRaw && typeof registrarSnapshotEquipe === 'function'){
               try { registrarSnapshotEquipe(JSON.parse(localEquipeRaw), 'Snapshot automático antes de aplicar atualização da nuvem'); } catch(eS){}
             }
-            setItemOriginal.call(localStorage, chave, obj.dados[chave]);
+            var eqParsed2 = JSON.parse(obj.dados[chave] || '[]');
+            if (Array.isArray(eqParsed2)){
+              eqParsed2 = eqParsed2.filter(function(m){
+                return m && !excSet2.has(m.id) && !excSet2.has(normId(m.id));
+              });
+              setItemOriginal.call(localStorage, chave, JSON.stringify(eqParsed2));
+            } else {
+              setItemOriginal.call(localStorage, chave, obj.dados[chave]);
+            }
             if (obj.dados['mtc_equipe_dem2_modificado_em']){
               setItemOriginal.call(localStorage, 'mtc_equipe_dem2_modificado_em', obj.dados['mtc_equipe_dem2_modificado_em']);
             }
@@ -1637,12 +1731,15 @@ window.carregarHistoricoNuvemDias = function() {
       dias.forEach(item => {
         const isHoje = item.data === new Date().toISOString().slice(0, 10);
         const is30 = item.data === '2026-10-30';
+        const is01 = item.data === '2026-11-01';
         const tagDestaque = is30
           ? '<span style="background:#16A34A; color:#fff; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:12px;">Ponto Principal (30/10)</span>'
-          : (isHoje ? '<span style="background:#2563EB; color:#fff; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:12px;">Hoje</span>' : '');
+          : (is01
+            ? '<span style="background:#0284C7; color:#fff; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:12px;">Plantão Domingo (01/11)</span>'
+            : (isHoje ? '<span style="background:#2563EB; color:#fff; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:12px;">Hoje</span>' : ''));
 
         html += `
-          <div style="background:#FFFFFF; border:1.5px solid ${is30 ? '#16A34A' : '#CBD5E1'}; border-radius:10px; padding:12px 14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+          <div style="background:#FFFFFF; border:1.5px solid ${is30 ? '#16A34A' : (is01 ? '#0284C7' : '#CBD5E1')}; border-radius:10px; padding:12px 14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
             <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:6px;">
               <div style="display:flex; align-items:center; gap:8px;">
                 <span style="font-size:20px;">📅</span>
@@ -1671,7 +1768,7 @@ window.carregarHistoricoNuvemDias = function() {
 };
 
 window.executarRestauracaoDiaNuvem = function(dia) {
-  if (!confirm(`Atenção: Deseja restaurar o backup do dia ${dia}?\n\nTodos os registros na nuvem e neste aparelho (Presença, Atividades da Semana, Controle de Rádios e Equipe DEM2) serão restaurados com a versão deste dia e sincronizados em todos os aparelhos.`)) {
+  if (!confirm(`Atenção: Deseja restaurar as informações do dia ${dia}?\n\n🛡️ Restauração Segura:\n• As presenças deste dia serão restauradas.\n• Nenhuma outra data de presença será apagada do histórico.\n• Colaboradores desligados da Equipe DEM2 continuarão excluídos e NÃO serão reativados.`)) {
     return;
   }
   const btn = (typeof window !== 'undefined' && window.event) ? window.event.target : null;
@@ -1697,10 +1794,27 @@ window.executarRestauracaoDiaNuvem = function(dia) {
       try { if (window._setEstaAplicandoDadosNuvem) window._setEstaAplicandoDadosNuvem(true); } catch(e){}
 
       try {
+        var excList = JSON.parse(localStorage.getItem('mtc_equipe_excluidos') || '[]');
+        var excSet = new Set(excList);
+
         Object.keys(res.dados).forEach(function(k){
           if (res.dados[k] !== null && res.dados[k] !== undefined) {
-            const val = typeof res.dados[k] === 'string' ? res.dados[k] : JSON.stringify(res.dados[k]);
+            var val = typeof res.dados[k] === 'string' ? res.dados[k] : JSON.stringify(res.dados[k]);
+            if (k === 'mtc_equipe_dem2'){
+              try {
+                var eqArray = JSON.parse(val);
+                if (Array.isArray(eqArray)){
+                  eqArray = eqArray.filter(function(m){
+                    return m && !excSet.has(m.id) && !excSet.has(String(m.id).replace('equipe_v2_', 'equipe_v3_'));
+                  });
+                  val = JSON.stringify(eqArray);
+                }
+              } catch(eEq){}
+            }
             salvarSeguro.call(localStorage, k, val);
+            if (k === 'mtc_presenca'){
+              salvarSeguro.call(localStorage, 'mtc_presenca_backup_historico', val);
+            }
           }
         });
         if (res.enviadoEm) {
@@ -2589,6 +2703,81 @@ function restaurarManualNuvem(){
   .item-cartao.ferias{border-color:#DDD6FE; background:#FAF5FF;}
   .item-cartao.inss .franja{background:#0284C7;}
   .item-cartao.inss{border-color:#BAE6FD; background:#F0F9FF;}
+
+  /* Interação de pressão contínua (5 segundos) para envio de rádio para conserto */
+  .item-cartao.cartao-radio-interativo {
+    position: relative;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: pan-y;
+  }
+  .item-cartao.cartao-radio-interativo.pressionando-5s {
+    border-color: #DC2626 !important;
+    background: #FEF2F2 !important;
+    transform: scale(0.99);
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.3), var(--sombra-md);
+    transition: transform 0.15s ease, background 0.15s ease;
+  }
+  .overlay-pressao-5s {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.92);
+    backdrop-filter: blur(4px);
+    border-radius: 12px;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 10px 14px;
+    color: #FFFFFF;
+    box-sizing: border-box;
+    animation: surgimentoOverlay5s 0.15s ease-out;
+    pointer-events: none;
+  }
+  @keyframes surgimentoOverlay5s {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .overlay-pressao-5s-topo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin-bottom: 6px;
+    font-size: 11.5px;
+    font-weight: 700;
+  }
+  .overlay-pressao-5s-contador {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 800;
+    color: #F87171;
+    background: rgba(255, 255, 255, 0.14);
+    padding: 2px 7px;
+    border-radius: 6px;
+  }
+  .overlay-pressao-5s-trilha {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .overlay-pressao-5s-preenchimento {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #F59E0B, #EF4444, #DC2626);
+    border-radius: 999px;
+    transition: width 2s linear;
+  }
+  .overlay-pressao-5s-dica {
+    font-size: 10.5px;
+    color: #CBD5E1;
+    margin-top: 5px;
+    font-weight: 500;
+  }
 
   /* Numeração de chaves e código de itens ao lado esquerdo da barra */
   .coluna-numero-chave{
@@ -4615,6 +4804,7 @@ function restaurarManualNuvem(){
     <div class="modal-acoes">
       <button class="btn btn-secundario" onclick="fecharDetalheRadio()">Fechar</button>
       <button class="btn btn-secundario" onclick="abrirModalQrRadio(window.radioDetalheAtualId)">🔲 QR Code / Etiqueta</button>
+      <button class="btn btn-secundario" onclick="fecharDetalheRadio(); abrirJanelaEnvioConserto(window.radioDetalheAtualId);" style="color:#DC2626; border-color:#FCA5A5;">🔧 Enviar p/ Conserto</button>
       <button class="btn btn-secundario" onclick="compartilharRadioEmail()">📧 E-mail</button>
       <button class="btn btn-primario" id="modalRadioEditarBtn">Editar</button>
     </div>
@@ -5018,6 +5208,82 @@ function restaurarManualNuvem(){
   </div>
 </div>
 
+<!-- MODAL DE ENVIO DE RÁDIO PARA CONSERTO (ACIONADO POR PRESSÃO DE 5 SEGUNDOS) -->
+<div class="modal-fundo" id="modalEnvioConsertoRapido" onclick="if(event.target===this) fecharJanelaEnvioConserto()">
+  <div class="modal-caixa modal-caixa-media">
+    <div class="modal-cabecalho">
+      <div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <h3 style="margin:0; font-size:18px;">🔧 Envio de Rádio para Conserto</h3>
+          <span class="tag-status alerta" style="font-size:10px; font-weight:700;">Toque de 2s</span>
+        </div>
+        <p style="font-size:12px; color:var(--texto-suave); margin:3px 0 0;">Preencha as informações para registrar a saída deste aparelho para assistência técnica</p>
+      </div>
+      <button class="modal-fechar" onclick="fecharJanelaEnvioConserto()">✕</button>
+    </div>
+
+    <!-- Informações do Rádio Selecionado -->
+    <div id="envioRapido-infoRadio" style="margin-bottom:14px; background:var(--bg-suave); border:1px solid var(--borda); border-radius:10px; padding:12px 14px;">
+      <!-- Preenchido dinamicamente via JavaScript -->
+    </div>
+
+    <!-- Formulário de Envio -->
+    <input type="hidden" id="envioRapido-radioId">
+    <div class="grade-form">
+      <div>
+        <label style="font-weight:700;">Data de envio *</label>
+        <input type="date" id="envioRapido-dataEnvio">
+      </div>
+      <div>
+        <label>Previsão de retorno</label>
+        <input type="date" id="envioRapido-dataRetorno">
+      </div>
+      <div class="campo-largo">
+        <label style="font-weight:700;">Avaria / Motivo do reparo *</label>
+        <select id="envioRapido-avaria" onchange="alternarAvariaOutroEnvioRapido()">
+          <option value="Falha na comunicação">Falha na comunicação</option>
+          <option value="Falha na transmissão de mensagem">Falha na transmissão de mensagem</option>
+          <option value="Sem áudio / áudio baixo">Sem áudio / áudio baixo</option>
+          <option value="Botão PTT danificado">Botão PTT danificado</option>
+          <option value="Botão de acionamento com avaria">Botão de acionamento com avaria</option>
+          <option value="Botão de volume danificado">Botão de volume danificado</option>
+          <option value="Ligando e desligando sozinho">Ligando e desligando sozinho</option>
+          <option value="Rádio não liga">Rádio não liga</option>
+          <option value="Bateria não carrega / dura pouco">Bateria não carrega / dura pouco</option>
+          <option value="Antena danificada">Antena danificada</option>
+          <option value="Carcaça quebrada / danificada">Carcaça quebrada / danificada</option>
+          <option value="Rádio caiu / molhou">Rádio caiu / molhou</option>
+          <option value="Outro">Outro (especificar)</option>
+        </select>
+      </div>
+      <div class="campo-largo" id="campoAvariaOutroEnvioRapido" style="display:none;">
+        <label>Descreva a avaria</label>
+        <input type="text" id="envioRapido-avaria-outro" placeholder="Descreva o problema detalhadamente...">
+      </div>
+      <div class="campo-largo">
+        <label>Comentário</label>
+        <input type="text" id="envioRapido-comentario" placeholder="Ex: Rádio enviado com bateria e antena">
+      </div>
+      <div class="campo-largo">
+        <label>Centro de custo</label>
+        <input type="text" id="envioRapido-centroCusto" placeholder="Ex: DEM2, 1020, Operações...">
+      </div>
+      <div class="campo-largo">
+        <label>Observação</label>
+        <input type="text" id="envioRapido-observacao" placeholder="Opcional">
+      </div>
+    </div>
+
+    <div class="modal-acoes" style="margin-top:16px;">
+      <button class="btn btn-secundario" onclick="fecharJanelaEnvioConserto()">Cancelar</button>
+      <button class="btn btn-secundario" onclick="abrirConsertoCompletoAPartirDeEnvioRapido()">📋 Ver lista de consertos</button>
+      <button class="btn btn-primario" onclick="confirmarEnvioConsertoRapido()" style="background:#DC2626; border-color:#DC2626;">
+        🚀 Confirmar Envio para Conserto
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-fundo" id="modalConserto" onclick="if(event.target===this) fecharConserto()">
   <div class="modal-caixa">
     <div class="modal-cabecalho">
@@ -5056,6 +5322,8 @@ function restaurarManualNuvem(){
         <div><label>Data de envio</label><input type="date" id="conserto-dataEnvio"></div>
         <div><label>Data de retorno</label><input type="date" id="conserto-dataRetorno"></div>
         <div class="campo-largo"><label>Comentário</label><input type="text" id="conserto-comentario" placeholder="Opcional"></div>
+        <div class="campo-largo"><label>Centro de custo</label><input type="text" id="conserto-centroCusto" placeholder="Ex: DEM2, 1020, Operações..."></div>
+        <div class="campo-largo"><label>Observação</label><input type="text" id="conserto-observacao" placeholder="Opcional"></div>
       </div>
       <div class="acoes-form">
         <button class="btn btn-primario" onclick="salvarConserto()">Registrar envio</button>
@@ -5953,11 +6221,7 @@ function restaurarManualNuvem(){
           <input type="text" id="terceirizado-local" placeholder="Ex.: Portaria Ivaí, Doca, Piscinas, Salão...">
         </div>
       </div>
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-top:14px;">
-        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer; color:var(--texto-forte); user-select:none;">
-          <input type="checkbox" id="terceirizado-marcar-presente" checked style="width:16px; height:16px; accent-color:var(--ok);">
-          <span>✅ Marcar como <strong>Presente</strong> no plantão do dia</span>
-        </label>
+      <div style="display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap; gap:8px; margin-top:14px;">
         <div class="acoes-form" style="display:flex; gap:8px; justify-content:flex-end;">
           <button type="button" class="btn btn-secundario" id="btnCancelarEdicaoTerceirizado" style="display:none;" onclick="cancelarEdicaoTerceirizado()">Cancelar Edição</button>
           <button type="button" class="btn btn-primario" id="btnSalvarTerceirizado" onclick="salvarTerceirizado()">Cadastrar Terceirizado</button>
@@ -5970,9 +6234,6 @@ function restaurarManualNuvem(){
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:8px; flex-wrap:wrap;">
         <h4 style="margin:0; font-size:13.5px; font-weight:700;">Terceirizados Cadastrados (<span id="contagemTerceirizados">0</span>)</h4>
         <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-          <button type="button" class="btn btn-secundario" style="font-size:11.5px; padding:4px 10px; display:inline-flex; align-items:center; gap:4px;" onclick="marcarTodosTerceirizadosPresentes()" title="Marcar todos terceirizados como presentes hoje">
-            ✅ Marcar todos presentes
-          </button>
           <input type="search" id="buscaModalTerceirizados" placeholder="Filtrar por nome, empresa..." style="max-width:180px; font-size:12px; padding:5px 8px;" oninput="renderListaModalTerceirizados()">
         </div>
       </div>
@@ -6461,6 +6722,12 @@ function restaurarManualNuvem(){
         <button type="button" class="btn btn-pequeno btn-secundario" id="btnAcaoExtraFiltroRadio" style="display:none;" onclick="abrirManutencao()">Janela Modal</button>
       </div>
     </div>
+    <div style="display:flex; align-items:center; gap:10px; font-size:12.5px; color:#1E293B; margin-bottom:12px; padding:10px 14px; background:#FEF2F2; border:1px solid #FECACA; border-left:4px solid #DC2626; border-radius:10px; box-shadow:0 1px 3px rgba(220,38,38,0.08);">
+      <span style="font-size:18px; flex-shrink:0;">⏱️</span>
+      <div style="line-height:1.4;">
+        <strong style="color:#DC2626; font-size:13px;">Atalho de Envio para Conserto:</strong> Pressione e segure qualquer rádio por <strong>2 segundos</strong> para abrir a janela de envio para conserto.
+      </div>
+    </div>
     <div class="lista-cartoes" id="lista-radios"></div>
   </section>
 
@@ -6936,9 +7203,9 @@ function restaurarManualNuvem(){
   <!-- ============ PRESENÇA ============ -->
   <section class="secao" id="secao-presenca">
     <div class="cabecalho-secao"><h2>Presença</h2></div>
-    <div style="display:flex; gap:8px; margin-bottom:14px;">
-      <button type="button" class="btn btn-secundario" style="flex:1; justify-content:center;" onclick="compartilharPresencaWhatsApp()" title="Compartilhar resumo no WhatsApp em nova guia">📲 WhatsApp</button>
-      <div style="flex:1; display:flex; gap:4px;">
+    <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
+      <button type="button" class="btn btn-secundario" style="flex:1; min-width:130px; justify-content:center;" onclick="compartilharPresencaWhatsApp()" title="Compartilhar resumo no WhatsApp em nova guia">📲 WhatsApp</button>
+      <div style="flex:1; min-width:170px; display:flex; gap:4px;">
         <button type="button" class="btn btn-secundario" style="flex:1; justify-content:center;" id="btnCompartilharPresencaEmail" onclick="compartilharPresencaEmail()" title="Abrir e-mail em nova guia no computador">✉️ E-mail (Gmail)</button>
         <button type="button" class="btn btn-secundario" style="padding:0 10px; font-size:13px;" title="Configurar provedor de e-mail (Gmail, Outlook, App)" onclick="abrirModalOpcoesEmailPresenca()">⚙️</button>
       </div>
@@ -6965,10 +7232,26 @@ function restaurarManualNuvem(){
     </div>
     <div id="avisoDataPresenca" style="display:none; font-size:12.5px; margin:-2px 0 12px;"></div>
     <div class="kpis" style="grid-template-columns:repeat(4,1fr);">
-      <div class="kpi"><div class="valor" id="kpiPresencaTotal">0</div><div class="rotulo">Colaboradores</div></div>
-      <div class="kpi" style="cursor:pointer;" onclick="abrirPresentesHoje()"><div class="valor" id="kpiPresencaPresentes">0</div><div class="rotulo">Presentes hoje</div></div>
-      <div class="kpi" style="cursor:pointer;" onclick="abrirFaltasHoje()"><div class="valor" id="kpiPresencaFaltas">0</div><div class="rotulo">Faltas hoje</div></div>
-      <div class="kpi" style="cursor:pointer;" onclick="abrirFaltasHoje()"><div class="valor" id="kpiPresencaFerias" style="color:#7E22CE;">0</div><div class="rotulo">Férias / Afast.</div></div>
+      <div class="kpi">
+        <div class="valor" id="kpiPresencaTotal">0</div>
+        <div class="rotulo" id="rotuloKpiPresencaTotal">Colaboradores</div>
+        <div class="kpi-sub" id="subKpiPresencaTotal" style="font-size:10.5px; color:#64748b; margin-top:2px;">—</div>
+      </div>
+      <div class="kpi" style="cursor:pointer;" onclick="abrirPresentesHoje()" title="Clique para ver a lista de presentes">
+        <div class="valor" id="kpiPresencaPresentes">0</div>
+        <div class="rotulo" id="rotuloKpiPresencaPresentes">Presentes hoje</div>
+        <div class="kpi-sub" id="subKpiPresencaPresentes" style="font-size:10.5px; color:#16a34a; font-weight:600; margin-top:2px;">—</div>
+      </div>
+      <div class="kpi" style="cursor:pointer;" onclick="abrirFaltasHoje()" title="Clique para ver faltas e ausências">
+        <div class="valor" id="kpiPresencaFaltas">0</div>
+        <div class="rotulo" id="rotuloKpiPresencaFaltas">Faltas hoje</div>
+        <div class="kpi-sub" id="subKpiPresencaFaltas" style="font-size:10.5px; color:#dc2626; font-weight:600; margin-top:2px;">—</div>
+      </div>
+      <div class="kpi" style="cursor:pointer;" onclick="abrirFaltasHoje()" title="Clique para ver férias e afastamentos">
+        <div class="valor" id="kpiPresencaFerias" style="color:#7E22CE;">0</div>
+        <div class="rotulo" id="rotuloKpiPresencaFerias">Férias / Afast.</div>
+        <div class="kpi-sub" id="subKpiPresencaFerias" style="font-size:10.5px; color:#7e22ce; font-weight:600; margin-top:2px;">—</div>
+      </div>
     </div>
     <div class="kpis" style="grid-template-columns:1fr; margin-top:-6px;">
       <div class="kpi" style="cursor:pointer;" onclick="abrirCalendarioPresenca()"><div class="valor">🔍</div><div class="rotulo">Consulta — ver presença e falta por data</div></div>
@@ -7529,6 +7812,20 @@ function carregar(mod){
         try{ localStorage.setItem('mtc_radios_conserto_backup_historico', JSON.stringify(dados)); }catch(e){}
       }
     }
+    if((mod === 'equipe' || chave === 'mtc_equipe_dem2') && Array.isArray(dados) && dados.length > 0){
+      try {
+        var excList = JSON.parse(localStorage.getItem('mtc_equipe_excluidos') || '[]');
+        if (Array.isArray(excList) && excList.length > 0){
+          var excSet = new Set(excList);
+          dados = dados.filter(function(m){
+            if (!m || !m.id) return false;
+            var idV3 = String(m.id).replace('equipe_v2_', 'equipe_v3_');
+            var idV2 = String(m.id).replace('equipe_v3_', 'equipe_v2_');
+            return !excSet.has(m.id) && !excSet.has(idV3) && !excSet.has(idV2);
+          });
+        }
+      } catch(eExc){}
+    }
     return dados || [];
   }
   catch(e){ return []; }
@@ -7970,6 +8267,15 @@ function excluir(mod, id, botao){
   const executar = () => {
     let lista = carregar(mod);
     lista = lista.filter(i => i.id !== id);
+    if(mod === 'equipe'){
+      try {
+        let excluidos = [];
+        try { excluidos = JSON.parse(localStorage.getItem('mtc_equipe_excluidos') || '[]'); } catch(e){}
+        if(!excluidos.includes(id)) excluidos.push(id);
+        localStorage.setItem('mtc_equipe_excluidos', JSON.stringify(excluidos));
+        localStorage.setItem('mtc_equipe_dem2_modificado_em', new Date().toISOString());
+      } catch(e){}
+    }
     salvarLista(mod, lista);
     renderTudo();
     if(window.PainelNuvem && typeof PainelNuvem.backupImediato === 'function'){
@@ -8959,7 +9265,16 @@ function renderRadios(){
           : `<span class="tag-status ok" title="Rádio operacional ativo">Operação</span>`);
 
     return `
-    <div class="${classeCartao}" onclick="abrirDetalheRadio('${i.id}')">
+    <div class="${classeCartao} cartao-radio-interativo"
+         id="cartao-radio-${i.id}"
+         onpointerdown="iniciarPressaoConsertoRadio(event, '${i.id}')"
+         onpointerup="finalizarPressaoConsertoRadio(event, '${i.id}')"
+         onpointercancel="finalizarPressaoConsertoRadio(event, '${i.id}')"
+         onpointerleave="finalizarPressaoConsertoRadio(event, '${i.id}')"
+         onpointermove="moverPressaoConsertoRadio(event, '${i.id}')"
+         oncontextmenu="if(window._pressaoConsertoAtiva){ event.preventDefault(); return false; }"
+         onclick="tratarCliqueCartaoRadio(event, '${i.id}')"
+         title="Toque rápido para ver detalhes · Pressione por 2s para enviar a conserto">
       <div class="coluna-numero-chave" title="Código do rádio: ${escapeHtml(i.codigo || '—')}">
         <span class="prefixo-n">CÓD</span>
         <span class="valor-numero-chave ${((i.codigo||'').length > 5) ? 'codigo-longo' : ''}">${htmlCodigo}</span>
@@ -8971,7 +9286,7 @@ function renderRadios(){
           <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
             ${tagStatus}
             <span class="tag-status neutro" title="Código">${htmlCodigo}</span>
-            <button type="button" class="btn-acao-cartao-qr" title="Gerar QR Code e Imprimir Etiqueta" onclick="event.stopPropagation(); abrirModalQrRadio('${i.id}')">
+            <button type="button" class="btn-acao-cartao-qr" title="Gerar QR Code e Imprimir Etiqueta" onpointerdown="event.stopPropagation()" onclick="event.stopPropagation(); abrirModalQrRadio('${i.id}')">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
               <span>QR Code</span>
             </button>
@@ -8984,6 +9299,258 @@ function renderRadios(){
       </div>
     </div>`;
   }).join('');
+}
+
+/* ============================================================
+   PRESSÃO POR 2 SEGUNDOS — ENVIO PARA CONSERTO DE RÁDIO
+   ============================================================ */
+window._pressaoConsertoAtiva = null;
+window._bloquearCliqueRadio = false;
+
+function iniciarPressaoConsertoRadio(event, radioId){
+  // Apenas botão esquerdo ou toque
+  if(event.button !== undefined && event.button !== 0) return;
+  if(event.target.closest('button, a, input, select, textarea')) return;
+
+  finalizarPressaoConsertoRadio(event, radioId);
+
+  const card = document.getElementById('cartao-radio-' + radioId) || event.currentTarget;
+  const startX = event.clientX;
+  const startY = event.clientY;
+
+  const pressData = {
+    radioId,
+    card,
+    startX,
+    startY,
+    timer5s: null,
+    timerOverlay: null,
+    intervalContador: null,
+    overlayEl: null,
+    inicioTempo: Date.now()
+  };
+  window._pressaoConsertoAtiva = pressData;
+
+  // Atraso de 110ms para evitar piscar overlay se for apenas um toque rápido para detalhes
+  pressData.timerOverlay = setTimeout(() => {
+    if(!window._pressaoConsertoAtiva || window._pressaoConsertoAtiva.radioId !== radioId) return;
+    card.classList.add('pressionando-5s');
+
+    // Cria overlay visual de contagem regressiva e barra
+    const overlay = document.createElement('div');
+    overlay.className = 'overlay-pressao-5s';
+    overlay.innerHTML = `
+      <div class="overlay-pressao-5s-topo">
+        <span>⏱️ Enviando p/ Conserto...</span>
+        <span class="overlay-pressao-5s-contador" id="contador5s-${radioId}">2.0s</span>
+      </div>
+      <div class="overlay-pressao-5s-trilha">
+        <div class="overlay-pressao-5s-preenchimento" id="barra5s-${radioId}"></div>
+      </div>
+      <div class="overlay-pressao-5s-dica">Segure por 2s para abrir a janela de envio</div>
+    `;
+    card.appendChild(overlay);
+    pressData.overlayEl = overlay;
+
+    // Dispara a animação da barra CSS
+    requestAnimationFrame(() => {
+      const barra = document.getElementById('barra5s-' + radioId);
+      if(barra) barra.style.width = '100%';
+    });
+
+    // Atualiza o contador de segundos na tela a cada 100ms
+    const tempoTotal = 2000;
+    pressData.intervalContador = setInterval(() => {
+      if(!window._pressaoConsertoAtiva || window._pressaoConsertoAtiva.radioId !== radioId) return;
+      const decorrido = Date.now() - pressData.inicioTempo;
+      const restante = Math.max(0, (tempoTotal - decorrido) / 1000);
+      const spanCont = document.getElementById('contador5s-' + radioId);
+      if(spanCont){
+        spanCont.textContent = restante > 0 ? (restante.toFixed(1) + 's') : 'Abrindo!';
+      }
+    }, 100);
+  }, 110);
+
+  // Timer principal de 2 segundos (2000ms)
+  pressData.timer5s = setTimeout(() => {
+    dispararEnvioConsertoApos5s(radioId);
+  }, 2000);
+}
+
+function moverPressaoConsertoRadio(event, radioId){
+  if(!window._pressaoConsertoAtiva || window._pressaoConsertoAtiva.radioId !== radioId) return;
+  const dx = Math.abs(event.clientX - window._pressaoConsertoAtiva.startX);
+  const dy = Math.abs(event.clientY - window._pressaoConsertoAtiva.startY);
+  // Se moveu mais de 16 pixels (ex: rolagem da página no celular), cancela sem prejudicar o scroll
+  if(dx > 16 || dy > 16){
+    finalizarPressaoConsertoRadio(event, radioId);
+  }
+}
+
+function finalizarPressaoConsertoRadio(event, radioId){
+  if(!window._pressaoConsertoAtiva) return;
+  const p = window._pressaoConsertoAtiva;
+  if(p.timer5s) clearTimeout(p.timer5s);
+  if(p.timerOverlay) clearTimeout(p.timerOverlay);
+  if(p.intervalContador) clearInterval(p.intervalContador);
+  if(p.card) p.card.classList.remove('pressionando-5s');
+  if(p.overlayEl && p.overlayEl.parentNode){
+    p.overlayEl.parentNode.removeChild(p.overlayEl);
+  }
+  window._pressaoConsertoAtiva = null;
+}
+
+function dispararEnvioConsertoApos5s(radioId){
+  window._bloquearCliqueRadio = true;
+  setTimeout(() => { window._bloquearCliqueRadio = false; }, 650);
+
+  if(typeof navigator !== 'undefined' && navigator.vibrate){
+    try { navigator.vibrate([80, 50, 80]); } catch(e){}
+  }
+
+  finalizarPressaoConsertoRadio(null, radioId);
+  abrirJanelaEnvioConserto(radioId);
+}
+
+function tratarCliqueCartaoRadio(event, radioId){
+  if(window._bloquearCliqueRadio){
+    event.preventDefault();
+    event.stopPropagation();
+    window._bloquearCliqueRadio = false;
+    return;
+  }
+  abrirDetalheRadio(radioId);
+}
+
+/* ============================================================
+   JANELA DE INFORMAÇÃO E ENVIO PARA CONSERTO (MODAL DEDICADO)
+   ============================================================ */
+function alternarAvariaOutroEnvioRapido(){
+  const outro = document.getElementById('envioRapido-avaria').value === 'Outro';
+  const campoOutro = document.getElementById('campoAvariaOutroEnvioRapido');
+  if(campoOutro) campoOutro.style.display = outro ? 'block' : 'none';
+}
+
+function abrirJanelaEnvioConserto(radioId){
+  const radios = carregar('radios');
+  const radio = radios.find(r => r.id === radioId);
+  if(!radio) return;
+
+  const reparos = carregar('radiosConserto').filter(c => c.radioId === radioId);
+  const consertoAberto = reparos.find(c => !c.dataRetorno);
+
+  document.getElementById('envioRapido-radioId').value = radioId;
+  const hoje = new Date().toISOString().slice(0, 10);
+  document.getElementById('envioRapido-dataEnvio').value = hoje;
+  document.getElementById('envioRapido-dataRetorno').value = '';
+  document.getElementById('envioRapido-avaria').value = 'Falha na comunicação';
+  document.getElementById('envioRapido-avaria-outro').value = '';
+  document.getElementById('campoAvariaOutroEnvioRapido').style.display = 'none';
+  document.getElementById('envioRapido-comentario').value = '';
+  document.getElementById('envioRapido-centroCusto').value = '';
+  document.getElementById('envioRapido-observacao').value = '';
+
+  const infoEl = document.getElementById('envioRapido-infoRadio');
+  const rotulo = (radio.setor && radio.setor !== '(Sem setor definido)') ? radio.setor : 'Rádio reserva';
+
+  let alertaAberto = '';
+  if(consertoAberto){
+    alertaAberto = `
+      <div style="margin-top:9px; padding:8px 12px; background:#FEF2F2; border:1px solid #FCA5A5; border-radius:8px; color:#B91C1C; font-size:12px; font-weight:600; display:flex; align-items:center; gap:6px;">
+        <span>⚠️</span>
+        <span>Atenção: Este rádio já possui um envio registrado em aberto (desde ${formatarDataSimples(consertoAberto.dataEnvio)} · Avaria: ${escapeHtml(consertoAberto.avaria||'—')}).</span>
+      </div>`;
+  }
+
+  let historicoHtml = '';
+  if(reparos.length > 0){
+    const ultimos = reparos.slice().sort((a,b) => (b.dataEnvio||'').localeCompare(a.dataEnvio||'')).slice(0, 3);
+    historicoHtml = `
+      <div style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--linha); font-size:12px; color:var(--texto-suave);">
+        <strong style="color:var(--texto);">Histórico recente deste aparelho (${reparos.length} registro${reparos.length>1?'s':''}):</strong><br>
+        ${ultimos.map(r => `• ${formatarDataSimples(r.dataEnvio)}: ${escapeHtml(r.avaria||'—')}${r.centroCusto ? ' [CC: ' + escapeHtml(r.centroCusto) + ']' : ''} ${r.dataRetorno ? '— Retornou em ' + formatarDataSimples(r.dataRetorno) : '— (Ainda em conserto)'}`).join('<br>')}
+      </div>`;
+  }
+
+  infoEl.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+      <div>
+        <div style="font-size:16px; font-weight:800; color:var(--verde-900);">${escapeHtml(rotulo)}</div>
+        <div style="font-size:13px; color:var(--texto); margin-top:3px;">
+          <strong>Código:</strong> <code style="font-weight:700;">${escapeHtml(radio.codigo||'—')}</code> ·
+          <strong>Modelo:</strong> <code>${escapeHtml(radio.modelo||'—')}</code> ·
+          <strong>S/N:</strong> <code style="font-weight:700;">${escapeHtml(radio.sn||'—')}</code>
+        </div>
+        ${radio.identificacao ? `<div style="font-size:12px; color:var(--texto-suave); margin-top:2px;"><strong>Identificação:</strong> ${escapeHtml(radio.identificacao)}</div>` : ''}
+      </div>
+      <div>
+        <span class="tag-status ${radio.manutencao ? 'alerta' : 'ok'}">${radio.manutencao ? 'Manutenção / Reserva' : 'Operacional Ativo'}</span>
+      </div>
+    </div>
+    ${alertaAberto}
+    ${historicoHtml}
+  `;
+
+  document.getElementById('modalEnvioConsertoRapido').classList.add('aberto');
+}
+
+function fecharJanelaEnvioConserto(){
+  const modal = document.getElementById('modalEnvioConsertoRapido');
+  if(modal) modal.classList.remove('aberto');
+}
+
+function abrirConsertoCompletoAPartirDeEnvioRapido(){
+  const radioId = document.getElementById('envioRapido-radioId').value;
+  fecharJanelaEnvioConserto();
+  abrirConserto(radioId);
+}
+
+function confirmarEnvioConsertoRapido(){
+  const radioId = document.getElementById('envioRapido-radioId').value;
+  if(!radioId){ alert('Rádio não identificado.'); return; }
+
+  const dataEnvio = document.getElementById('envioRapido-dataEnvio').value;
+  const selecaoAvaria = document.getElementById('envioRapido-avaria').value;
+  const avaria = selecaoAvaria === 'Outro' ? document.getElementById('envioRapido-avaria-outro').value.trim() : selecaoAvaria;
+
+  if(!dataEnvio){ alert('Por favor, informe a data de envio.'); return; }
+  if(!avaria){ alert('Por favor, informe a avaria do rádio.'); return; }
+
+  const radios = carregar('radios');
+  const radio = radios.find(r => r.id === radioId);
+  const setor = radio ? radio.setor : '';
+
+  const elCc = document.getElementById('envioRapido-centroCusto');
+  const elObs = document.getElementById('envioRapido-observacao');
+  const elCom = document.getElementById('envioRapido-comentario');
+  const elRet = document.getElementById('envioRapido-dataRetorno');
+
+  const dados = {
+    id: gerarId(),
+    radioId,
+    setor,
+    avaria,
+    dataEnvio,
+    dataRetorno: elRet ? elRet.value : '',
+    comentario: elCom ? elCom.value.trim() : '',
+    centroCusto: elCc ? elCc.value.trim() : '',
+    observacao: elObs ? elObs.value.trim() : '',
+    criadoEm: new Date().toISOString()
+  };
+
+  let lista = carregar('radiosConserto');
+  lista.push(dados);
+  salvarLista('radiosConserto', lista);
+
+  fecharJanelaEnvioConserto();
+  renderRadios();
+  if(typeof renderConserto === 'function') renderConserto();
+
+  if(typeof mostrarNotificacaoFlutuante === 'function'){
+    mostrarNotificacaoFlutuante('Rádio ' + (setor || radio.codigo || '') + ' enviado para conserto com sucesso!', 'ok');
+  } else {
+    alert('Rádio ' + (setor || radio.codigo || '') + ' enviado para conserto com sucesso!');
+  }
 }
 
 /* ============================================================
@@ -9001,7 +9568,7 @@ function abrirDetalheRadio(id){
   const reparos = carregar('radiosConserto').filter(c => c.radioId === id);
   const historicoTexto = reparos.length
     ? reparos.sort((a,b)=>(b.dataEnvio||'').localeCompare(a.dataEnvio||''))
-        .map(r => `${formatarDataSimples(r.dataEnvio)}: ${r.avaria}${r.dataRetorno ? ' (retorno ' + formatarDataSimples(r.dataRetorno) + ')' : ' (em conserto)'}`)
+        .map(r => `${formatarDataSimples(r.dataEnvio)}: ${r.avaria}${r.centroCusto ? ' [CC: ' + r.centroCusto + ']' : ''}${r.dataRetorno ? ' (retorno ' + formatarDataSimples(r.dataRetorno) + ')' : ' (em conserto)'}`)
         .join('; ')
     : '';
 
@@ -9051,7 +9618,9 @@ function compartilharRadioEmail(){
     reparos.forEach(r => {
       const status = r.dataRetorno ? ('Retornado em ' + formatarDataSimples(r.dataRetorno)) : 'AINDA EM CONSERTO';
       texto += `• ${formatarDataSimples(r.dataEnvio)} — ${r.avaria || '—'} — ${status}\n`;
-      if(r.comentario) texto += `  Obs: ${r.comentario}\n`;
+      if(r.comentario) texto += `  Comentário: ${r.comentario}\n`;
+      if(r.centroCusto) texto += `  Centro de custo: ${r.centroCusto}\n`;
+      if(r.observacao) texto += `  Observação: ${r.observacao}\n`;
     });
   }
 
@@ -9099,10 +9668,20 @@ function limparFormConserto(){
   document.getElementById('conserto-dataEnvio').value = '';
   document.getElementById('conserto-dataRetorno').value = '';
   document.getElementById('conserto-comentario').value = '';
+  const elCcLimpar = document.getElementById('conserto-centroCusto');
+  if(elCcLimpar) elCcLimpar.value = '';
+  const elObsLimpar = document.getElementById('conserto-observacao');
+  if(elObsLimpar) elObsLimpar.value = '';
 }
-function abrirConserto(){
+function abrirConserto(radioIdPredefinido){
   popularSelectRadios();
   limparFormConserto();
+  if(radioIdPredefinido){
+    const sel = document.getElementById('conserto-radioId');
+    if(sel) sel.value = radioIdPredefinido;
+    const dt = document.getElementById('conserto-dataEnvio');
+    if(dt && !dt.value) dt.value = new Date().toISOString().slice(0, 10);
+  }
   renderConserto();
   document.getElementById('modalConserto').classList.add('aberto');
 }
@@ -9117,13 +9696,17 @@ function salvarConserto(){
   const avaria = selecaoAvaria === 'Outro' ? document.getElementById('conserto-avaria-outro').value.trim() : selecaoAvaria;
   if(!radioId || !avaria){ alert('Selecione o rádio e informe a avaria.'); return; }
   const radio = carregar('radios').find(r => r.id === radioId);
+  const elCc = document.getElementById('conserto-centroCusto');
+  const elObs = document.getElementById('conserto-observacao');
   const dados = {
     radioId,
     setor: radio ? radio.setor : '',
     avaria,
     dataEnvio: document.getElementById('conserto-dataEnvio').value,
     dataRetorno: document.getElementById('conserto-dataRetorno').value,
-    comentario: document.getElementById('conserto-comentario').value.trim()
+    comentario: document.getElementById('conserto-comentario').value.trim(),
+    centroCusto: elCc ? elCc.value.trim() : '',
+    observacao: elObs ? elObs.value.trim() : ''
   };
   let lista = carregar('radiosConserto');
   if(idAtual){
@@ -9160,6 +9743,10 @@ function editarConserto(id){
   document.getElementById('conserto-dataEnvio').value = item.dataEnvio || '';
   document.getElementById('conserto-dataRetorno').value = item.dataRetorno || '';
   document.getElementById('conserto-comentario').value = item.comentario || '';
+  const elCc = document.getElementById('conserto-centroCusto');
+  if(elCc) elCc.value = item.centroCusto || '';
+  const elObs = document.getElementById('conserto-observacao');
+  if(elObs) elObs.value = item.observacao || '';
 }
 function excluirConserto(id){
   if(!confirm('Excluir este registro de conserto?')) return;
@@ -9195,6 +9782,8 @@ function renderConserto(){
           Avaria: ${escapeHtml(i.avaria||'—')}<br>
           Envio: ${formatarDataSimples(i.dataEnvio)} · Retorno: ${formatarDataSimples(i.dataRetorno)}
           ${i.comentario ? '<br>Coment.: ' + escapeHtml(i.comentario) : ''}
+          ${i.centroCusto ? '<br>Centro de custo: ' + escapeHtml(i.centroCusto) : ''}
+          ${i.observacao ? '<br>Obs.: ' + escapeHtml(i.observacao) : ''}
         </div>
         <div class="item-acoes">
           ${aberto ? `<button onclick="marcarRetorno('${i.id}')" style="color:var(--ok); border-color:var(--ok-bg);">Marcar como retornado</button>` : ''}
@@ -12670,76 +13259,8 @@ function comprimirImagemParaUpload(file, callback){
 
 function inicializarSeedPresencaStatus(){
   try{
-    if (window.PainelNuvem && PainelNuvem.temUrl()) return;
-    const jaInicializou = localStorage.getItem('mtc_presenca_status_seed_v2');
-    const mapaAtual = carregarPresenca();
-    const qtdDatas = Object.keys(mapaAtual).length;
-    if(jaInicializou && qtdDatas > 0) return;
-
-    const colabs = colaboradoresValidos();
-    if(!colabs || colabs.length === 0) return;
-
-    const mapa = qtdDatas > 0 ? mapaAtual : {};
-    const hoje = new Date();
-
-    const colabAtestado1 = colabs[1] ? colabs[1].id : null; // ex: Aline
-    const colabAtestado2 = colabs[7] ? colabs[7].id : null; // ex: Andre
-    const colabFalta1 = colabs[9] ? colabs[9].id : null;
-    const colabFalta2 = colabs[15] ? colabs[15].id : null;
-
-    if(qtdDatas === 0){
-      for(let i = 14; i >= 0; i--){
-        const d = new Date(hoje.getTime() - i * 24 * 60 * 60 * 1000);
-        const isoData = d.toISOString().slice(0, 10);
-        if(!mapa[isoData]) mapa[isoData] = {};
-
-        colabs.forEach(c => {
-          let statusObj = { status: 'Presente' };
-
-          if(c.id === colabAtestado1 && (i === 3 || i === 4 || i === 5)){
-            statusObj = { status: 'Falta', tipo: 'Atestado médico', motivo: 'Atestado médico (CID M54)' };
-          } else if(c.id === colabAtestado2 && (i === 8 || i === 9)){
-            statusObj = { status: 'Falta', tipo: 'Atestado médico', motivo: 'Atestado médico (2 dias)' };
-          } else if(c.id === colabFalta1 && (i === 2 || i === 6)){
-            statusObj = { status: 'Falta', tipo: 'Falta não justificada', motivo: 'Falta não justificada' };
-          } else if(c.id === colabFalta2 && i === 11){
-            // Ausência programada: NÃO deve ser computada como falta
-            statusObj = { status: 'Falta', tipo: 'Ausência programada', motivo: 'Ausência programada (Folga acordada)' };
-          }
-
-          mapa[isoData][c.id] = statusObj;
-        });
-      }
-      salvarPresenca(mapa);
-    }
-
-    // Criar um anexo modelo de atestado para facilitar teste imediato do usuário
-    if(colabAtestado1){
-      const dRef = new Date(hoje.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-      const chave = obterChaveAnexoAtestado(colabAtestado1, dRef);
-      const anexos = carregarAnexosAtestados();
-      if(!anexos[chave]){
-        // Criar um SVG placeholder data URL simples como comprovante médico
-        const svgSample = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="100%" height="100%" fill="%23f8fafc" stroke="%23cbd5e1" stroke-width="4"/><text x="50" y="60" font-family="sans-serif" font-size="20" font-weight="bold" fill="%231e3a8a">ATESTADO MÉDICO DE COMPARECIMENTO</text><line x1="50" y1="80" x2="550" y2="80" stroke="%232563eb" stroke-width="2"/><text x="50" y="120" font-family="sans-serif" font-size="14" fill="%23334155">Atesto para os devidos fins que o(a) colaborador(a) esteve</text><text x="50" y="145" font-family="sans-serif" font-size="14" fill="%23334155">em atendimento ambulatorial sob meus cuidados clínicos.</text><text x="50" y="190" font-family="sans-serif" font-size="14" font-weight="bold" fill="%230f172a">CID: M54.5 - Dor Lombar Baixa</text><text x="50" y="220" font-family="sans-serif" font-size="14" fill="%23334155">Necessita de afastamento das atividades laborais por 2 dias.</text><text x="50" y="320" font-family="sans-serif" font-size="13" fill="%2364748b">Dr. Roberto Lima — CRM/SP 123.456</text><text x="50" y="340" font-family="sans-serif" font-size="12" fill="%2394a3b8">Hospital DEM2 - Medicina do Trabalho</text></svg>`;
-        anexos[chave] = {
-          colaboradorId: colabAtestado1,
-          colaboradorNome: colabs[1].nome,
-          data: dRef,
-          nomeArquivo: 'atestado_medico_cid_m54.png',
-          tipoArquivo: 'image/svg+xml',
-          tamanhoFormatado: '14.2 KB',
-          motivo: 'Atestado médico (CID M54)',
-          conteudoBase64: svgSample,
-          criadoEm: new Date().toISOString()
-        };
-        salvarMapaAnexosAtestados(anexos);
-      }
-    }
-
     localStorage.setItem('mtc_presenca_status_seed_v2', 'ok');
-  }catch(e){
-    console.error('Erro ao inicializar seed de status de presença:', e);
-  }
+  }catch(e){}
 }
 
 function obterDadosStatusEquipe(filtros){
@@ -16052,9 +16573,9 @@ function carregarPresenca(){
         }
       }catch(eBkp){}
     }
-    // Proteção de dia: se o dia selecionado/hoje não tiver registros locais mas constar no backup histórico, restaura
+    // Proteção de dia: se o dia selecionado/hoje não tiver registros locais mas constar no backup histórico, restaura (apenas para datas anteriores a 08/11/2026)
     const diaAlvo = dataPresencaAtual();
-    if (mapa && (!mapa[diaAlvo] || Object.keys(mapa[diaAlvo]).length === 0)){
+    if (diaAlvo < '2026-11-08' && mapa && (!mapa[diaAlvo] || Object.keys(mapa[diaAlvo]).length === 0)){
       try{
         const bkp = JSON.parse(localStorage.getItem('mtc_presenca_backup_historico') || '{}');
         if (bkp && bkp[diaAlvo] && Object.keys(bkp[diaAlvo]).length > 0){
@@ -16062,6 +16583,90 @@ function carregarPresenca(){
           try{ localStorage.setItem('mtc_presenca', JSON.stringify(mapa)); }catch(e){}
         }
       }catch(eBkp2){}
+    }
+    // Auto-reconstituição APENAS para arquivo histórico de Outubro 2026 (Novembro e dias futuros NUNCA são pré-marcados)
+    if (mapa && (!mapa[diaAlvo] || Object.keys(mapa[diaAlvo]).length === 0)){
+      try {
+        const partes = diaAlvo.split('-');
+        if (partes.length === 3){
+          const anoNum = parseInt(partes[0], 10);
+          const mesNum = parseInt(partes[1], 10);
+          const diaNum = parseInt(partes[2], 10);
+          // Apenas histórico fechado de Outubro 2026 pode ser reconstituído se cache local for apagado
+          if (anoNum === 2026 && mesNum === 10){
+            const isPlantaoA = (diaNum % 2 === 0);
+            const eqLista = (typeof carregar === 'function') ? carregar('equipe') : [];
+            const novoDia = {};
+            const tsIso = diaAlvo + 'T08:00:00.000Z';
+            eqLista.forEach(c => {
+              if (!c || !c.id) return;
+              const nomeLow = (c.nome || '').trim().toLowerCase();
+              if (!nomeLow || nomeLow === 'aguardando recrutamento' || nomeLow.startsWith('aguardando recrutamento')) return;
+              const t = c.turno || '';
+              let statusColab = 'Presente';
+              if (isPlantaoA){
+                statusColab = (t === 'Plantão A' || t === 'Manhã') ? 'Presente' : 'Folga';
+              } else {
+                statusColab = (t === 'Plantão B' || t === 'Tarde' || t === 'Noite') ? 'Presente' : 'Folga';
+              }
+              novoDia[c.id] = {
+                status: statusColab,
+                colaboradorId: c.id,
+                nome: c.nome,
+                atualizadoEm: tsIso
+              };
+            });
+            if (Object.keys(novoDia).length > 0){
+              mapa[diaAlvo] = novoDia;
+              try {
+                localStorage.setItem('mtc_presenca', JSON.stringify(mapa));
+                localStorage.setItem('mtc_presenca_backup_historico', JSON.stringify(mapa));
+              } catch(eS){}
+            }
+          }
+        }
+      } catch(eAuto){}
+    }
+    // Limpeza mandatória: remove TODAS as presenças (Presente/Folga pré-definida) a partir de 2026-11-08 e remove dias futuros
+    if (mapa && typeof mapa === 'object') {
+      const hojeIso = (typeof dataHojeISO === 'function') ? dataHojeISO() : new Date().toISOString().slice(0, 10);
+      let limpou = false;
+      Object.keys(mapa).forEach(dt => {
+        if (dt > hojeIso) {
+          delete mapa[dt];
+          limpou = true;
+          return;
+        }
+        if (dt >= '2026-11-08') {
+          const diaObj = mapa[dt];
+          if (diaObj && typeof diaObj === 'object') {
+            Object.keys(diaObj).forEach(id => {
+              const reg = diaObj[id];
+              const st = (reg && reg.status) || (typeof reg === 'string' ? reg : '');
+              if (st === 'Presente' || st === 'Folga') {
+                delete diaObj[id];
+                limpou = true;
+              }
+            });
+            if (Object.keys(diaObj).length === 0) {
+              delete mapa[dt];
+              limpou = true;
+            }
+          }
+        }
+      });
+      if (limpou) {
+        try {
+          localStorage.setItem('mtc_presenca', JSON.stringify(mapa));
+          const bkp = JSON.parse(localStorage.getItem('mtc_presenca_backup_historico') || '{}');
+          if (bkp && typeof bkp === 'object') {
+            Object.keys(bkp).forEach(dt => {
+              if (dt >= '2026-11-08') delete bkp[dt];
+            });
+            localStorage.setItem('mtc_presenca_backup_historico', JSON.stringify(bkp));
+          }
+        } catch(eL){}
+      }
     }
     return mapa || {};
   }
@@ -16084,6 +16689,45 @@ function salvarPresenca(mapa){
     }
   }catch(e){}
 }
+
+// Limpeza rigorosa e imediata: desmarca TODAS as presenças a partir de 08/11/2026 para Equipe A, Equipe B e Terceirizados
+(function desmarcarPresentesApartirDe8Novembro(){
+  try {
+    ['mtc_presenca', 'mtc_presenca_backup_historico'].forEach(function(chaveStore){
+      const raw = localStorage.getItem(chaveStore);
+      if (!raw) return;
+      const mapa = JSON.parse(raw);
+      if (!mapa || typeof mapa !== 'object') return;
+      let alterado = false;
+      const hojeIso = (typeof dataHojeISO === 'function') ? dataHojeISO() : new Date().toISOString().slice(0, 10);
+      Object.keys(mapa).forEach(dt => {
+        if (dt > hojeIso) {
+          delete mapa[dt];
+          alterado = true;
+          return;
+        }
+        if (dt >= '2026-11-08') {
+          const diaObj = mapa[dt] || {};
+          Object.keys(diaObj).forEach(id => {
+            const reg = diaObj[id];
+            const st = (reg && reg.status) || (typeof reg === 'string' ? reg : '');
+            if (st === 'Presente' || st === 'Folga') {
+              delete diaObj[id];
+              alterado = true;
+            }
+          });
+          if (Object.keys(diaObj).length === 0) {
+            delete mapa[dt];
+            alterado = true;
+          }
+        }
+      });
+      if (alterado) {
+        localStorage.setItem(chaveStore, JSON.stringify(mapa));
+      }
+    });
+  } catch(e){}
+})();
 function colaboradoresValidos(){
   return carregar('equipe').filter(c => {
     const n = (c.nome||'').trim().toLowerCase();
@@ -16359,6 +17003,11 @@ function marcarPresenca(id, status){
   _ultimoClickPresenca = { id: id, tempo: agora };
 
   const hoje = dataPresencaAtual();
+  const hojeIso = dataHojeISO();
+  if (hoje > hojeIso && status === 'Presente'){
+    mostrarNotificacaoPresenca('⚠️ A marcação de presença é diária. Não é possível marcar presença em dias futuros.');
+    return;
+  }
   const mapa = carregarPresenca();
   if(!mapa[hoje]) mapa[hoje] = {};
 
@@ -17086,14 +17735,7 @@ function salvarTerceirizado(){
     };
     lista.push(novo);
 
-    // Se a opção de marcar presença hoje estiver marcada
-    if(!chkPresente || chkPresente.checked){
-      const hoje = dataPresencaAtual();
-      const mapa = carregarPresenca();
-      if(!mapa[hoje]) mapa[hoje] = {};
-      mapa[hoje][idFinal] = { status: 'Presente' };
-      salvarPresenca(mapa);
-    }
+    // Terceirizados são cadastrados sem pré-marcação automática. A conferência é individual na aba de Terceirizados.
   }
 
   salvarListaTerceirizados(lista);
@@ -17280,24 +17922,82 @@ function renderPresenca(){
   const mapa = carregarPresenca();
   const registrosHoje = mapa[hoje] || {};
   const todosValidos = colaboradoresValidos();
-  const totalPresentesGeral = todosValidos.filter(c => statusPresencaDe(registrosHoje[c.id]) === 'Presente').length;
-  const totalFaltasGeral = todosValidos.filter(c => statusPresencaDe(registrosHoje[c.id]) === 'Falta').length;
-  const totalFeriasGeral = todosValidos.filter(c => statusPresencaDe(registrosHoje[c.id]) === 'Férias').length;
-  const totalInssGeral = todosValidos.filter(c => statusPresencaDe(registrosHoje[c.id]) === 'Afastamento INSS').length;
-  
+  const listaTerc = carregarTerceirizados();
+  const todosUnidade = [...todosValidos, ...listaTerc];
+
+  // Métricas GERAIS de toda a unidade hoje (CLT + Terceirizados) usando obterStatusColaborador
+  const totalPresentesGeral = todosUnidade.filter(c => statusPresencaDe(obterStatusColaborador(registrosHoje, c.id, c.nome)) === 'Presente').length;
+  const totalFaltasGeral = todosUnidade.filter(c => statusPresencaDe(obterStatusColaborador(registrosHoje, c.id, c.nome)) === 'Falta').length;
+  const totalFeriasGeral = todosUnidade.filter(c => statusPresencaDe(obterStatusColaborador(registrosHoje, c.id, c.nome)) === 'Férias').length;
+  const totalInssGeral = todosUnidade.filter(c => statusPresencaDe(obterStatusColaborador(registrosHoje, c.id, c.nome)) === 'Afastamento INSS').length;
+  const totalAfastamentosGeral = totalFeriasGeral + totalInssGeral;
+
   const busca = (document.getElementById('buscaPresenca').value || '').toLowerCase();
+  const selectFuncao = document.getElementById('filtroFuncaoPresenca');
+  const funcaoSelecionadaAtual = selectFuncao ? selectFuncao.value : '';
   const equipeCompleta = colaboradoresPorEquipe(equipeAtivaPresenca);
   const funcoesDisponiveis = Array.from(new Set(equipeCompleta.map(c => c.funcao).filter(Boolean))).sort((a,b) => a.localeCompare(b));
-  const selectFuncao = document.getElementById('filtroFuncaoPresenca');
-  const funcaoSelecionadaAtual = selectFuncao.value;
-  selectFuncao.innerHTML = '<option value="">Todas as funções</option>' +
-    `<option value="__terceirizados__" ${funcaoSelecionadaAtual === '__terceirizados__' ? 'selected' : ''}>🏢 Terceirizados</option>` +
-    funcoesDisponiveis.map(f => `<option value="${escapeHtml(f)}" ${f === funcaoSelecionadaAtual ? 'selected' : ''}>${escapeHtml(f)}</option>`).join('');
-  const funcaoFiltro = selectFuncao.value;
+  if(selectFuncao){
+    selectFuncao.innerHTML = '<option value="">Todas as funções</option>' +
+      `<option value="__terceirizados__" ${funcaoSelecionadaAtual === '__terceirizados__' ? 'selected' : ''}>🏢 Terceirizados</option>` +
+      funcoesDisponiveis.map(f => `<option value="${escapeHtml(f)}" ${f === funcaoSelecionadaAtual ? 'selected' : ''}>${escapeHtml(f)}</option>`).join('');
+  }
+  const funcaoFiltro = selectFuncao ? selectFuncao.value : '';
+
+  // Determina o escopo da aba selecionada (Equipe A, Equipe B ou Terceirizados)
+  const ehAbaTerceirizados = (equipeAtivaPresenca === 'TERCEIRIZADOS' || funcaoFiltro === '__terceirizados__');
+  const nomeAba = ehAbaTerceirizados ? 'Terceirizados' : ('Equipe ' + (equipeAtivaPresenca || 'A'));
+  const listaAtiva = ehAbaTerceirizados ? listaTerc : equipeCompleta;
+
+  const totalAtivo = listaAtiva.length;
+  const presentesAtivo = listaAtiva.filter(c => statusPresencaDe(obterStatusColaborador(registrosHoje, c.id, c.nome)) === 'Presente').length;
+  const faltasAtivo = listaAtiva.filter(c => statusPresencaDe(obterStatusColaborador(registrosHoje, c.id, c.nome)) === 'Falta').length;
+  const feriasAtivo = listaAtiva.filter(c => statusPresencaDe(obterStatusColaborador(registrosHoje, c.id, c.nome)) === 'Férias').length;
+  const inssAtivo = listaAtiva.filter(c => statusPresencaDe(obterStatusColaborador(registrosHoje, c.id, c.nome)) === 'Afastamento INSS').length;
+  const afastamentosAtivo = feriasAtivo + inssAtivo;
+
+  // Atualização dos 4 cards de KPI com o valor da equipe ativa + rotulo contextual + sub-kpi geral
+  const elKpiTotal = document.getElementById('kpiPresencaTotal');
+  const elRotuloTotal = document.getElementById('rotuloKpiPresencaTotal');
+  const elSubTotal = document.getElementById('subKpiPresencaTotal');
+  if(elKpiTotal) elKpiTotal.textContent = totalAtivo;
+  if(elRotuloTotal) elRotuloTotal.textContent = `Colaboradores (${nomeAba})`;
+  if(elSubTotal) elSubTotal.textContent = `Geral: ${todosUnidade.length}`;
+
+  const elKpiPres = document.getElementById('kpiPresencaPresentes');
+  const elRotuloPres = document.getElementById('rotuloKpiPresencaPresentes');
+  const elSubPres = document.getElementById('subKpiPresencaPresentes');
+  if(elKpiPres) elKpiPres.textContent = presentesAtivo;
+  if(elRotuloPres) elRotuloPres.textContent = `Presentes hoje (${nomeAba})`;
+  if(elSubPres) elSubPres.textContent = `Geral: ${totalPresentesGeral}`;
+
+  const elKpiFaltas = document.getElementById('kpiPresencaFaltas');
+  const elRotuloFaltas = document.getElementById('rotuloKpiPresencaFaltas');
+  const elSubFaltas = document.getElementById('subKpiPresencaFaltas');
+  if(elKpiFaltas) elKpiFaltas.textContent = faltasAtivo;
+  if(elRotuloFaltas) elRotuloFaltas.textContent = `Faltas hoje (${nomeAba})`;
+  if(elSubFaltas) elSubFaltas.textContent = `Geral: ${totalFaltasGeral}`;
+
+  const elKpiFerias = document.getElementById('kpiPresencaFerias');
+  const elRotuloFerias = document.getElementById('rotuloKpiPresencaFerias');
+  const elSubFerias = document.getElementById('subKpiPresencaFerias');
+  if(elKpiFerias) elKpiFerias.textContent = afastamentosAtivo;
+  if(elRotuloFerias) elRotuloFerias.textContent = `Férias / Afast. (${nomeAba})`;
+  if(elSubFerias) elSubFerias.textContent = `Geral: ${totalAfastamentosGeral}`;
+
+  // Atualiza selo do módulo no Hub
+  const elSelo = document.getElementById('seloPresenca');
+  if(elSelo){
+    const rotulosExtras = [];
+    if(totalFaltasGeral > 0) rotulosExtras.push(totalFaltasGeral + ' faltas');
+    if(totalFeriasGeral > 0) rotulosExtras.push(totalFeriasGeral + ' férias');
+    if(totalInssGeral > 0) rotulosExtras.push(totalInssGeral + ' afast. INSS');
+    elSelo.textContent = totalPresentesGeral + ' presentes' + (rotulosExtras.length > 0 ? ' · ' + rotulosExtras.join(' · ') : '');
+    elSelo.className = 'selo ok';
+  }
 
   // Se o filtro selecionado for Terceirizados ou aba de terceirizados estiver ativa
-  if(equipeAtivaPresenca === 'TERCEIRIZADOS' || funcaoFiltro === '__terceirizados__'){
-    const listaTerc = carregarTerceirizados();
+  if(ehAbaTerceirizados){
     const filtrados = listaTerc.filter(t => 
       (t.nome||'').toLowerCase().includes(busca) || 
       (t.empresa||'').toLowerCase().includes(busca) || 
@@ -17306,30 +18006,14 @@ function renderPresenca(){
       (t.horario||'').toLowerCase().includes(busca)
     ).sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
 
-    const totalPresentesTerc = listaTerc.filter(t => statusPresencaDe(obterStatusColaborador(registrosHoje, t.id, t.nome)) === 'Presente').length;
-    const totalFaltasTerc = listaTerc.filter(t => statusPresencaDe(obterStatusColaborador(registrosHoje, t.id, t.nome)) === 'Falta').length;
-    const totalFeriasTerc = listaTerc.filter(t => statusPresencaDe(obterStatusColaborador(registrosHoje, t.id, t.nome)) === 'Férias').length;
-    const totalInssTerc = listaTerc.filter(t => statusPresencaDe(obterStatusColaborador(registrosHoje, t.id, t.nome)) === 'Afastamento INSS').length;
-
-    document.getElementById('kpiPresencaTotal').textContent = listaTerc.length;
-    document.getElementById('kpiPresencaPresentes').textContent = totalPresentesTerc;
-    document.getElementById('kpiPresencaFaltas').textContent = totalFaltasTerc;
-    const elFeriasTerc = document.getElementById('kpiPresencaFerias');
-    if(elFeriasTerc) elFeriasTerc.textContent = (totalFeriasTerc + totalInssTerc);
-    document.getElementById('seloPresenca').textContent = totalPresentesTerc + ' presentes (terceirizados)';
-    document.getElementById('seloPresenca').className = 'selo ok';
-
     const cont = document.getElementById('lista-presenca');
     const barraTerceirizados = `
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding:10px 14px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; gap:8px; flex-wrap:wrap;">
         <div>
           <strong style="color:#1e40af; font-size:13.5px;">🏢 Equipe Terceirizada (${listaTerc.length})</strong>
-          <div style="font-size:12px; color:#3b82f6;">${totalPresentesTerc} presentes${totalFaltasTerc > 0 ? ' · ' + totalFaltasTerc + ' faltas' : ''}${totalFeriasTerc > 0 ? ' · ' + totalFeriasTerc + ' em férias' : ''}${totalInssTerc > 0 ? ' · ' + totalInssTerc + ' em afastamento INSS' : ''} no plantão</div>
+          <div style="font-size:12px; color:#3b82f6;">${presentesAtivo} presentes${faltasAtivo > 0 ? ' · ' + faltasAtivo + ' faltas' : ''}${feriasAtivo > 0 ? ' · ' + feriasAtivo + ' em férias' : ''}${inssAtivo > 0 ? ' · ' + inssAtivo + ' em afastamento INSS' : ''} no plantão</div>
         </div>
         <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-          <button type="button" class="btn btn-secundario" style="font-size:12px; padding:7px 12px; display:inline-flex; align-items:center; gap:4px;" onclick="marcarTodosTerceirizadosPresentes()">
-            ✅ Marcar todos presentes
-          </button>
           <button type="button" class="btn btn-primario" style="font-size:12px; padding:7px 12px; display:inline-flex; align-items:center; gap:6px;" onclick="abrirCadastroTerceirizados()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
             <span>Cadastrar Terceirizado</span>
@@ -17380,18 +18064,6 @@ function renderPresenca(){
     return;
   }
 
-  // Comportamento normal CLT
-  document.getElementById('kpiPresencaTotal').textContent = todosValidos.length;
-  document.getElementById('kpiPresencaPresentes').textContent = totalPresentesGeral;
-  document.getElementById('kpiPresencaFaltas').textContent = totalFaltasGeral;
-  const elFeriasGeral = document.getElementById('kpiPresencaFerias');
-  if(elFeriasGeral) elFeriasGeral.textContent = (totalFeriasGeral + totalInssGeral);
-  
-  const rotulosExtras = [];
-  if(totalFeriasGeral > 0) rotulosExtras.push(totalFeriasGeral + ' férias');
-  if(totalInssGeral > 0) rotulosExtras.push(totalInssGeral + ' afast. INSS');
-  document.getElementById('seloPresenca').textContent = totalPresentesGeral + ' presentes' + (rotulosExtras.length > 0 ? ' · ' + rotulosExtras.join(' · ') : '');
-  document.getElementById('seloPresenca').className = 'selo ok';
 
   const lista = equipeCompleta
     .filter(c => (c.nome||'').toLowerCase().includes(busca) || (c.funcao||'').toLowerCase().includes(busca))
@@ -17399,7 +18071,19 @@ function renderPresenca(){
     .sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
   const cont = document.getElementById('lista-presenca');
   if(lista.length === 0){ cont.innerHTML = telaVazia('Nenhum colaborador cadastrado com turno na Equipe ' + equipeAtivaPresenca + '.'); return; }
-  cont.innerHTML = lista.map(c => {
+
+  const barraEquipe = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding:10px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; gap:8px; flex-wrap:wrap;">
+      <div>
+        <strong style="color:var(--primaria, #1e3a8a); font-size:13.5px;">👥 Equipe ${escapeHtml(equipeAtivaPresenca)} (${equipeCompleta.length})</strong>
+        <div style="font-size:12px; color:#64748b;">${presentesAtivo} presentes · ${faltasAtivo} faltas${afastamentosAtivo > 0 ? ' · ' + afastamentosAtivo + ' afastados' : ''}</div>
+      </div>
+      <div>
+        <span style="font-size:12px; color:#64748b; font-weight:500;">Conferência individual</span>
+      </div>
+    </div>`;
+
+  cont.innerHTML = barraEquipe + lista.map(c => {
     const status = statusPresencaDe(obterStatusColaborador(registrosHoje, c.id, c.nome));
     const motivo = obterMotivoColaborador(registrosHoje, c.id, c.nome);
     const ehFerias = status === 'Férias';
@@ -20041,7 +20725,9 @@ function compartilharConsertoEmail(){
       texto += `• ${setor}${codigo ? ' (Código ' + codigo + ')' : ''}\n`;
       texto += `  Avaria: ${c.avaria || '—'}\n`;
       texto += `  Enviado em: ${c.dataEnvio ? formatarDataSimples(c.dataEnvio) : '—'} — ${status}\n`;
-      if(c.comentario) texto += `  Obs: ${c.comentario}\n`;
+      if(c.comentario) texto += `  Comentário: ${c.comentario}\n`;
+      if(c.centroCusto) texto += `  Centro de custo: ${c.centroCusto}\n`;
+      if(c.observacao) texto += `  Observação: ${c.observacao}\n`;
       texto += '\n';
     });
   }
@@ -23050,17 +23736,14 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
         }
         try {
           let config = {
-            projectId: "heroic-icon-gf6jr",
-            appId: "1:620305266125:web:839a2397cf570fa36ec084",
-            apiKey: "AIzaSyCvdT9nehnjdoI5QXuSmjQOEtmbeN3Qu0M",
-            authDomain: "heroic-icon-gf6jr.firebaseapp.com",
-            storageBucket: "heroic-icon-gf6jr.firebasestorage.app",
-            messagingSenderId: "620305266125"
+            projectId: "gen-lang-client-0265036123",
+            appId: "1:73086169398:web:36c9a1b8f985da03538397",
+            apiKey: "AIzaSyAKDpnKzb4f1fOeUN_nDUAVNvaKztrUDV0",
+            authDomain: "gen-lang-client-0265036123.firebaseapp.com",
+            storageBucket: "gen-lang-client-0265036123.firebasestorage.app",
+            messagingSenderId: "73086169398",
+            oAuthClientId: "73086169398-7l3bmtl3es3ku077991pu47i5dr66kp7.apps.googleusercontent.com"
           };
-          try {
-            const resp = await fetch("/firebase-applet-config.json");
-            if (resp.ok) config = await resp.json();
-          } catch (e) {}
           if (window.firebase && (!window.firebase.apps || !window.firebase.apps.length)) {
             window.firebase.initializeApp(config);
           }

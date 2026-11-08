@@ -439,6 +439,25 @@ app.all(['/painel_minas_ii.json', '/api/backup-nuvem'], (req, res) => {
             });
           });
 
+          // Limpeza rigorosa no servidor: não manter marcações de presença automáticas em datas >= 2026-11-08 e remover dias futuros
+          Object.keys(prMerged).forEach(dt => {
+            if (dt > hojeIso) {
+              delete prMerged[dt];
+              return;
+            }
+            if (dt >= '2026-11-08') {
+              const diaObj = prMerged[dt];
+              if (diaObj && typeof diaObj === 'object') {
+                Object.keys(diaObj).forEach(idC => {
+                  const reg = diaObj[idC];
+                  const st = (reg && reg.status) || (typeof reg === 'string' ? reg : '');
+                  if (st === 'Presente' || st === 'Folga') delete diaObj[idC];
+                });
+                if (Object.keys(diaObj).length === 0) delete prMerged[dt];
+              }
+            }
+          });
+
           payload.dados.mtc_presenca = JSON.stringify(prMerged);
           payload.dados.mtc_presenca_backup_historico = JSON.stringify(prMerged);
         } catch(e){
@@ -715,29 +734,26 @@ app.all(['/painel_minas_ii.json', '/api/backup-nuvem'], (req, res) => {
         payload.dados.mtc_setor_checklist = dadosNuvemLocal.dados.mtc_setor_checklist;
       }
 
-      // 5. Preservação inteligente de Equipe DEM2 por colaborador e ID
+      // 5. Preservação inteligente de Equipe DEM2 (respeita exclusões de demitidos e não ressuscita ex-colaboradores)
+      const excluidosEq = new Set([
+        ...safeParse(payload.dados.mtc_equipe_excluidos, []),
+        ...safeParse(dadosNuvemLocal.dados.mtc_equipe_excluidos, [])
+      ]);
+      if (excluidosEq.size > 0) {
+        payload.dados.mtc_equipe_excluidos = JSON.stringify(Array.from(excluidosEq));
+      }
+
       if (payload.dados.mtc_equipe_dem2 || dadosNuvemLocal.dados.mtc_equipe_dem2) {
         try {
           const eqExist = safeParse(dadosNuvemLocal.dados.mtc_equipe_dem2, []);
           const eqNovo = safeParse(payload.dados.mtc_equipe_dem2, []);
-          if (Array.isArray(eqNovo) && eqNovo.length === 0 && Array.isArray(eqExist) && eqExist.length > 0) {
-            payload.dados.mtc_equipe_dem2 = dadosNuvemLocal.dados.mtc_equipe_dem2;
-          } else if (Array.isArray(eqNovo) && Array.isArray(eqExist) && eqExist.length > 0) {
-            const mapEq = new Map();
-            eqExist.forEach(c => {
-              if (c && (c.id || c.matricula)) mapEq.set(c.id || c.matricula, c);
-            });
-            eqNovo.forEach(cNovo => {
-              if (!cNovo || (!cNovo.id && !cNovo.matricula)) return;
-              const chaveC = cNovo.id || cNovo.matricula;
-              const cExist = mapEq.get(chaveC);
-              if (!cExist) {
-                mapEq.set(chaveC, cNovo);
-              } else {
-                mapEq.set(chaveC, Object.assign({}, cExist, cNovo));
-              }
-            });
-            payload.dados.mtc_equipe_dem2 = JSON.stringify(Array.from(mapEq.values()));
+          if (Array.isArray(eqNovo) && eqNovo.length > 0) {
+            // Usa a lista enviada pelo cliente respeitando estritamente os colaboradores excluídos/desligados
+            const filtrados = eqNovo.filter(c => c && c.id && !excluidosEq.has(c.id) && !excluidosEq.has(c.matricula));
+            payload.dados.mtc_equipe_dem2 = JSON.stringify(filtrados);
+          } else if (Array.isArray(eqExist) && eqExist.length > 0) {
+            const filtradosExist = eqExist.filter(c => c && c.id && !excluidosEq.has(c.id) && !excluidosEq.has(c.matricula));
+            payload.dados.mtc_equipe_dem2 = JSON.stringify(filtradosExist);
           }
         } catch(e){}
       }
@@ -822,8 +838,73 @@ app.post('/api/nuvem/restaurar-dia', (req, res) => {
       return res.status(404).json({ error: `Backup do dia ${diaAlvo} não localizado.` });
     }
 
-    // Aplica o snapshot restaurado
-    dadosNuvemLocal = JSON.parse(JSON.stringify(snapshot.dados));
+    // Aplica o snapshot restaurado de forma não-destrutiva e granular
+    const snapRaw = (snapshot.dados && snapshot.dados.dados) ? snapshot.dados.dados : snapshot.dados;
+    const snapDados = JSON.parse(JSON.stringify(snapRaw || {}));
+    if (!dadosNuvemLocal) dadosNuvemLocal = { dados: {}, enviadoEm: '' };
+    if (!dadosNuvemLocal.dados) dadosNuvemLocal.dados = {};
+
+    const safeParse = (val, fallback) => {
+      if (val === null || val === undefined) return fallback;
+      if (typeof val === 'object') return val;
+      if (typeof val === 'string') {
+        try { return JSON.parse(val); } catch(e) { return fallback; }
+      }
+      return fallback;
+    };
+
+    const tipoRestauracao = (body && body.tipo) || 'completo';
+
+    // 1. Preservação acumulativa de Presença: NUNCA apagar outros dias de presença!
+    const presAtuais = safeParse(dadosNuvemLocal.dados.mtc_presenca, {});
+    const presSnapshot = safeParse(snapDados.mtc_presenca, {});
+    const presMerged = Object.assign({}, presAtuais);
+
+    // Restaura ou atualiza o dia selecionado do snapshot
+    if (presSnapshot[diaAlvo]) {
+      presMerged[diaAlvo] = Object.assign({}, presSnapshot[diaAlvo]);
+    }
+    // Garante que todas as outras datas históricas existentes no snapshot continuem salvas
+    Object.keys(presSnapshot).forEach(d => {
+      if (!presMerged[d] || Object.keys(presMerged[d]).length === 0) {
+        presMerged[d] = presSnapshot[d];
+      }
+    });
+
+    dadosNuvemLocal.dados.mtc_presenca = JSON.stringify(presMerged);
+    dadosNuvemLocal.dados.mtc_presenca_backup_historico = JSON.stringify(presMerged);
+
+    // 2. Proteção de Equipe DEM2: Não reverter colaboradores desligados/excluídos
+    const excluidosEq = new Set([
+      ...safeParse(dadosNuvemLocal.dados.mtc_equipe_excluidos, []),
+      ...safeParse(snapDados.mtc_equipe_excluidos, [])
+    ]);
+    const eqAtual = safeParse(dadosNuvemLocal.dados.mtc_equipe_dem2, []);
+
+    if (body.restaurarEquipe === true || !Array.isArray(eqAtual) || eqAtual.length === 0) {
+      const eqSnap = safeParse(snapDados.mtc_equipe_dem2, []);
+      const filtrados = eqSnap.filter(c => c && c.id && !excluidosEq.has(c.id) && !excluidosEq.has(c.matricula));
+      dadosNuvemLocal.dados.mtc_equipe_dem2 = JSON.stringify(filtrados);
+    } else {
+      // Mantém a equipe atual ativa, expurgando demitidos
+      const filtradosAtual = eqAtual.filter(c => c && c.id && !excluidosEq.has(c.id) && !excluidosEq.has(c.matricula));
+      dadosNuvemLocal.dados.mtc_equipe_dem2 = JSON.stringify(filtradosAtual);
+    }
+    dadosNuvemLocal.dados.mtc_equipe_excluidos = JSON.stringify(Array.from(excluidosEq));
+
+    // 3. Mescla de outros módulos conforme tipo selecionado
+    if (tipoRestauracao === 'completo') {
+      const chavesIgnorar = new Set(['mtc_presenca', 'mtc_presenca_backup_historico', 'mtc_equipe_dem2', 'mtc_equipe_excluidos']);
+      Object.keys(snapDados).forEach(k => {
+        if (!chavesIgnorar.has(k) && snapDados[k]) {
+          dadosNuvemLocal.dados[k] = snapDados[k];
+        }
+      });
+    } else if (tipoRestauracao === 'atividades') {
+      if (snapDados.mtc_atividade_status) dadosNuvemLocal.dados.mtc_atividade_status = snapDados.mtc_atividade_status;
+      if (snapDados.mtc_setor_checklist) dadosNuvemLocal.dados.mtc_setor_checklist = snapDados.mtc_setor_checklist;
+    }
+
     dadosNuvemLocal.enviadoEm = new Date().toISOString();
 
     fs.writeFileSync(DATA_FILE, JSON.stringify(dadosNuvemLocal, null, 2), 'utf8');
