@@ -935,11 +935,23 @@ app.post('/api/nuvem/restaurar-dia', (req, res) => {
 
 // Endpoint: Retorna os backups estruturados e separados por KPIs operacionais
 app.get('/api/nuvem/kpis', (req, res) => {
-  if (!dadosNuvemLocal || !dadosNuvemLocal.dados) {
-    return res.json({ ok: true, kpis: {}, enviadoEm: '' });
+  res.setHeader('Content-Type', 'application/json');
+  try {
+    if (!dadosNuvemLocal || !dadosNuvemLocal.dados) {
+      if (fs.existsSync(DATA_FILE)) {
+        try {
+          const raw = fs.readFileSync(DATA_FILE, 'utf8');
+          if (raw && raw.trim()) dadosNuvemLocal = JSON.parse(raw);
+        } catch(e){}
+      }
+    }
+    const dados = (dadosNuvemLocal && dadosNuvemLocal.dados) || {};
+    const kpis = (dadosNuvemLocal && dadosNuvemLocal.kpis) || gerarEstruturaKpis(dados);
+    return res.json({ ok: true, kpis: kpis || {}, enviadoEm: (dadosNuvemLocal && dadosNuvemLocal.enviadoEm) || new Date().toISOString() });
+  } catch(err) {
+    console.error('Erro em /api/nuvem/kpis:', err);
+    return res.status(500).json({ ok: false, error: err.message, kpis: {} });
   }
-  const kpis = dadosNuvemLocal.kpis || gerarEstruturaKpis(dadosNuvemLocal.dados);
-  res.json({ ok: true, kpis, enviadoEm: dadosNuvemLocal.enviadoEm || new Date().toISOString() });
 });
 
 // Endpoint: Retorna um KPI específico
@@ -1074,17 +1086,31 @@ app.post('/api/presenca/offline', (req, res) => {
   res.json({ ok: true });
 });
 
-// Serve static assets from project root
-app.use(express.static(__dirname));
-
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Fallback to index.html for SPA/Static site routing
+// Evitar que rotas /api/* caiam no index.html (retorna sempre JSON)
+app.all('/api/*', (req, res) => {
+  res.status(404).json({ ok: false, error: `Endpoint de API não encontrado: ${req.method} ${req.path}` });
+});
+
+// Serve static assets from project root
+app.use(express.static(__dirname));
+
+// Fallback to index.html for SPA/Static site routing (apenas para páginas do app, não para APIs)
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Tratamento global de erros
+app.use((err, req, res, next) => {
+  console.error('Erro não tratado:', err);
+  if (req.path && req.path.startsWith('/api/')) {
+    return res.status(500).json({ ok: false, error: err.message || 'Erro interno no servidor' });
+  }
+  next(err);
 });
 
 app.listen(PORT, '0.0.0.0', () => {

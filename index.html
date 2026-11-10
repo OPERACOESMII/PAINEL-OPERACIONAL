@@ -1577,75 +1577,111 @@ window.fecharModalGerenciadorKPIs = function() {
 window.carregarVisaoKPIsNuvem = function() {
   const corpo = document.getElementById('corpoModalGerenciadorKPIs');
   if (!corpo) return;
-  corpo.innerHTML = '<div style="text-align:center; padding:24px; color:var(--texto-suave);">🔍 Consultando estrutura de KPIs no Firebase e Nuvem...</div>';
+  corpo.innerHTML = '<div style="text-align:center; padding:24px; color:var(--texto-suave);">🔍 Consultando estrutura de KPIs operacionais...</div>';
+
+  function obterKpisLocais() {
+    var kpis = {};
+    if (typeof window.organizarDadosPorKPIs === 'function') {
+      var dadosLocais = {};
+      try {
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (k && k.startsWith('mtc_')) dadosLocais[k] = localStorage.getItem(k);
+        }
+        kpis = window.organizarDadosPorKPIs(dadosLocais) || {};
+      } catch(e) {
+        console.warn('Erro ao ler KPIs locais:', e);
+      }
+    }
+    return kpis;
+  }
+
+  function renderizarCards(kpis, ehNuvem) {
+    const listaKpis = Object.values(kpis || {});
+    if (listaKpis.length === 0) {
+      corpo.innerHTML = '<div style="text-align:center; padding:24px; color:var(--texto-suave);">Nenhum KPI configurado no momento.</div>';
+      return;
+    }
+
+    let html = `
+      <div style="background:#F0FDF4; border:1px solid #86EFAC; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; color:#166534; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+        <div>
+          <strong>🔥 Estrutura de KPIs Operacionais:</strong> Visualização e gestão modular (Presença, Atividades, Rádios, Chaves, Estoque e Equipe).
+        </div>
+        <span style="font-size:11px; background:${ehNuvem ? '#DCFCE7' : '#FEF3C7'}; color:${ehNuvem ? '#15803D' : '#92400E'}; font-weight:700; padding:3px 8px; border-radius:12px;">
+          ${ehNuvem ? '● Sincronizado na Nuvem' : '● Dados Operacionais (Local)'}
+        </span>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:12px;">
+    `;
+
+    listaKpis.forEach(item => {
+      const id = item.id;
+      const titulo = item.titulo || id;
+      const icone = item.icone || '📌';
+      const resumo = item.resumo || 'Módulo operacional ativo';
+      const chaves = item.chaves || [];
+      const chavesStr = chaves.join(', ');
+
+      html += `
+        <div style="background:#FFFFFF; border:1.5px solid #E2E8F0; border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 1px 3px rgba(0,0,0,0.04); transition:transform 0.15s ease, box-shadow 0.15s ease;">
+          <div>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+              <span style="font-size:22px;">${icone}</span>
+              <span style="font-size:10px; font-family:monospace; background:#F1F5F9; color:#475569; padding:2px 6px; border-radius:4px;">${escapeHtml(id)}</span>
+            </div>
+            <strong style="font-size:14px; color:#0F172A; display:block; margin-bottom:4px;">${escapeHtml(titulo)}</strong>
+            <p style="font-size:12px; color:#475569; margin:0 0 8px; line-height:1.4;">${escapeHtml(resumo)}</p>
+            <div style="font-size:10.5px; color:#94A3B8; margin-bottom:10px; word-break:break-all;">
+              <strong>Chaves:</strong> ${escapeHtml(chavesStr)}
+            </div>
+          </div>
+          <div style="border-top:1px solid #F1F5F9; padding-top:8px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:11px; color:#10B981; font-weight:600;">● Ramo Ativo</span>
+            <button class="btn btn-secundario" onclick="restaurarKpiEspecifico('${id}', '${escapeHtml(titulo)}')" style="font-size:11.5px; padding:4px 10px; font-weight:600; background:#F8FAFC; border-color:#CBD5E1; color:#0F172A;">
+              🔄 Restaurar KPI
+            </button>
+          </div>
+        </div>
+      `;
+    });
+
+    html += '</div>';
+    corpo.innerHTML = html;
+  }
 
   fetch('/api/nuvem/kpis')
-    .then(r => r.json())
-    .then(res => {
-      let kpis = (res && res.kpis) || {};
-      if (!kpis || Object.keys(kpis).length === 0) {
-        if (typeof window.organizarDadosPorKPIs === 'function') {
-          var dadosLocais = {};
-          for (var i = 0; i < localStorage.length; i++) {
-            var k = localStorage.key(i);
-            if (k && k.startsWith('mtc_')) dadosLocais[k] = localStorage.getItem(k);
-          }
-          kpis = window.organizarDadosPorKPIs(dadosLocais);
+    .then(r => {
+      const ct = (r.headers && r.headers.get('content-type')) || '';
+      if (!r.ok || !ct.includes('application/json')) {
+        return null;
+      }
+      return r.text().then(texto => {
+        try {
+          return JSON.parse(texto);
+        } catch(e) {
+          return null;
         }
-      }
-
-      const listaKpis = Object.values(kpis);
-      if (listaKpis.length === 0) {
-        corpo.innerHTML = '<div style="text-align:center; padding:24px; color:var(--texto-suave);">Nenhum KPI configurado no momento.</div>';
-        return;
-      }
-
-      let html = `
-        <div style="background:#F0FDF4; border:1px solid #86EFAC; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; color:#166534; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-          <div>
-            <strong>🔥 Estrutura Firebase Separada:</strong> Backups gravados em nós dedicados (<code>/kpis/&lt;nome_do_kpi&gt;</code>) no Firebase Realtime Database.
-          </div>
-          <span style="font-size:11px; background:#DCFCE7; color:#15803D; font-weight:700; padding:3px 8px; border-radius:12px;">Sincronizado</span>
-        </div>
-        <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:12px;">
-      `;
-
-      listaKpis.forEach(item => {
-        const id = item.id;
-        const titulo = item.titulo || id;
-        const icone = item.icone || '📌';
-        const resumo = item.resumo || 'Módulo operacional ativo';
-        const chaves = item.chaves || [];
-        const chavesStr = chaves.join(', ');
-
-        html += `
-          <div style="background:#FFFFFF; border:1.5px solid #E2E8F0; border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 1px 3px rgba(0,0,0,0.04); transition:transform 0.15s ease, box-shadow 0.15s ease;">
-            <div>
-              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-                <span style="font-size:22px;">${icone}</span>
-                <span style="font-size:10px; font-family:monospace; background:#F1F5F9; color:#475569; padding:2px 6px; border-radius:4px;">${escapeHtml(id)}</span>
-              </div>
-              <strong style="font-size:14px; color:#0F172A; display:block; margin-bottom:4px;">${escapeHtml(titulo)}</strong>
-              <p style="font-size:12px; color:#475569; margin:0 0 8px; line-height:1.4;">${escapeHtml(resumo)}</p>
-              <div style="font-size:10.5px; color:#94A3B8; margin-bottom:10px; word-break:break-all;">
-                <strong>Chaves:</strong> ${escapeHtml(chavesStr)}
-              </div>
-            </div>
-            <div style="border-top:1px solid #F1F5F9; padding-top:8px; display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-size:11px; color:#10B981; font-weight:600;">● Ramo Ativo</span>
-              <button class="btn btn-secundario" onclick="restaurarKpiEspecifico('${id}', '${escapeHtml(titulo)}')" style="font-size:11.5px; padding:4px 10px; font-weight:600; background:#F8FAFC; border-color:#CBD5E1; color:#0F172A;">
-                🔄 Restaurar KPI
-              </button>
-            </div>
-          </div>
-        `;
       });
-
-      html += '</div>';
-      corpo.innerHTML = html;
+    })
+    .catch(() => null)
+    .then(res => {
+      let kpis = (res && res.kpis) || null;
+      let ehNuvem = true;
+      if (!kpis || Object.keys(kpis).length === 0) {
+        kpis = obterKpisLocais();
+        ehNuvem = false;
+      }
+      renderizarCards(kpis, ehNuvem);
     })
     .catch(err => {
-      corpo.innerHTML = `<div style="text-align:center; padding:20px; color:#DC2626;">Erro ao carregar KPIs: ${escapeHtml(err.message)}</div>`;
+      console.warn('Fallback automático para KPIs locais:', err);
+      const kpisLocais = obterKpisLocais();
+      if (Object.keys(kpisLocais).length > 0) {
+        renderizarCards(kpisLocais, false);
+      } else {
+        corpo.innerHTML = `<div style="text-align:center; padding:20px; color:#DC2626;">Aviso: Não foi possível carregar os KPIs no momento.</div>`;
+      }
     });
 };
 
@@ -1660,8 +1696,19 @@ window.restaurarKpiEspecifico = function(kpiId, titulo) {
     body: JSON.stringify({ kpiId: kpiId })
   })
   .then(r => {
-    if (!r.ok) return r.json().then(j => { throw new Error(j.error || ('Erro HTTP ' + r.status)); });
-    return r.json();
+    const ct = (r.headers && r.headers.get('content-type')) || '';
+    if (!r.ok) {
+      if (ct.includes('application/json')) {
+        return r.json().then(j => { throw new Error(j.error || ('Erro HTTP ' + r.status)); });
+      }
+      throw new Error(`Falha de comunicação (${r.status}). O servidor retornou uma resposta não-JSON.`);
+    }
+    if (ct.includes('application/json')) {
+      return r.json();
+    }
+    return r.text().then(t => {
+      try { return JSON.parse(t); } catch(e){ throw new Error('Resposta inválida recebida do servidor.'); }
+    });
   })
   .then(res => {
     if (res.ok && res.dadosRestaurados) {
@@ -1723,11 +1770,20 @@ window.carregarHistoricoNuvemDias = function() {
   corpo.innerHTML = '<div style="text-align:center; padding:24px; color:var(--texto-suave);">🔍 Consultando histórico de backups na nuvem...</div>';
 
   fetch('/api/nuvem/historico-dias')
-    .then(r => r.json())
+    .then(r => {
+      const ct = (r.headers && r.headers.get('content-type')) || '';
+      if (!r.ok || !ct.includes('application/json')) {
+        return null;
+      }
+      return r.text().then(t => {
+        try { return JSON.parse(t); } catch(e){ return null; }
+      });
+    })
+    .catch(() => null)
     .then(res => {
       const dias = (res && res.dias) || [];
       if (dias.length === 0) {
-        corpo.innerHTML = '<div style="text-align:center; padding:24px; color:var(--texto-suave);">Nenhum backup diário encontrado na nuvem.</div>';
+        corpo.innerHTML = '<div style="text-align:center; padding:24px; color:var(--texto-suave);">Nenhum backup diário encontrado na nuvem no momento.</div>';
         return;
       }
       let html = '<div style="display:flex; flex-direction:column; gap:10px;">';
@@ -1766,7 +1822,7 @@ window.carregarHistoricoNuvemDias = function() {
       corpo.innerHTML = html;
     })
     .catch(err => {
-      corpo.innerHTML = `<div style="text-align:center; padding:20px; color:#DC2626;">Erro ao carregar histórico: ${escapeHtml(err.message)}</div>`;
+      corpo.innerHTML = `<div style="text-align:center; padding:20px; color:#DC2626;">Aviso: Histórico de backups indisponível temporariamente.</div>`;
     });
 };
 
@@ -1783,10 +1839,19 @@ window.executarRestauracaoDiaNuvem = function(dia) {
     body: JSON.stringify({ dia: dia })
   })
   .then(r => {
+    const ct = (r.headers && r.headers.get('content-type')) || '';
     if (!r.ok) {
-      return r.json().then(j => { throw new Error(j.error || ('Erro HTTP ' + r.status)); });
+      if (ct.includes('application/json')) {
+        return r.json().then(j => { throw new Error(j.error || ('Erro HTTP ' + r.status)); });
+      }
+      throw new Error(`Falha no servidor (${r.status}). Não foi possível restaurar.`);
     }
-    return r.json();
+    if (ct.includes('application/json')) {
+      return r.json();
+    }
+    return r.text().then(t => {
+      try { return JSON.parse(t); } catch(e){ throw new Error('Resposta do servidor inválida.'); }
+    });
   })
   .then(res => {
     if (res.ok && res.dados) {
