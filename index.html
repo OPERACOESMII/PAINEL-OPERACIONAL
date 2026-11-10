@@ -1015,6 +1015,9 @@ window._setItemOriginal = setItemOriginal;
                   }
                 });
                 presencaLocal[d] = diaMesc;
+              }
+            });
+
             Object.keys(presencaLocal).forEach(function(dt){
               if (dt >= '2026-11-08') {
                 var dObj = presencaLocal[dt];
@@ -1870,6 +1873,8 @@ function abrirModalNuvem(){
 function fecharModalNuvem(){
   document.getElementById('modalNuvem').style.display = 'none';
 }
+window.abrirModalNuvem = abrirModalNuvem;
+window.fecharModalNuvem = fecharModalNuvem;
 function atualizarStatusNuvem(){
   atualizarVisibilidadeBackupManual();
   var el = document.getElementById('statusNuvemTexto');
@@ -5900,6 +5905,17 @@ function restaurarManualNuvem(){
   <div style="font-size:11px; color:#94A3B8; margin-top:5px;">Mantenha pressionado por 15 segundos (solte para cancelar)</div>
 </div>
 
+<div id="indicadorHoldCartaoAssiduidade" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#0F172A; color:#F8FAFC; border:1.5px solid #3B82F6; border-radius:12px; padding:12px 18px; font-size:12.5px; z-index:999999; box-shadow:0 12px 30px rgba(0,0,0,0.5); min-width:290px; text-align:center;">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; font-weight:600;">
+    <span id="txtHoldCartaoNome">⏳ Segure 2s para abrir o Cartão</span>
+    <span id="txtHoldCartaoSegundos" style="color:#60A5FA; font-weight:700; font-family:monospace; font-size:13.5px;">2.0s</span>
+  </div>
+  <div style="width:100%; height:6px; background:#334155; border-radius:3px; overflow:hidden;">
+    <div id="barraProgressoHoldCartao" style="width:0%; height:100%; background:#3B82F6; transition:width 0.08s linear;"></div>
+  </div>
+  <div style="font-size:11px; color:#94A3B8; margin-top:5px;">Abrindo Cartão Individual de Assiduidade (solte para cancelar)</div>
+</div>
+
 <div class="modal-fundo" id="modalOpcoesEmailPresenca" onclick="if(event.target===this) fecharModalOpcoesEmailPresenca()">
   <div class="modal-caixa" style="max-width: 500px; width: 95%;">
     <div class="modal-cabecalho">
@@ -6315,10 +6331,27 @@ function restaurarManualNuvem(){
       <div id="campoMotivoFaltaProgramada" style="display:none; background:#FEF3C7; border:1px solid #FCD34D; border-radius:6px; padding:8px 10px; font-size:11.5px; color:#92400E;">
         ℹ️ <strong>Ausência Programada:</strong> Férias, folgas acordadas ou compensações. Este registro <strong>não será contabilizado como falta</strong> no KPI de STATUS da Equipe DEM2.
       </div>
-      <div id="campoMotivoFaltaAtestado" style="display:none; background:#EFF6FF; border:1px solid #93C5FD; border-radius:6px; padding:8px 10px; font-size:11.5px; color:#1E40AF;">
-        <label style="font-weight:700; display:block; margin-bottom:4px; color:#1E3A8A;">📎 Anexar arquivo do atestado (PDF / Foto / JPEG):</label>
-        <input type="file" id="motivoFalta-arquivo" accept="image/*,application/pdf" style="font-size:11.5px; width:100%;">
-        <small style="color:#64748B; font-size:10.5px; display:block; margin-top:3px;">O comprovante ficará guardado e acessível ao clicar no nome do colaborador ou no KPI de STATUS.</small>
+      <div id="campoMotivoFaltaAtestado" style="display:none; background:#EFF6FF; border:1.5px solid #93C5FD; border-radius:8px; padding:12px 14px; font-size:12px; color:#1E40AF;">
+        <div style="display:flex; align-items:center; gap:8px; font-weight:700; font-size:13px; margin-bottom:8px; color:#1E3A8A;">
+          <span>🩺 Registro de Atestado Médico</span>
+        </div>
+        <div style="margin-bottom:10px;">
+          <label for="motivoFalta-diasAtestado" style="font-size:12px; font-weight:700; color:#1E3A8A; display:block; margin-bottom:4px;">
+            ⏱️ Quantidade de dias de afastamento (durabilidade do atestado) <span style="color:#DC2626;">*</span>
+          </label>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input type="number" id="motivoFalta-diasAtestado" min="1" max="90" value="1" style="width:90px; font-size:13px; font-weight:700; padding:6px 10px; border:1.5px solid #3B82F6; border-radius:6px; background:#fff; text-align:center;" oninput="atualizarPreviaDiasAtestado()" onchange="atualizarPreviaDiasAtestado()">
+            <span style="font-size:12px; font-weight:600; color:#1E40AF;">dia(s) de afastamento</span>
+          </div>
+          <div id="previaDiasAtestadoTexto" style="margin-top:6px; padding:6px 10px; background:#DBEAFE; border-radius:6px; font-weight:600; font-size:11.5px; color:#1E40AF;">
+            Afastamento válido para 1 dia.
+          </div>
+        </div>
+        <div>
+          <label style="font-weight:700; display:block; margin-bottom:4px; color:#1E3A8A;">📎 Anexar arquivo do atestado (PDF / Foto / JPEG):</label>
+          <input type="file" id="motivoFalta-arquivo" accept="image/*,application/pdf" style="font-size:11.5px; width:100%;">
+          <small style="color:#64748B; font-size:10.5px; display:block; margin-top:3px;">O comprovante ficará guardado e acessível no Cartão de Assiduidade deste colaborador.</small>
+        </div>
       </div>
       <div id="campoMotivoFaltaHorario" style="display:none;">
         <label>Horário de saída <span style="color:var(--alerta, #dc2626); font-weight:700;">*</span></label>
@@ -13755,7 +13788,9 @@ function copiarRelatorioStatusEquipe(){
    HISTÓRICO INDIVIDUAL DO COLABORADOR & ANEXO DE ATESTADOS
    ============================================================ */
 function abrirHistoricoColaborador(colabId, abaFiltro){
-  const colab = carregar('equipe').find(c => c.id === colabId) || colaboradoresValidos().find(c => c.id === colabId);
+  const colab = (typeof carregar === 'function' && carregar('equipe').find(c => c.id === colabId)) || 
+                colaboradoresValidos().find(c => c.id === colabId) || 
+                (typeof carregarTerceirizados === 'function' ? carregarTerceirizados().find(t => t.id === colabId) : null);
   if(!colab) return;
 
   colaboradorAtivoHistoricoId = colabId;
@@ -13767,9 +13802,10 @@ function abrirHistoricoColaborador(colabId, abaFiltro){
   if(metaEl){
     metaEl.innerHTML = `
       <span>🏷️ Função: <strong>${escapeHtml(colab.funcao || 'Não informada')}</strong></span> · 
-      <span>⏰ Turno: <strong>${escapeHtml(colab.turno || 'Não definido')}</strong></span>
+      <span>⏰ ${colab.empresa ? 'Empresa: <strong>' + escapeHtml(colab.empresa) + '</strong> (Terceirizado)' : 'Turno: <strong>' + escapeHtml(colab.turno || 'Não definido') + '</strong>'}</span>
       ${colab.matricula ? ` · <span>Matrícula: <code>${escapeHtml(colab.matricula)}</code></span>` : ''}
       ${colab.horario ? ` · <span>Horário: ${escapeHtml(colab.horario)}</span>` : ''}
+      ${colab.local ? ` · <span>Local: ${escapeHtml(colab.local)}</span>` : ''}
     `;
   }
 
@@ -13841,7 +13877,9 @@ function renderOcorrenciasColaborador(filtroAba){
   const colabId = colaboradorAtivoHistoricoId;
   if(!colabId) return;
 
-  const colab = carregar('equipe').find(c => c.id === colabId) || colaboradoresValidos().find(c => c.id === colabId);
+  const colab = (typeof carregar === 'function' && carregar('equipe').find(c => c.id === colabId)) || 
+                colaboradoresValidos().find(c => c.id === colabId) || 
+                (typeof carregarTerceirizados === 'function' ? carregarTerceirizados().find(t => t.id === colabId) : null);
   const mapaPresenca = carregarPresenca();
   const todasDatas = Object.keys(mapaPresenca).sort((a,b) => b.localeCompare(a)); // Mais recentes primeiro
 
@@ -16627,7 +16665,7 @@ function carregarPresenca(){
         }
       } catch(eAuto){}
     }
-    // Limpeza mandatória: remove TODAS as presenças (Presente/Folga pré-definida) a partir de 2026-11-08 e remove dias futuros
+    // Regra estrita: datas futuras (> dataHojeISO) NUNCA podem conter registros de presença
     if (mapa && typeof mapa === 'object') {
       const hojeIso = (typeof dataHojeISO === 'function') ? dataHojeISO() : new Date().toISOString().slice(0, 10);
       let limpou = false;
@@ -16635,24 +16673,6 @@ function carregarPresenca(){
         if (dt > hojeIso) {
           delete mapa[dt];
           limpou = true;
-          return;
-        }
-        if (dt >= '2026-11-08') {
-          const diaObj = mapa[dt];
-          if (diaObj && typeof diaObj === 'object') {
-            Object.keys(diaObj).forEach(id => {
-              const reg = diaObj[id];
-              const st = (reg && reg.status) || (typeof reg === 'string' ? reg : '');
-              if (st === 'Presente' || st === 'Folga') {
-                delete diaObj[id];
-                limpou = true;
-              }
-            });
-            if (Object.keys(diaObj).length === 0) {
-              delete mapa[dt];
-              limpou = true;
-            }
-          }
         }
       });
       if (limpou) {
@@ -16661,7 +16681,7 @@ function carregarPresenca(){
           const bkp = JSON.parse(localStorage.getItem('mtc_presenca_backup_historico') || '{}');
           if (bkp && typeof bkp === 'object') {
             Object.keys(bkp).forEach(dt => {
-              if (dt >= '2026-11-08') delete bkp[dt];
+              if (dt > hojeIso) delete bkp[dt];
             });
             localStorage.setItem('mtc_presenca_backup_historico', JSON.stringify(bkp));
           }
@@ -16724,6 +16744,11 @@ function salvarPresenca(mapa){
       });
       if (alterado) {
         localStorage.setItem(chaveStore, JSON.stringify(mapa));
+        try {
+          if(window.PainelNuvem && typeof PainelNuvem.backupImediato === 'function'){
+            PainelNuvem.backupImediato();
+          }
+        } catch(eBkp){}
       }
     });
   } catch(e){}
@@ -16832,6 +16857,71 @@ function cancelarHoldApagarPresenca(){
   _holdPresencaInicio = 0;
 
   const elIndicador = document.getElementById('indicadorHoldApagarPresenca');
+  if(elIndicador) elIndicador.style.display = 'none';
+}
+
+let _holdCartaoTimer = null;
+let _holdCartaoInterval = null;
+let _holdCartaoDisparou = false;
+let _holdCartaoInicio = 0;
+const HOLD_CARTAO_DURACAO_MS = 2000; // 2 segundos conforme solicitado
+
+function iniciarHoldCartaoAssiduidade(e, colabId, colabNome){
+  cancelarHoldCartaoAssiduidade();
+  _holdCartaoDisparou = false;
+  _holdCartaoInicio = Date.now();
+
+  const elIndicador = document.getElementById('indicadorHoldCartaoAssiduidade');
+  const txtNome = document.getElementById('txtHoldCartaoNome');
+  const txtSegundos = document.getElementById('txtHoldCartaoSegundos');
+  const barra = document.getElementById('barraProgressoHoldCartao');
+
+  if(txtNome) txtNome.textContent = `⏳ Segure 2s: ${colabNome || 'Colaborador'}`;
+  if(txtSegundos) txtSegundos.textContent = '2.0s';
+  if(barra) barra.style.width = '0%';
+
+  const delayMostrar = setTimeout(() => {
+    if(elIndicador && _holdCartaoInicio > 0){
+      elIndicador.style.display = 'block';
+    }
+  }, 140);
+
+  _holdCartaoInterval = setInterval(() => {
+    const decorrido = Date.now() - _holdCartaoInicio;
+    const restanteMs = Math.max(0, HOLD_CARTAO_DURACAO_MS - decorrido);
+    const segundos = (restanteMs / 1000).toFixed(1);
+    const pct = Math.min(100, (decorrido / HOLD_CARTAO_DURACAO_MS) * 100);
+
+    if(txtSegundos) txtSegundos.textContent = `${segundos}s`;
+    if(barra) barra.style.width = `${pct}%`;
+
+    if(decorrido >= HOLD_CARTAO_DURACAO_MS){
+      finalizarHoldCartaoComSucesso(colabId);
+    }
+  }, 50);
+
+  _holdCartaoTimer = { delayMostrar };
+}
+
+function finalizarHoldCartaoComSucesso(colabId){
+  cancelarHoldCartaoAssiduidade();
+  _holdCartaoDisparou = true;
+  try{ if(navigator.vibrate) navigator.vibrate([100, 50, 100]); }catch(e){}
+  abrirHistoricoColaborador(colabId);
+}
+
+function cancelarHoldCartaoAssiduidade(e){
+  if(_holdCartaoTimer && _holdCartaoTimer.delayMostrar){
+    clearTimeout(_holdCartaoTimer.delayMostrar);
+  }
+  if(_holdCartaoInterval){
+    clearInterval(_holdCartaoInterval);
+    _holdCartaoInterval = null;
+  }
+  _holdCartaoTimer = null;
+  _holdCartaoInicio = 0;
+
+  const elIndicador = document.getElementById('indicadorHoldCartaoAssiduidade');
   if(elIndicador) elIndicador.style.display = 'none';
 }
 
@@ -17176,7 +17266,10 @@ function alternarMotivoFaltaTipo(){
   if(campoProgramada) campoProgramada.style.display = ehProgramada ? 'block' : 'none';
 
   const campoAtestado = document.getElementById('campoMotivoFaltaAtestado');
-  if(campoAtestado) campoAtestado.style.display = ehAtestado ? 'block' : 'none';
+  if(campoAtestado){
+    campoAtestado.style.display = ehAtestado ? 'block' : 'none';
+    if(ehAtestado) atualizarPreviaDiasAtestado();
+  }
 
   const campoFerias = document.getElementById('campoMotivoFaltaFerias');
   if(campoFerias){
@@ -17192,7 +17285,7 @@ function alternarMotivoFaltaTipo(){
 
   const btnConfirmar = document.getElementById('btnConfirmarMotivoFalta');
   if(btnConfirmar){
-    btnConfirmar.textContent = ehFerias ? '🏖️ Gravar Férias do Mês' : (ehInss ? '🏥 Gravar Afastamento INSS do Mês' : 'Registrar falta');
+    btnConfirmar.textContent = ehFerias ? '🏖️ Gravar Férias do Mês' : (ehInss ? '🏥 Gravar Afastamento INSS do Mês' : (ehAtestado ? '🩺 Gravar Atestado Médico' : 'Registrar falta'));
   }
 
   const campoHorario = document.getElementById('campoMotivoFaltaHorario');
@@ -17207,6 +17300,28 @@ function alternarMotivoFaltaTipo(){
         if(inputHora) inputHora.focus();
       }, 80);
     }
+  }
+}
+function atualizarPreviaDiasAtestado(){
+  const inputDias = document.getElementById('motivoFalta-diasAtestado');
+  const elTexto = document.getElementById('previaDiasAtestadoTexto');
+  if(!inputDias || !elTexto) return;
+  let qtd = parseInt(inputDias.value, 10);
+  if(isNaN(qtd) || qtd < 1){ qtd = 1; }
+  if(qtd > 90){ qtd = 90; }
+
+  const baseIso = dataPresencaAtual();
+  const partes = baseIso.split('-');
+  const dtInicio = new Date(parseInt(partes[0],10), parseInt(partes[1],10)-1, parseInt(partes[2],10));
+  const dtFim = new Date(parseInt(partes[0],10), parseInt(partes[1],10)-1, parseInt(partes[2],10) + (qtd - 1));
+
+  const fmtInicio = dtInicio.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric'});
+  const fmtFim = dtFim.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric'});
+
+  if(qtd === 1){
+    elTexto.innerHTML = `🩺 Afastamento de <strong>1 dia</strong> (${fmtInicio}).`;
+  } else {
+    elTexto.innerHTML = `🩺 Afastamento de <strong>${qtd} dias consecutivos</strong>: de <strong>${fmtInicio}</strong> até <strong>${fmtFim}</strong>.`;
   }
 }
 function atualizarPreviaDiasFerias(){
@@ -17531,26 +17646,72 @@ function confirmarMotivoFalta(){
   const arqFalta = document.getElementById('motivoFalta-arquivo');
   const file = (tipoSelecionado === 'Atestado médico' && arqFalta && arqFalta.files && arqFalta.files[0]) ? arqFalta.files[0] : null;
 
+  let diasAtestado = 1;
+  if(tipoSelecionado === 'Atestado médico'){
+    const inpDias = document.getElementById('motivoFalta-diasAtestado');
+    diasAtestado = parseInt(inpDias ? inpDias.value : '1', 10);
+    if(isNaN(diasAtestado) || diasAtestado < 1) diasAtestado = 1;
+  }
+
   const salvarFinal = (anexoObj) => {
     const mapa = carregarPresenca();
-    if(!mapa[hoje]) mapa[hoje] = {};
     const colabInfo = (colaboradoresValidos() || []).find(c => c.id === id) || 
-                      (carregarTerceirizados() || []).find(t => t.id === id) || 
+                      (typeof carregarTerceirizados === 'function' ? carregarTerceirizados().find(t => t.id === id) : null) || 
                       (carregar('equipe') || []).find(c => c.id === id);
-    mapa[hoje][id] = { 
-      status: 'Falta', 
-      motivo: motivo,
-      tipo: tipoSelecionado,
-      horarioSaida: horarioSaida || undefined,
-      anexo: anexoObj || undefined,
-      colaboradorId: id,
-      nome: colabInfo ? colabInfo.nome : '',
-      atualizadoEm: new Date().toISOString()
-    };
-    salvarPresenca(mapa);
-    if(anexoObj){
-      salvarAnexoAtestadoRegistro(id, hoje, anexoObj);
+
+    if(tipoSelecionado === 'Atestado médico' && diasAtestado > 1){
+      const partesHoje = hoje.split('-');
+      const anoH = parseInt(partesHoje[0], 10);
+      const mesH = parseInt(partesHoje[1], 10) - 1;
+      const diaH = parseInt(partesHoje[2], 10);
+
+      for(let dOffset = 0; dOffset < diasAtestado; dOffset++){
+        const dtCalc = new Date(anoH, mesH, diaH + dOffset);
+        const yStr = dtCalc.getFullYear();
+        const mStr = String(dtCalc.getMonth() + 1).padStart(2, '0');
+        const dStr = String(dtCalc.getDate()).padStart(2, '0');
+        const isoCalc = `${yStr}-${mStr}-${dStr}`;
+
+        if(!mapa[isoCalc]) mapa[isoCalc] = {};
+        const motCalc = `Atestado médico (${diasAtestado} dias · Dia ${dOffset + 1}/${diasAtestado})`;
+        mapa[isoCalc][id] = {
+          status: 'Falta',
+          motivo: motCalc,
+          tipo: 'Atestado médico',
+          diasAtestado: diasAtestado,
+          diaIndiceAtestado: dOffset + 1,
+          dataInicioAtestado: hoje,
+          anexo: anexoObj || undefined,
+          colaboradorId: id,
+          nome: colabInfo ? colabInfo.nome : '',
+          atualizadoEm: new Date().toISOString()
+        };
+        if(anexoObj){
+          salvarAnexoAtestadoRegistro(id, isoCalc, anexoObj);
+        }
+      }
+      mostrarNotificacaoPresenca(`✓ Atestado médico de ${diasAtestado} dias gravado com sucesso para ${colabInfo ? colabInfo.nome : 'colaborador'}.`);
+    } else {
+      if(!mapa[hoje]) mapa[hoje] = {};
+      const motivoFinal = (tipoSelecionado === 'Atestado médico') ? 'Atestado médico (1 dia)' : motivo;
+      mapa[hoje][id] = { 
+        status: 'Falta', 
+        motivo: motivoFinal,
+        tipo: tipoSelecionado,
+        diasAtestado: (tipoSelecionado === 'Atestado médico') ? 1 : undefined,
+        horarioSaida: horarioSaida || undefined,
+        anexo: anexoObj || undefined,
+        colaboradorId: id,
+        nome: colabInfo ? colabInfo.nome : '',
+        atualizadoEm: new Date().toISOString()
+      };
+      if(anexoObj){
+        salvarAnexoAtestadoRegistro(id, hoje, anexoObj);
+      }
+      mostrarNotificacaoPresenca(tipoSelecionado === 'Atestado médico' ? '✓ Atestado médico registrado com sucesso.' : '✓ Falta / ausência registrada com sucesso.');
     }
+
+    salvarPresenca(mapa);
     fecharMotivoFalta();
     renderPresenca();
     try{ renderFaltasHoje(); }catch(e){}
@@ -17647,7 +17808,6 @@ function limparFormTerceirizados(){
   const horarioEl = document.getElementById('terceirizado-horario');
   const funcaoEl = document.getElementById('terceirizado-funcao');
   const localEl = document.getElementById('terceirizado-local');
-  const chkPresente = document.getElementById('terceirizado-marcar-presente');
   const btnSalvar = document.getElementById('btnSalvarTerceirizado');
   const btnCancelar = document.getElementById('btnCancelarEdicaoTerceirizado');
   const tituloForm = document.getElementById('tituloFormTerceirizado');
@@ -17659,7 +17819,6 @@ function limparFormTerceirizados(){
   if(horarioEl) horarioEl.value = '';
   if(funcaoEl) funcaoEl.value = '';
   if(localEl) localEl.value = '';
-  if(chkPresente) chkPresente.checked = true;
   if(btnSalvar) btnSalvar.textContent = 'Cadastrar Terceirizado';
   if(btnCancelar) btnCancelar.style.display = 'none';
   if(tituloForm) tituloForm.textContent = 'Novo Terceirizado';
@@ -17672,7 +17831,6 @@ function salvarTerceirizado(){
   const horarioEl = document.getElementById('terceirizado-horario');
   const funcaoEl = document.getElementById('terceirizado-funcao');
   const localEl = document.getElementById('terceirizado-local');
-  const chkPresente = document.getElementById('terceirizado-marcar-presente');
 
   const id = idEl ? idEl.value.trim() : '';
   const nome = nomeEl ? nomeEl.value.trim() : '';
@@ -18040,7 +18198,17 @@ function renderPresenca(){
         <div class="item-corpo">
           <div class="item-titulo">
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              <strong>${escapeHtml(t.nome)}</strong>
+              <strong 
+                style="cursor:pointer; user-select:none; border-bottom:1px dashed #93c5fd;"
+                title="Pressione e segure por 2s para abrir o Cartão Individual de Assiduidade"
+                onpointerdown="iniciarHoldCartaoAssiduidade(event, '${t.id}', '${escapeHtml(t.nome)}')"
+                onpointerup="cancelarHoldCartaoAssiduidade(event)"
+                onpointerleave="cancelarHoldCartaoAssiduidade(event)"
+                onpointercancel="cancelarHoldCartaoAssiduidade(event)"
+                oncontextmenu="event.preventDefault(); abrirHistoricoColaborador('${t.id}'); return false;">
+                ${escapeHtml(t.nome)}
+              </strong>
+              <button type="button" class="btn-acao-cartao-qr" style="padding:2px 7px; font-size:11px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:6px; cursor:pointer; font-weight:600;" title="Abrir Cartão Individual de Assiduidade" onclick="abrirHistoricoColaborador('${t.id}')">👤 Cartão</button>
               <span class="tag-status neutro" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-size:11px; padding:2px 7px; border-radius:10px;">${escapeHtml(t.empresa || 'Terceirizado')}</span>
             </div>
             <span class="tag-status ${tagClass}">${tagTexto}</span>
@@ -18096,7 +18264,19 @@ function renderPresenca(){
       <div class="franja"></div>
       <div class="item-corpo">
         <div class="item-titulo">
-          <strong>${escapeHtml(c.nome)}</strong>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <strong 
+              style="cursor:pointer; user-select:none; border-bottom:1px dashed #93c5fd;"
+              title="Pressione e segure por 2s para abrir o Cartão Individual de Assiduidade"
+              onpointerdown="iniciarHoldCartaoAssiduidade(event, '${c.id}', '${escapeHtml(c.nome)}')"
+              onpointerup="cancelarHoldCartaoAssiduidade(event)"
+              onpointerleave="cancelarHoldCartaoAssiduidade(event)"
+              onpointercancel="cancelarHoldCartaoAssiduidade(event)"
+              oncontextmenu="event.preventDefault(); abrirHistoricoColaborador('${c.id}'); return false;">
+              ${escapeHtml(c.nome)}
+            </strong>
+            <button type="button" class="btn-acao-cartao-qr" style="padding:2px 7px; font-size:11px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:6px; cursor:pointer; font-weight:600;" title="Abrir Cartão Individual de Assiduidade" onclick="abrirHistoricoColaborador('${c.id}')">👤 Cartão</button>
+          </div>
           <span class="tag-status ${tagClass}">${tagTexto}</span>
         </div>
         <div class="item-meta">${escapeHtml(c.funcao||'—')}${c.horario ? ' · ' + escapeHtml(c.horario) : ''}
