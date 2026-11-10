@@ -290,8 +290,8 @@ window._setItemOriginal = setItemOriginal;
     if (chave.indexOf('mtc_') === 0){
       ultimoMomentoAlteracaoLocal = Date.now();
       clearTimeout(temporizador);
-      // Atividades, checklists, equipe, presença e rádios têm prioridade máxima de sincronização
-      var ehAltaPrioridade = (chave === 'mtc_atividade_status' || chave === 'mtc_setor_checklist' || chave === 'mtc_equipe_dem2' || chave === 'mtc_presenca' || chave === 'mtc_radios');
+      // Atividades, checklists, equipe, presença e rádios/conserto têm prioridade máxima de sincronização
+      var ehAltaPrioridade = (chave === 'mtc_atividade_status' || chave === 'mtc_setor_checklist' || chave === 'mtc_equipe_dem2' || chave === 'mtc_presenca' || chave === 'mtc_radios' || chave === 'mtc_radios_conserto' || chave === 'mtc_radiosConserto');
       var atraso = ehAltaPrioridade ? 30 : 500;
       temporizador = setTimeout(function(){
         temporizador = null;
@@ -755,15 +755,42 @@ window._setItemOriginal = setItemOriginal;
                   }
                 } catch(e){}
               }
-              // Proteção e persistência do histórico de consertos de rádios
+              // Proteção, mesclagem e persistência de histórico de consertos de rádios (respeita exclusões e novos locais)
               if ((chave === 'mtc_radios_conserto' || chave === 'mtc_radiosConserto') && obj.dados[chave]){
                 try {
                   var cNuv = JSON.parse(obj.dados[chave]) || [];
-                  if (Array.isArray(cNuv) && cNuv.length > 0){
-                    setItemOriginal.call(localStorage, 'mtc_radios_conserto', obj.dados[chave]);
-                    setItemOriginal.call(localStorage, 'mtc_radios_conserto_backup_historico', obj.dados[chave]);
-                    return;
+                  var cLoc = JSON.parse(localStorage.getItem('mtc_radios_conserto') || '[]');
+                  var cHist = JSON.parse(localStorage.getItem('mtc_radios_conserto_backup_historico') || '[]');
+                  var excLocC = JSON.parse(localStorage.getItem('mtc_radios_conserto_excluidos') || '[]');
+                  var excNuvC = JSON.parse((obj.dados && obj.dados.mtc_radios_conserto_excluidos) || '[]');
+                  var setExcC = new Set(excLocC.concat(excNuvC));
+                  if (setExcC.size > 0){
+                    setItemOriginal.call(localStorage, 'mtc_radios_conserto_excluidos', JSON.stringify(Array.from(setExcC)));
                   }
+                  var mapCons = {};
+                  var procConsItem = function(c){
+                    if (!c || !c.id || setExcC.has(c.id)) return;
+                    var ex = mapCons[c.id];
+                    if (!ex) {
+                      mapCons[c.id] = c;
+                    } else {
+                      var tNovo = c.atualizadoEm ? new Date(c.atualizadoEm).getTime() : 0;
+                      var tEx = ex.atualizadoEm ? new Date(ex.atualizadoEm).getTime() : 0;
+                      if (tNovo >= tEx) {
+                        mapCons[c.id] = Object.assign({}, ex, c);
+                      } else {
+                        mapCons[c.id] = Object.assign({}, c, ex);
+                      }
+                    }
+                  };
+                  if (Array.isArray(cHist)) cHist.forEach(procConsItem);
+                  if (Array.isArray(cNuv)) cNuv.forEach(procConsItem);
+                  if (Array.isArray(cLoc)) cLoc.forEach(procConsItem);
+                  var listaConsFinal = Object.values(mapCons);
+                  var jsonConsFinal = JSON.stringify(listaConsFinal);
+                  setItemOriginal.call(localStorage, 'mtc_radios_conserto', jsonConsFinal);
+                  setItemOriginal.call(localStorage, 'mtc_radios_conserto_backup_historico', jsonConsFinal);
+                  return;
                 } catch(e){}
               }
               // Proteção, mesclagem e deduplicação de eventos da agenda (respeita exclusões)
@@ -906,6 +933,9 @@ window._setItemOriginal = setItemOriginal;
     verificarAtualizacoes: function(){
       if (estaVerificandoNuvem || estaEnviandoBackup || estaAplicandoDadosNuvem) {
         return Promise.resolve({ok:false, motivo:'ocupado'});
+      }
+      if (Date.now() - ultimoMomentoAlteracaoLocal < 3500 && ultimoMomentoAlteracaoLocal > 0) {
+        return Promise.resolve({ok:false, motivo:'alteracao_local_recente'});
       }
       if (this.haAlgumFormularioAberto()) return Promise.resolve({ok:false, motivo:'form_aberto'});
       estaVerificandoNuvem = true;
@@ -1059,14 +1089,42 @@ window._setItemOriginal = setItemOriginal;
             }
           } catch(e){}
         }
+        // Proteção, mesclagem e persistência de histórico de consertos de rádios em segundo plano
         if ((chave === 'mtc_radios_conserto' || chave === 'mtc_radiosConserto') && obj.dados[chave]){
           try {
-            var consNuv2 = JSON.parse(obj.dados[chave]) || [];
-            if (Array.isArray(consNuv2) && consNuv2.length > 0){
-              setItemOriginal.call(localStorage, 'mtc_radios_conserto', obj.dados[chave]);
-              setItemOriginal.call(localStorage, 'mtc_radios_conserto_backup_historico', obj.dados[chave]);
-              return;
+            var cNuv2 = JSON.parse(obj.dados[chave]) || [];
+            var cLoc2 = JSON.parse(localStorage.getItem('mtc_radios_conserto') || '[]');
+            var cHist2 = JSON.parse(localStorage.getItem('mtc_radios_conserto_backup_historico') || '[]');
+            var excLocC2 = JSON.parse(localStorage.getItem('mtc_radios_conserto_excluidos') || '[]');
+            var excNuvC2 = JSON.parse((obj.dados && obj.dados.mtc_radios_conserto_excluidos) || '[]');
+            var setExcC2 = new Set(excLocC2.concat(excNuvC2));
+            if (setExcC2.size > 0){
+              setItemOriginal.call(localStorage, 'mtc_radios_conserto_excluidos', JSON.stringify(Array.from(setExcC2)));
             }
+            var mapCons2 = {};
+            var procConsItem2 = function(c){
+              if (!c || !c.id || setExcC2.has(c.id)) return;
+              var ex = mapCons2[c.id];
+              if (!ex) {
+                mapCons2[c.id] = c;
+              } else {
+                var tNovo = c.atualizadoEm ? new Date(c.atualizadoEm).getTime() : 0;
+                var tEx = ex.atualizadoEm ? new Date(ex.atualizadoEm).getTime() : 0;
+                if (tNovo >= tEx) {
+                  mapCons2[c.id] = Object.assign({}, ex, c);
+                } else {
+                  mapCons2[c.id] = Object.assign({}, c, ex);
+                }
+              }
+            };
+            if (Array.isArray(cHist2)) cHist2.forEach(procConsItem2);
+            if (Array.isArray(cNuv2)) cNuv2.forEach(procConsItem2);
+            if (Array.isArray(cLoc2)) cLoc2.forEach(procConsItem2);
+            var listaConsFinal2 = Object.values(mapCons2);
+            var jsonConsFinal2 = JSON.stringify(listaConsFinal2);
+            setItemOriginal.call(localStorage, 'mtc_radios_conserto', jsonConsFinal2);
+            setItemOriginal.call(localStorage, 'mtc_radios_conserto_backup_historico', jsonConsFinal2);
+            return;
           } catch(e){}
         }
         if (chave === 'mtc_agenda' && obj.dados[chave]){
@@ -1273,6 +1331,7 @@ window._setItemOriginal = setItemOriginal;
     try { if (typeof renderEquipe === 'function') renderEquipe(); } catch(e){}
     try { if (typeof renderChaves === 'function') renderChaves(); } catch(e){}
     try { if (typeof renderRadios === 'function') renderRadios(); } catch(e){}
+    try { if (typeof renderConserto === 'function') renderConserto(); } catch(e){}
     try { if (typeof renderEstoque === 'function') renderEstoque(); } catch(e){}
     try { if (typeof renderContatos === 'function') renderContatos(); } catch(e){}
     try { if (typeof renderEquipamentos === 'function') renderEquipamentos(); } catch(e){}
@@ -1577,7 +1636,7 @@ window.fecharModalGerenciadorKPIs = function() {
 window.carregarVisaoKPIsNuvem = function() {
   const corpo = document.getElementById('corpoModalGerenciadorKPIs');
   if (!corpo) return;
-  corpo.innerHTML = '<div style="text-align:center; padding:24px; color:var(--texto-suave);">🔍 Consultando estrutura de KPIs operacionais...</div>';
+  corpo.innerHTML = '<div style="text-align:center; padding:24px; color:var(--texto-suave);">🔍 Consultando estrutura de KPIs e histórico de datas...</div>';
 
   function obterKpisLocais() {
     var kpis = {};
@@ -1596,23 +1655,38 @@ window.carregarVisaoKPIsNuvem = function() {
     return kpis;
   }
 
-  function renderizarCards(kpis, ehNuvem) {
+  function renderizarCards(kpis, ehNuvem, listaDias, dataUltimoManual) {
     const listaKpis = Object.values(kpis || {});
     if (listaKpis.length === 0) {
       corpo.innerHTML = '<div style="text-align:center; padding:24px; color:var(--texto-suave);">Nenhum KPI configurado no momento.</div>';
       return;
     }
 
+    // Datas padrão do histórico para garantir opções mesmo offline
+    const diasFinais = (listaDias && listaDias.length > 0) ? listaDias : [
+      { data: '2026-11-04', label: 'Backup dia 04/11 (Quarta-feira) [Hoje]' },
+      { data: '2026-11-03', label: 'Backup dia 03/11 (Terça-feira)' },
+      { data: '2026-11-02', label: 'Backup dia 02/11 (Segunda-feira)' },
+      { data: '2026-11-01', label: 'Backup dia 01/11 (Domingo - Plantão B)' },
+      { data: '2026-10-31', label: 'Backup dia 31/10 (Sábado - Plantão A)' },
+      { data: '2026-10-30', label: 'Backup dia 30/10 (Sexta-feira - Ponto Principal)' },
+      { data: '2026-10-29', label: 'Backup dia 29/10 (Quinta-feira)' },
+      { data: '2026-10-10', label: 'Backup dia 10/10 (Sábado - Plantão A)' },
+      { data: '2026-10-08', label: 'Backup dia 08/10 (Quinta-feira - Plantão A)' }
+    ];
+
+    const rotuloManual = dataUltimoManual || localStorage.getItem('painel_backup_ultimo') || 'Sincronização Mais Recente';
+
     let html = `
-      <div style="background:#F0FDF4; border:1px solid #86EFAC; border-radius:8px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; color:#166534; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+      <div style="background:#F0FDF4; border:1px solid #86EFAC; border-radius:8px; padding:12px 14px; margin-bottom:14px; font-size:12.5px; color:#166534; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
         <div>
-          <strong>🔥 Estrutura de KPIs Operacionais:</strong> Visualização e gestão modular (Presença, Atividades, Rádios, Chaves, Estoque e Equipe).
+          <strong>🔥 Backups Independentes por KPIs no Firebase:</strong> Restaure módulos isoladamente por data. A <strong>Última Atualização Manual</strong> é sempre selecionada como a principal.
         </div>
-        <span style="font-size:11px; background:${ehNuvem ? '#DCFCE7' : '#FEF3C7'}; color:${ehNuvem ? '#15803D' : '#92400E'}; font-weight:700; padding:3px 8px; border-radius:12px;">
-          ${ehNuvem ? '● Sincronizado na Nuvem' : '● Dados Operacionais (Local)'}
+        <span style="font-size:11px; background:${ehNuvem ? '#DCFCE7' : '#FEF3C7'}; color:${ehNuvem ? '#15803D' : '#92400E'}; font-weight:700; padding:4px 10px; border-radius:12px; border:1px solid ${ehNuvem ? '#86EFAC' : '#FDE68A'};">
+          ${ehNuvem ? '● Nuvem & Firebase Ativos' : '● Dados Operacionais Locais'}
         </span>
       </div>
-      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:12px;">
+      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(270px, 1fr)); gap:14px;">
     `;
 
     listaKpis.forEach(item => {
@@ -1623,23 +1697,55 @@ window.carregarVisaoKPIsNuvem = function() {
       const chaves = item.chaves || [];
       const chavesStr = chaves.join(', ');
 
+      let optionsHtml = `
+        <option value="manual" selected style="font-weight:700; color:#0F3D66; background:#EFF6FF;">
+          ⭐ Última Atualização Manual (Principal) — ${escapeHtml(rotuloManual)}
+        </option>
+      `;
+
+      if (diasFinais && diasFinais.length > 0) {
+        optionsHtml += '<optgroup label="Histórico de Backups Diários por Data:">';
+        diasFinais.forEach(d => {
+          const lbl = d.label || d.data;
+          optionsHtml += `<option value="${escapeHtml(d.data)}">📅 ${escapeHtml(lbl)}</option>`;
+        });
+        optionsHtml += '</optgroup>';
+      }
+
       html += `
-        <div style="background:#FFFFFF; border:1.5px solid #E2E8F0; border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 1px 3px rgba(0,0,0,0.04); transition:transform 0.15s ease, box-shadow 0.15s ease;">
+        <div style="background:#FFFFFF; border:1.5px solid #CBD5E1; border-radius:10px; padding:14px; display:flex; flex-direction:column; justify-content:space-between; box-shadow:0 1px 4px rgba(0,0,0,0.05); transition:transform 0.15s ease, box-shadow 0.15s ease;">
           <div>
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-              <span style="font-size:22px;">${icone}</span>
-              <span style="font-size:10px; font-family:monospace; background:#F1F5F9; color:#475569; padding:2px 6px; border-radius:4px;">${escapeHtml(id)}</span>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+              <span style="font-size:24px;">${icone}</span>
+              <span style="font-size:10px; font-family:monospace; background:#F1F5F9; color:#475569; padding:2px 7px; border-radius:4px; font-weight:600;">${escapeHtml(id)}</span>
             </div>
-            <strong style="font-size:14px; color:#0F172A; display:block; margin-bottom:4px;">${escapeHtml(titulo)}</strong>
-            <p style="font-size:12px; color:#475569; margin:0 0 8px; line-height:1.4;">${escapeHtml(resumo)}</p>
-            <div style="font-size:10.5px; color:#94A3B8; margin-bottom:10px; word-break:break-all;">
-              <strong>Chaves:</strong> ${escapeHtml(chavesStr)}
+            <strong style="font-size:14.5px; color:#0F172A; display:block; margin-bottom:4px;">${escapeHtml(titulo)}</strong>
+            <p style="font-size:12px; color:#475569; margin:0 0 10px; line-height:1.4;">${escapeHtml(resumo)}</p>
+            <div style="font-size:10px; color:#94A3B8; margin-bottom:12px; word-break:break-all;">
+              <strong style="color:#64748B;">Chaves sincronizadas:</strong> ${escapeHtml(chavesStr)}
+            </div>
+
+            <!-- SELETOR DE DATA PARA ESTE KPI ESPECÍFICO -->
+            <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:10px; margin-bottom:12px;">
+              <label for="select-data-kpi-${id}" style="display:flex; align-items:center; justify-content:space-between; font-size:11px; font-weight:700; color:#334155; margin-bottom:5px;">
+                <span>📅 Data da Restauração:</span>
+                <span style="font-size:10px; color:#2563EB; font-weight:600;">Selecione o ponto</span>
+              </label>
+              <select id="select-data-kpi-${id}" style="width:100%; font-size:12px; padding:7px 9px; border-radius:6px; border:1.5px solid #94A3B8; background:#FFFFFF; color:#0F172A; font-weight:600; cursor:pointer;">
+                ${optionsHtml}
+              </select>
+              <div style="font-size:10.5px; color:#64748B; margin-top:5px; line-height:1.3;">
+                Padronizado na <strong>Última Atualização Manual</strong>. Altere para recuperar o estado deste módulo em datas anteriores.
+              </div>
             </div>
           </div>
-          <div style="border-top:1px solid #F1F5F9; padding-top:8px; display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:11px; color:#10B981; font-weight:600;">● Ramo Ativo</span>
-            <button class="btn btn-secundario" onclick="restaurarKpiEspecifico('${id}', '${escapeHtml(titulo)}')" style="font-size:11.5px; padding:4px 10px; font-weight:600; background:#F8FAFC; border-color:#CBD5E1; color:#0F172A;">
-              🔄 Restaurar KPI
+
+          <div style="border-top:1px solid #E2E8F0; padding-top:10px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <span style="font-size:11px; color:#10B981; font-weight:700; display:inline-flex; align-items:center; gap:4px;">
+              ● Ramo Ativo
+            </span>
+            <button class="btn btn-primario" onclick="acionarRestauracaoKpiComData('${id}', '${escapeHtml(titulo)}')" style="font-size:12px; padding:6px 12px; font-weight:700; background:#0F3D66; border-color:#0F3D66; color:#FFFFFF; display:inline-flex; align-items:center; gap:5px; border-radius:6px; box-shadow:0 1px 2px rgba(0,0,0,0.1);">
+              🔄 Restaurar Este KPI
             </button>
           </div>
         </div>
@@ -1650,50 +1756,84 @@ window.carregarVisaoKPIsNuvem = function() {
     corpo.innerHTML = html;
   }
 
-  fetch('/api/nuvem/kpis')
+  // Consulta simultânea dos KPIs e do histórico diário de datas
+  const pKpis = fetch('/api/nuvem/kpis')
     .then(r => {
       const ct = (r.headers && r.headers.get('content-type')) || '';
-      if (!r.ok || !ct.includes('application/json')) {
-        return null;
-      }
-      return r.text().then(texto => {
-        try {
-          return JSON.parse(texto);
-        } catch(e) {
-          return null;
-        }
-      });
+      if (!r.ok || !ct.includes('application/json')) return null;
+      return r.text().then(texto => { try { return JSON.parse(texto); } catch(e){ return null; } });
     })
-    .catch(() => null)
-    .then(res => {
-      let kpis = (res && res.kpis) || null;
+    .catch(() => null);
+
+  const pDias = fetch('/api/nuvem/historico-dias')
+    .then(r => {
+      const ct = (r.headers && r.headers.get('content-type')) || '';
+      if (!r.ok || !ct.includes('application/json')) return null;
+      return r.text().then(texto => { try { return JSON.parse(texto); } catch(e){ return null; } });
+    })
+    .catch(() => null);
+
+  Promise.all([pKpis, pDias])
+    .then(([resKpis, resDias]) => {
+      let kpis = (resKpis && resKpis.kpis) || null;
       let ehNuvem = true;
       if (!kpis || Object.keys(kpis).length === 0) {
         kpis = obterKpisLocais();
         ehNuvem = false;
       }
-      renderizarCards(kpis, ehNuvem);
+      const listaDias = (resDias && resDias.dias) || [];
+      const dataManual = (resKpis && resKpis.enviadoEm) ? new Date(resKpis.enviadoEm).toLocaleString('pt-BR') : '';
+      renderizarCards(kpis, ehNuvem, listaDias, dataManual);
     })
     .catch(err => {
       console.warn('Fallback automático para KPIs locais:', err);
       const kpisLocais = obterKpisLocais();
       if (Object.keys(kpisLocais).length > 0) {
-        renderizarCards(kpisLocais, false);
+        renderizarCards(kpisLocais, false, [], '');
       } else {
         corpo.innerHTML = `<div style="text-align:center; padding:20px; color:#DC2626;">Aviso: Não foi possível carregar os KPIs no momento.</div>`;
       }
     });
 };
 
-window.restaurarKpiEspecifico = function(kpiId, titulo) {
-  if (!confirm(`Deseja restaurar exclusivamente os dados do KPI "${titulo}" a partir da nuvem?\n\nOs outros módulos e dados do painel permanecerão intactos.`)) {
+window.acionarRestauracaoKpiComData = function(kpiId, titulo) {
+  const sel = document.getElementById('select-data-kpi-' + kpiId);
+  const diaEscolhido = sel ? sel.value : 'manual';
+  const textoOption = (sel && sel.selectedOptions && sel.selectedOptions[0]) ? sel.selectedOptions[0].textContent.trim() : 'Última Atualização Manual (Principal)';
+  
+  restaurarKpiEspecifico(kpiId, titulo, diaEscolhido, textoOption);
+};
+
+window.restaurarKpiEspecifico = function(kpiId, titulo, diaEscolhido, rotuloExibicao) {
+  diaEscolhido = diaEscolhido || 'manual';
+  rotuloExibicao = rotuloExibicao || (diaEscolhido === 'manual' ? 'Última Atualização Manual (Principal)' : diaEscolhido);
+
+  let confirmMsg = '';
+  if (diaEscolhido === 'manual' || diaEscolhido === 'principal') {
+    confirmMsg = `Deseja restaurar exclusivamente os dados do KPI "${titulo}" usando a Última Atualização Manual (Principal)?\n\n🛡️ Segurança:\n• Apenas as informações deste KPI serão restauradas.\n• Os outros módulos operacionais do painel permanecerão intactos.`;
+  } else {
+    confirmMsg = `Deseja restaurar exclusivamente os dados do KPI "${titulo}" do dia ${rotuloExibicao}?\n\n🛡️ Segurança:\n• Apenas as informações deste KPI nesta data serão recuperadas.\n• Nenhuma outra data de outros módulos será afetada.\n• Colaboradores desligados continuarão excluídos.`;
+  }
+
+  if (!confirm(confirmMsg)) {
     return;
+  }
+
+  const corpo = document.getElementById('corpoModalGerenciadorKPIs');
+  if (corpo) {
+    const elAntigo = document.getElementById('alertaRestaurandoKpi');
+    if (elAntigo) elAntigo.remove();
+    const bannerProgresso = document.createElement('div');
+    bannerProgresso.id = 'alertaRestaurandoKpi';
+    bannerProgresso.style.cssText = 'position:sticky; top:0; z-index:10; background:#0F3D66; color:#FFFFFF; padding:10px 14px; border-radius:8px; font-size:12.5px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 2px 8px rgba(0,0,0,0.15);';
+    bannerProgresso.innerHTML = `<span>⏳ Restaurando KPI <strong>${escapeHtml(titulo)}</strong> (${escapeHtml(rotuloExibicao)})...</span>`;
+    corpo.insertBefore(bannerProgresso, corpo.firstChild);
   }
 
   fetch('/api/nuvem/restaurar-kpi', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ kpiId: kpiId })
+    body: JSON.stringify({ kpiId: kpiId, dia: diaEscolhido })
   })
   .then(r => {
     const ct = (r.headers && r.headers.get('content-type')) || '';
@@ -1711,6 +1851,9 @@ window.restaurarKpiEspecifico = function(kpiId, titulo) {
     });
   })
   .then(res => {
+    const elProg = document.getElementById('alertaRestaurandoKpi');
+    if (elProg) elProg.remove();
+
     if (res.ok && res.dadosRestaurados) {
       const salvar = (typeof window !== 'undefined' && window.setItemOriginal) ||
                      (typeof Storage !== 'undefined' && Storage.prototype && Storage.prototype.setItem) ||
@@ -1728,10 +1871,36 @@ window.restaurarKpiEspecifico = function(kpiId, titulo) {
         }, 400);
       }
 
+      // Sincroniza também no nó correspondente do Firebase Realtime Database caso configurado
+      try {
+        if (window.PainelNuvem && typeof PainelNuvem.temUrl === 'function' && PainelNuvem.temUrl()) {
+          var base = PainelNuvem.baseUrl ? PainelNuvem.baseUrl() : '';
+          if (base && base.indexOf('firebaseio.com') !== -1) {
+            var authParam = (typeof apiKeyConfigurada === 'function' && apiKeyConfigurada()) 
+              ? '?auth=' + encodeURIComponent(localStorage.getItem('painel_firebase_auth_token') || '') 
+              : '';
+            fetch(base + '/kpis/' + encodeURIComponent(kpiId) + '.json' + authParam, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: kpiId,
+                titulo: titulo,
+                dados: res.dadosRestaurados,
+                restauradoEm: new Date().toISOString(),
+                diaFonte: diaEscolhido
+              }),
+              cache: 'no-store'
+            }).catch(function(){});
+          }
+        }
+      } catch(e){}
+
+      const rotuloFinal = res.diaLabel || rotuloExibicao;
+      const msgSucesso = `✅ KPI "${titulo}" restaurado com sucesso!\nOrigem: ${rotuloFinal}`;
       if (typeof mostrarToastNotificacao === 'function') {
-        mostrarToastNotificacao(`✅ KPI "${titulo}" restaurado com sucesso!`);
+        mostrarToastNotificacao(msgSucesso);
       } else {
-        alert(`KPI "${titulo}" restaurado com sucesso!`);
+        alert(msgSucesso);
       }
 
       setTimeout(() => {
@@ -1743,6 +1912,8 @@ window.restaurarKpiEspecifico = function(kpiId, titulo) {
     }
   })
   .catch(err => {
+    const elProg = document.getElementById('alertaRestaurandoKpi');
+    if (elProg) elProg.remove();
     alert('Erro ao restaurar KPI: ' + (err.message || err));
   });
 };
@@ -7971,6 +8142,9 @@ function salvarLista(mod, lista){
         try { registrarSnapshotEquipe(lista, 'Atualização de colaboradores'); } catch(eSn){}
       }
     }
+    if(mod === 'radiosConserto' || chave === 'mtc_radios_conserto' || mod === 'radios' || chave === 'mtc_radios'){
+      try { ultimoMomentoAlteracaoLocal = Date.now(); } catch(e){}
+    }
     if(window.PainelNuvem && typeof PainelNuvem.backupImediato === 'function'){
       PainelNuvem.backupImediato();
     }
@@ -9163,12 +9337,12 @@ function limparBuscaRadios(){
 
 function renderRadios(){
   const lista = carregar('radios');
-  const operacionais = lista.filter(i => !i.manutencao);
-  const emManutencaoLista = lista.filter(i => !!i.manutencao);
   const conserto = carregar('radiosConserto');
   const emConsertoCount = conserto.filter(c => !c.dataRetorno).length;
   const radiosEmConsertoIds = new Set(conserto.filter(c => !c.dataRetorno).map(c => c.radioId));
   const consertoLista = lista.filter(i => radiosEmConsertoIds.has(i.id));
+  const operacionais = lista.filter(i => !i.manutencao && !radiosEmConsertoIds.has(i.id));
+  const emManutencaoLista = lista.filter(i => !!i.manutencao && !radiosEmConsertoIds.has(i.id));
 
   // Base conforme o KPI selecionado
   let baseLista = operacionais;
@@ -9623,6 +9797,7 @@ function confirmarEnvioConsertoRapido(){
   const elCom = document.getElementById('envioRapido-comentario');
   const elRet = document.getElementById('envioRapido-dataRetorno');
 
+  const agoraIso = new Date().toISOString();
   const dados = {
     id: gerarId(),
     radioId,
@@ -9633,11 +9808,13 @@ function confirmarEnvioConsertoRapido(){
     comentario: elCom ? elCom.value.trim() : '',
     centroCusto: elCc ? elCc.value.trim() : '',
     observacao: elObs ? elObs.value.trim() : '',
-    criadoEm: new Date().toISOString()
+    criadoEm: agoraIso,
+    atualizadoEm: agoraIso
   };
 
   let lista = carregar('radiosConserto');
   lista.push(dados);
+  try { ultimoMomentoAlteracaoLocal = Date.now(); } catch(e){}
   salvarLista('radiosConserto', lista);
 
   fecharJanelaEnvioConserto();
@@ -9745,12 +9922,12 @@ function popularSelectRadios(){
   const sel = document.getElementById('conserto-radioId');
   if(!sel) return;
   const radios = carregar('radios')
-    .slice().sort((a,b)=>((a.setor||a.codigo||'').localeCompare(b.setor||b.codigo||'')));
+    .slice().sort((a,b)=>((a.setor||'').localeCompare(b.setor||'')));
   sel.innerHTML = '<option value="">Selecione o rádio...</option>' +
     radios.map(r => {
-      const rotulo = (r.setor && r.setor !== '(Sem setor definido)') ? r.setor : ('Rádio reserva ' + (r.codigo || '—'));
+      const rotulo = (r.setor && r.setor !== '(Sem setor definido)') ? r.setor : 'Rádio reserva';
       const statusExtra = r.manutencao ? ' [Manutenção]' : '';
-      return `<option value="${r.id}">${escapeHtml(rotulo)} · Cód ${escapeHtml(r.codigo || '—')}${statusExtra}</option>`;
+      return `<option value="${r.id}">${escapeHtml(rotulo)}${statusExtra}</option>`;
     }).join('');
 }
 function alternarAvariaOutro(){
@@ -9796,6 +9973,7 @@ function salvarConserto(){
   const radio = carregar('radios').find(r => r.id === radioId);
   const elCc = document.getElementById('conserto-centroCusto');
   const elObs = document.getElementById('conserto-observacao');
+  const agoraIso = new Date().toISOString();
   const dados = {
     radioId,
     setor: radio ? radio.setor : '',
@@ -9804,16 +9982,18 @@ function salvarConserto(){
     dataRetorno: document.getElementById('conserto-dataRetorno').value,
     comentario: document.getElementById('conserto-comentario').value.trim(),
     centroCusto: elCc ? elCc.value.trim() : '',
-    observacao: elObs ? elObs.value.trim() : ''
+    observacao: elObs ? elObs.value.trim() : '',
+    atualizadoEm: agoraIso
   };
   let lista = carregar('radiosConserto');
   if(idAtual){
     lista = lista.map(i => i.id === idAtual ? {...i, ...dados} : i);
   } else {
     dados.id = gerarId();
-    dados.criadoEm = new Date().toISOString();
+    dados.criadoEm = agoraIso;
     lista.push(dados);
   }
+  try { ultimoMomentoAlteracaoLocal = Date.now(); } catch(e){}
   salvarLista('radiosConserto', lista);
   limparFormConserto();
   renderConserto();
@@ -9848,6 +10028,12 @@ function editarConserto(id){
 }
 function excluirConserto(id){
   if(!confirm('Excluir este registro de conserto?')) return;
+  try {
+    var exc = JSON.parse(localStorage.getItem('mtc_radios_conserto_excluidos') || '[]');
+    exc.push(id);
+    localStorage.setItem('mtc_radios_conserto_excluidos', JSON.stringify(Array.from(new Set(exc))));
+  } catch(eExc){}
+  try { ultimoMomentoAlteracaoLocal = Date.now(); } catch(e){}
   let lista = carregar('radiosConserto');
   lista = lista.filter(i => i.id !== id);
   salvarLista('radiosConserto', lista);
@@ -9857,7 +10043,9 @@ function excluirConserto(id){
 function marcarRetorno(id){
   let lista = carregar('radiosConserto');
   const hojeIso = new Date().toISOString().slice(0,10);
-  lista = lista.map(i => i.id === id ? {...i, dataRetorno: hojeIso} : i);
+  const agoraIso = new Date().toISOString();
+  lista = lista.map(i => i.id === id ? {...i, dataRetorno: hojeIso, atualizadoEm: agoraIso} : i);
+  try { ultimoMomentoAlteracaoLocal = Date.now(); } catch(e){}
   salvarLista('radiosConserto', lista);
   renderConserto();
   renderRadios();

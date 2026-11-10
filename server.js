@@ -537,19 +537,44 @@ app.all(['/painel_minas_ii.json', '/api/backup-nuvem'], (req, res) => {
         } catch(e){}
       }
 
-      // 3.1 Preservação de Consertos de Rádios por ID
+      // 3.1 Preservação e mesclagem de Consertos de Rádios por ID e exclusões
+      const excluidosCons = new Set([
+        ...safeParse(payload.dados.mtc_radios_conserto_excluidos, []),
+        ...safeParse(dadosNuvemLocal.dados.mtc_radios_conserto_excluidos, [])
+      ]);
+      if (excluidosCons.size > 0) {
+        payload.dados.mtc_radios_conserto_excluidos = JSON.stringify(Array.from(excluidosCons));
+      }
+
       if (payload.dados.mtc_radios_conserto || dadosNuvemLocal.dados.mtc_radios_conserto) {
         try {
           const cExist = safeParse(dadosNuvemLocal.dados.mtc_radios_conserto, []);
           const cNovo = safeParse(payload.dados.mtc_radios_conserto, []);
           const mapConserto = new Map();
-          if (Array.isArray(cExist)) cExist.forEach(c => { if(c && c.id) mapConserto.set(c.id, c); });
-          if (Array.isArray(cNovo)) cNovo.forEach(c => {
-            if(!c || !c.id) return;
-            const ex = mapConserto.get(c.id);
-            mapConserto.set(c.id, ex ? Object.assign({}, ex, c) : c);
-          });
+          if (Array.isArray(cExist)) {
+            cExist.forEach(c => {
+              if (c && c.id && !excluidosCons.has(c.id)) mapConserto.set(c.id, c);
+            });
+          }
+          if (Array.isArray(cNovo)) {
+            cNovo.forEach(c => {
+              if (!c || !c.id || excluidosCons.has(c.id)) return;
+              const ex = mapConserto.get(c.id);
+              if (!ex) {
+                mapConserto.set(c.id, c);
+              } else {
+                const tsNovo = c.atualizadoEm ? new Date(c.atualizadoEm).getTime() : 0;
+                const tsEx = ex.atualizadoEm ? new Date(ex.atualizadoEm).getTime() : 0;
+                if (tsNovo >= tsEx) {
+                  mapConserto.set(c.id, Object.assign({}, ex, c));
+                } else {
+                  mapConserto.set(c.id, Object.assign({}, c, ex));
+                }
+              }
+            });
+          }
           payload.dados.mtc_radios_conserto = JSON.stringify(Array.from(mapConserto.values()));
+          payload.dados.mtc_radios_conserto_backup_historico = payload.dados.mtc_radios_conserto;
         } catch(e){}
       }
 
@@ -964,7 +989,7 @@ app.get('/api/nuvem/kpis/:id', (req, res) => {
   res.json({ ok: true, kpi, enviadoEm: dadosNuvemLocal?.enviadoEm || new Date().toISOString() });
 });
 
-// Endpoint: Restaura na nuvem apenas os dados de um KPI específico (sem afetar os outros módulos)
+// Endpoint: Restaura na nuvem apenas os dados de um KPI específico por data ou última atualização manual
 app.post('/api/nuvem/restaurar-kpi', (req, res) => {
   let body = req.body;
   if (typeof body === 'string') {
@@ -978,21 +1003,49 @@ app.post('/api/nuvem/restaurar-kpi', (req, res) => {
 
   try {
     let fonteDados = null;
-    if (diaAlvo && fs.existsSync(HISTORICO_DIAS_FILE)) {
-      const lista = JSON.parse(fs.readFileSync(HISTORICO_DIAS_FILE, 'utf8') || '[]');
-      const snap = lista.find(item => item.data === diaAlvo);
-      if (snap && snap.dados && snap.dados.dados) {
-        fonteDados = snap.dados.dados;
+    let diaLabel = 'Última Atualização Manual (Principal)';
+
+    // Se uma data específica do histórico foi solicitada (diferente de 'manual' ou 'principal')
+    if (diaAlvo && diaAlvo !== 'manual' && diaAlvo !== 'principal' && fs.existsSync(HISTORICO_DIAS_FILE)) {
+      try {
+        const lista = JSON.parse(fs.readFileSync(HISTORICO_DIAS_FILE, 'utf8') || '[]');
+        const snap = lista.find(item => item.data === diaAlvo);
+        if (snap && snap.dados) {
+          fonteDados = (snap.dados.dados) ? snap.dados.dados : snap.dados;
+          diaLabel = snap.label || `Backup de ${diaAlvo}`;
+        }
+      } catch(e){}
+    }
+
+    // Se for 'manual' ou 'principal' (ou se a data não foi localizada), prioriza como PRINCIPAL a última atualização manual/nuvem
+    if (!fonteDados) {
+      if (!dadosNuvemLocal || !dadosNuvemLocal.dados) {
+        if (fs.existsSync(DATA_FILE)) {
+          try {
+            const raw = fs.readFileSync(DATA_FILE, 'utf8');
+            if (raw && raw.trim()) dadosNuvemLocal = JSON.parse(raw);
+          } catch(e){}
+        }
+      }
+      if (dadosNuvemLocal && dadosNuvemLocal.dados) {
+        fonteDados = dadosNuvemLocal.dados;
+        diaLabel = 'Última Atualização Manual (Principal)';
       }
     }
+
+    // Fallback secundário no arquivo de histórico se ainda não tiver fonte
     if (!fonteDados && fs.existsSync(HISTORICO_DIAS_FILE)) {
-      const lista = JSON.parse(fs.readFileSync(HISTORICO_DIAS_FILE, 'utf8') || '[]');
-      if (lista.length > 0 && lista[0].dados && lista[0].dados.dados) {
-        fonteDados = lista[0].dados.dados;
-      }
+      try {
+        const lista = JSON.parse(fs.readFileSync(HISTORICO_DIAS_FILE, 'utf8') || '[]');
+        if (lista.length > 0 && lista[0].dados) {
+          fonteDados = (lista[0].dados.dados) ? lista[0].dados.dados : lista[0].dados;
+          diaLabel = lista[0].label || 'Backup recente';
+        }
+      } catch(e){}
     }
-    if (!fonteDados && dadosNuvemLocal) {
-      fonteDados = dadosNuvemLocal.dados;
+
+    if (!fonteDados) {
+      return res.status(404).json({ error: 'Nenhum dado ou snapshot localizado para restaurar este KPI.' });
     }
 
     const mapaKpis = gerarEstruturaKpis(fonteDados);
@@ -1004,13 +1057,50 @@ app.post('/api/nuvem/restaurar-kpi', (req, res) => {
     if (!dadosNuvemLocal) dadosNuvemLocal = { dados: {}, enviadoEm: '' };
     if (!dadosNuvemLocal.dados) dadosNuvemLocal.dados = {};
 
+    const safeParse = (val, fb) => {
+      if (!val) return fb;
+      if (typeof val === 'object') return val;
+      try { return JSON.parse(val); } catch(e){ return fb; }
+    };
+
     const chavesRestauradas = {};
-    kpiAlvo.chaves.forEach(ch => {
-      if (fonteDados && fonteDados[ch] !== undefined) {
-        dadosNuvemLocal.dados[ch] = fonteDados[ch];
-        chavesRestauradas[ch] = fonteDados[ch];
+
+    // Tratamento seguro para presenca_equipe quando restaurando data específica
+    if (kpiId === 'presenca_equipe' && diaAlvo && diaAlvo !== 'manual' && diaAlvo !== 'principal') {
+      const presAtuais = safeParse(dadosNuvemLocal.dados.mtc_presenca, {});
+      const presFonte = safeParse(fonteDados.mtc_presenca, {});
+      const presMerged = Object.assign({}, presAtuais);
+      if (presFonte[diaAlvo]) {
+        presMerged[diaAlvo] = presFonte[diaAlvo];
       }
-    });
+      dadosNuvemLocal.dados.mtc_presenca = JSON.stringify(presMerged);
+      dadosNuvemLocal.dados.mtc_presenca_backup_historico = JSON.stringify(presMerged);
+      chavesRestauradas.mtc_presenca = dadosNuvemLocal.dados.mtc_presenca;
+      chavesRestauradas.mtc_presenca_backup_historico = dadosNuvemLocal.dados.mtc_presenca_backup_historico;
+
+      // Respeitar demitidos da equipe
+      const excluidos = new Set(safeParse(dadosNuvemLocal.dados.mtc_equipe_excluidos, []));
+      const eqFonte = safeParse(fonteDados.mtc_equipe_dem2, []);
+      if (Array.isArray(eqFonte) && eqFonte.length > 0) {
+        const eqFiltrados = eqFonte.filter(colab => {
+          const id = colab.id || colab.matricula || colab.nome;
+          return !excluidos.has(id) && !excluidos.has(colab.matricula) && !excluidos.has(colab.nome);
+        });
+        dadosNuvemLocal.dados.mtc_equipe_dem2 = JSON.stringify(eqFiltrados);
+        chavesRestauradas.mtc_equipe_dem2 = dadosNuvemLocal.dados.mtc_equipe_dem2;
+      }
+      if (fonteDados.mtc_terceirizados !== undefined) {
+        dadosNuvemLocal.dados.mtc_terceirizados = fonteDados.mtc_terceirizados;
+        chavesRestauradas.mtc_terceirizados = fonteDados.mtc_terceirizados;
+      }
+    } else {
+      kpiAlvo.chaves.forEach(ch => {
+        if (fonteDados && fonteDados[ch] !== undefined) {
+          dadosNuvemLocal.dados[ch] = fonteDados[ch];
+          chavesRestauradas[ch] = fonteDados[ch];
+        }
+      });
+    }
 
     dadosNuvemLocal.enviadoEm = new Date().toISOString();
     dadosNuvemLocal.kpis = gerarEstruturaKpis(dadosNuvemLocal.dados);
@@ -1028,6 +1118,8 @@ app.post('/api/nuvem/restaurar-kpi', (req, res) => {
       kpiId,
       titulo: kpiAlvo.titulo,
       chaves: kpiAlvo.chaves,
+      diaRestaurado: diaAlvo || 'manual',
+      diaLabel: diaLabel,
       dadosRestaurados: chavesRestauradas,
       enviadoEm: dadosNuvemLocal.enviadoEm
     });
