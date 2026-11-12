@@ -36,6 +36,86 @@ try {
   console.warn('Could not read existing DATA_FILE:', err);
 }
 
+// Configuração do Servidor Oficial de Produção Cloud Run (painel-operacional)
+const SERVIDOR_OFICIAL_URL = 'https://painel-operacional-620305266125.us-east1.run.app';
+let statusServidorOficial = {
+  url: SERVIDOR_OFICIAL_URL,
+  online: true,
+  ultimoSync: null,
+  ultimoErro: null
+};
+
+async function espelharParaServidorOficial(payload) {
+  if (!payload || !payload.dados) return;
+  try {
+    const res = await fetch(`${SERVIDOR_OFICIAL_URL}/painel_minas_ii.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      statusServidorOficial.online = true;
+      statusServidorOficial.ultimoSync = new Date().toISOString();
+      statusServidorOficial.ultimoErro = null;
+      console.log('[Server] Atualização espelhada com sucesso no servidor oficial Cloud Run (painel-operacional).');
+    } else {
+      statusServidorOficial.online = false;
+      statusServidorOficial.ultimoErro = `HTTP ${res.status}`;
+      console.warn(`[Server] Resposta ao espelhar no servidor oficial: ${res.status}`);
+    }
+  } catch(err) {
+    statusServidorOficial.online = false;
+    statusServidorOficial.ultimoErro = err.message;
+    console.warn('[Server] Falha ao espelhar no servidor oficial:', err.message);
+  }
+}
+
+async function sincronizarComServidorOficial() {
+  try {
+    const res = await fetch(`${SERVIDOR_OFICIAL_URL}/painel_minas_ii.json`, { cache: 'no-store' });
+    if (!res.ok) {
+      statusServidorOficial.online = false;
+      statusServidorOficial.ultimoErro = `HTTP ${res.status}`;
+      return false;
+    }
+    const remoto = await res.json();
+    statusServidorOficial.online = true;
+    statusServidorOficial.ultimoSync = new Date().toISOString();
+    statusServidorOficial.ultimoErro = null;
+
+    if (!remoto || !remoto.dados) return true;
+
+    const tsRemoto = remoto.enviadoEm ? new Date(remoto.enviadoEm).getTime() : 0;
+    const tsLocal = (dadosNuvemLocal && dadosNuvemLocal.enviadoEm) ? new Date(dadosNuvemLocal.enviadoEm).getTime() : 0;
+
+    if (tsRemoto > tsLocal) {
+      console.log(`[Server] Servidor oficial mais recente (${remoto.enviadoEm} > ${dadosNuvemLocal?.enviadoEm}). Mesclando...`);
+      if (!dadosNuvemLocal) dadosNuvemLocal = { dados: {}, enviadoEm: '' };
+      dadosNuvemLocal.dados = Object.assign({}, dadosNuvemLocal.dados, remoto.dados);
+      dadosNuvemLocal.enviadoEm = remoto.enviadoEm;
+      if (typeof gerarEstruturaKpis === 'function') {
+        dadosNuvemLocal.kpis = gerarEstruturaKpis(dadosNuvemLocal.dados);
+      }
+      try {
+        fs.writeFileSync(DATA_FILE, JSON.stringify(dadosNuvemLocal, null, 2), 'utf8');
+      } catch(e){}
+      clientesSse.forEach(c => {
+        try {
+          c.write(`event: put\ndata: ${JSON.stringify({ path: '/', data: dadosNuvemLocal })}\n\n`);
+        } catch(e){}
+      });
+    } else if (tsLocal > tsRemoto) {
+      console.log(`[Server] Studio local mais recente. Enviando para servidor oficial...`);
+      await espelharParaServidorOficial(dadosNuvemLocal);
+    }
+    return true;
+  } catch(err) {
+    statusServidorOficial.online = false;
+    statusServidorOficial.ultimoErro = err.message;
+    return false;
+  }
+}
+
 // Se DATA_FILE ainda não existir ou estiver vazio, tenta carregar do snapshot do dia 30/10 ou 31/10
 if (!dadosNuvemLocal || !dadosNuvemLocal.dados || Object.keys(dadosNuvemLocal.dados).length === 0) {
   try {
@@ -810,6 +890,8 @@ app.all(['/painel_minas_ii.json', '/api/backup-nuvem'], (req, res) => {
       // Atualiza o snapshot diário para a data corrente
       const hojeIso = new Date().toISOString().slice(0, 10);
       salvarHistoricoDia(hojeIso, dadosNuvemLocal.dados);
+      // Espelha em segundo plano no servidor oficial Cloud Run (painel-operacional)
+      espelharParaServidorOficial(dadosNuvemLocal);
     } catch(err) {
       console.warn('Failed to persist DATA_FILE:', err);
     }
@@ -933,6 +1015,7 @@ app.post('/api/nuvem/restaurar-dia', (req, res) => {
     dadosNuvemLocal.enviadoEm = new Date().toISOString();
 
     fs.writeFileSync(DATA_FILE, JSON.stringify(dadosNuvemLocal, null, 2), 'utf8');
+    espelharParaServidorOficial(dadosNuvemLocal);
 
     // Transmite a restauração via SSE para todos os dispositivos conectados
     clientesSse.forEach(c => {
@@ -1106,6 +1189,7 @@ app.post('/api/nuvem/restaurar-kpi', (req, res) => {
     dadosNuvemLocal.kpis = gerarEstruturaKpis(dadosNuvemLocal.dados);
 
     fs.writeFileSync(DATA_FILE, JSON.stringify(dadosNuvemLocal, null, 2), 'utf8');
+    espelharParaServidorOficial(dadosNuvemLocal);
 
     clientesSse.forEach(c => {
       try {
@@ -1126,6 +1210,48 @@ app.post('/api/nuvem/restaurar-kpi', (req, res) => {
   } catch(err) {
     console.error('Erro ao restaurar KPI:', err);
     return res.status(500).json({ error: err.message });
+  }
+});
+
+// Status e controle do Servidor Oficial Cloud Run (painel-operacional)
+app.get('/api/nuvem/servidor-oficial', (req, res) => {
+  res.json({
+    ok: true,
+    servidor: statusServidorOficial,
+    dadosLocaisEnviadoEm: dadosNuvemLocal?.enviadoEm || null
+  });
+});
+
+app.post('/api/nuvem/sincronizar-oficial', async (req, res) => {
+  try {
+    const sucesso = await sincronizarComServidorOficial();
+    res.json({
+      ok: sucesso,
+      servidor: statusServidorOficial,
+      enviadoEm: dadosNuvemLocal?.enviadoEm || null
+    });
+  } catch(e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// Proxy seguro para evitar bloqueio de CORS em navegadores e iframes
+app.all('/api/proxy-painel-operacional', async (req, res) => {
+  try {
+    const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    const urlAlvo = `${SERVIDOR_OFICIAL_URL}/painel_minas_ii.json${qs}`;
+    const opts = {
+      method: req.method,
+      headers: { 'Content-Type': 'application/json' }
+    };
+    if (req.method === 'POST' || req.method === 'PUT') {
+      opts.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+    }
+    const r = await fetch(urlAlvo, opts);
+    const txt = await r.text();
+    res.status(r.status).send(txt);
+  } catch(err) {
+    res.status(502).json({ ok: false, error: err.message });
   }
 });
 
@@ -1207,4 +1333,10 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
+  setTimeout(() => {
+    sincronizarComServidorOficial().catch(e => console.warn('Erro sync inicial:', e));
+  }, 2000);
+  setInterval(() => {
+    sincronizarComServidorOficial().catch(e => console.warn('Erro sync periódico:', e));
+  }, 25000);
 });
