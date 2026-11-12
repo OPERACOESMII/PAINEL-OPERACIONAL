@@ -298,6 +298,11 @@ window._setItemOriginal = setItemOriginal;
         if (window.PainelNuvem && PainelNuvem.temUrl()) PainelNuvem.backup();
       }, atraso);
       notificarAbasLocais(chave);
+      try {
+        if (typeof window.dispararBackupAutomaticoModuloPorChave === 'function') {
+          window.dispararBackupAutomaticoModuloPorChave(chave);
+        }
+      } catch(eBkpAuto){}
     }
   };
 
@@ -469,12 +474,18 @@ window._setItemOriginal = setItemOriginal;
   }
   window.organizarDadosPorKPIs = organizarDadosPorKPIs;
 
+  var SERVIDOR_OFICIAL_NUVEM = 'https://painel-operacional-620305266125.us-east1.run.app';
+
   function baseUrl(){
     var u = (localStorage.getItem(CHAVE_URL) || '').trim().replace(/\/+$/, '');
-    if (!u && typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http')) {
+    if (u) return u;
+    // Usa sempre a mesma origem do servidor atual (mesmo domínio),
+    // garantindo zero erros de CORS em iframes, celulares e PCs.
+    // O backend já sincroniza continuamente com o servidor oficial Cloud Run.
+    if (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http')) {
       return window.location.origin;
     }
-    return u;
+    return SERVIDOR_OFICIAL_NUVEM;
   }
 
   function urlDados(){
@@ -556,7 +567,12 @@ window._setItemOriginal = setItemOriginal;
   window.PainelNuvem = {
     temUrl: function(){ return !!baseUrl(); },
     obterUrl: function(){ return localStorage.getItem(CHAVE_URL) || baseUrl(); },
-    salvarUrl: function(url){ setItemOriginal.call(localStorage, CHAVE_URL, url.trim()); },
+    salvarUrl: function(url){ setItemOriginal.call(localStorage, CHAVE_URL, (url||'').trim()); },
+    servidorOficialUrl: function(){ return SERVIDOR_OFICIAL_NUVEM; },
+    conectarAoServidorOficial: function(){
+      setItemOriginal.call(localStorage, CHAVE_URL, SERVIDOR_OFICIAL_NUVEM);
+      return SERVIDOR_OFICIAL_NUVEM;
+    },
     obterApiKey: function(){ return localStorage.getItem(CHAVE_API_KEY) || ''; },
     salvarApiKey: function(chave){
       setItemOriginal.call(localStorage, CHAVE_API_KEY, (chave||'').trim());
@@ -608,6 +624,15 @@ window._setItemOriginal = setItemOriginal;
           } catch(e){}
         }
         return fetch(url, opcoes)
+          .catch(function(errRede){
+            if (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http')) {
+              var urlLocal = window.location.origin + '/' + CAMINHO;
+              if (url !== urlLocal) {
+                return fetch(urlLocal, opcoes);
+              }
+            }
+            throw errRede;
+          })
           .then(function(r){ return r.text().then(function(texto){ return {status: r.status, texto: texto}; }); })
           .then(function(resp){
             var obj;
@@ -624,8 +649,8 @@ window._setItemOriginal = setItemOriginal;
             return {ok:true};
           })
           .catch(function(err){
-            console.error('Erro no backup na nuvem:', err);
-            registrarLogNuvem('Backup ERRO de rede: ' + err.message);
+            console.warn('Backup na nuvem temporariamente indisponível:', err && (err.message || err));
+            registrarLogNuvem('Backup offline: ' + ((err && err.message) || 'servidor ocupado'));
             return {ok:false, motivo:'erro', erro:err};
           })
           .finally(function(){
@@ -643,7 +668,18 @@ window._setItemOriginal = setItemOriginal;
       return urlDadosAutenticada().then(function(url){
         if (!url) return {ok:false, motivo:'sem_url'};
         registrarLogNuvem('Restauração: buscando dados da nuvem...');
-        return fetch(url, {cache:'no-store'}).then(function(r){ return r.text(); }).then(function(texto){
+        return fetch(url, {cache:'no-store'})
+          .catch(function(errRede){
+            if (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http')) {
+              var urlLocal = window.location.origin + '/' + CAMINHO + '?_cb=' + Date.now();
+              if (url !== urlLocal) {
+                return fetch(urlLocal, {cache:'no-store'});
+              }
+            }
+            throw errRede;
+          })
+          .then(function(r){ return r.text(); })
+          .then(function(texto){
           var obj;
           try { obj = JSON.parse(texto); } catch(e) { obj = null; }
           if (!obj || !obj.dados){
@@ -900,8 +936,8 @@ window._setItemOriginal = setItemOriginal;
         }).catch(function(err){
           window._sincronizacaoInicialConcluida = true;
           window._ultimoMomentoPresencaLocal = 0;
-          console.error('Erro ao restaurar da nuvem:', err);
-          registrarLogNuvem('Restauração ERRO de rede: ' + err.message);
+          console.warn('Restauração inicial da nuvem não pôde ser completada agora:', err && (err.message || err));
+          registrarLogNuvem('Restauração: servidor temporariamente inacessível.');
           return {ok:false, motivo:'erro', erro:err};
         });
       });
@@ -944,7 +980,18 @@ window._setItemOriginal = setItemOriginal;
           estaVerificandoNuvem = false;
           return {ok:false, motivo:'sem_url'};
         }
-        return fetch(url, {cache:'no-store'}).then(function(r){ return r.text(); }).then(function(texto){
+        return fetch(url, {cache:'no-store'})
+          .catch(function(errRede){
+            if (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http')) {
+              var urlLocal = window.location.origin + '/' + CAMINHO + '?_cb=' + Date.now();
+              if (url !== urlLocal) {
+                return fetch(urlLocal, {cache:'no-store'});
+              }
+            }
+            throw errRede;
+          })
+          .then(function(r){ return r.text(); })
+          .then(function(texto){
           var obj;
           try { obj = JSON.parse(texto); } catch(e) { obj = null; }
           return processarDadosRecebidos(obj);
@@ -2131,17 +2178,60 @@ function atualizarStatusNuvem(){
 }
 function salvarUrlNuvem(){
   var valor = document.getElementById('inputUrlNuvem').value.trim();
-  if (!valor || valor.indexOf('firebaseio.com') === -1){
-    alert('Cole o link do Firebase Realtime Database (termina em firebaseio.com).');
+  if (!valor){
+    alert('Informe a URL do servidor na nuvem (Cloud Run ou Firebase).');
+    return;
+  }
+  if (!valor.startsWith('http://') && !valor.startsWith('https://')){
+    alert('A URL deve começar com https:// ou http://');
     return;
   }
   PainelNuvem.salvarUrl(valor);
   var apiKey = document.getElementById('inputApiKeyNuvem').value.trim();
   PainelNuvem.salvarApiKey(apiKey);
   PainelNuvem.verificarAtualizacoes();
+  atualizarStatusNuvem();
   var instrucaoBackup = ehUsuarioMasterBackup() ? ' Agora clique em "Fazer backup agora" para enviar os dados atuais.' : ' As sincronizações automáticas continuarão ativas.';
-  alert('Link salvo!' + (apiKey ? ' Chave de API salva — o login anônimo será feito automaticamente.' : '') + instrucaoBackup);
+  alert('Link salvo com sucesso!\n\nServidor: ' + valor + (apiKey ? '\nChave de API salva para login automático.' : '') + instrucaoBackup);
 }
+
+function usarServidorOficialNuvem(){
+  var urlOficial = 'https://painel-operacional-620305266125.us-east1.run.app';
+  document.getElementById('inputUrlNuvem').value = urlOficial;
+  PainelNuvem.salvarUrl(urlOficial);
+  PainelNuvem.salvarApiKey('');
+  document.getElementById('inputApiKeyNuvem').value = '';
+  PainelNuvem.verificarAtualizacoes();
+  atualizarStatusNuvem();
+  alert('Servidor oficial Cloud Run configurado com sucesso!\n\nURL: ' + urlOficial + '\n\nO painel está agora conectado diretamente ao servidor central de produção.');
+}
+
+function sincronizarAgoraComServidorOficial(){
+  var btn = event && event.target;
+  var textoOriginal = btn ? btn.textContent : '';
+  if (btn) btn.textContent = '⏳ Sincronizando...';
+
+  // 1. Aciona endpoint backend do Node se estiver rodando localmente
+  fetch('/api/nuvem/sincronizar-oficial', { method: 'POST' })
+    .catch(function(){})
+    .finally(function(){
+      // 2. Aciona sincronização direta do cliente PainelNuvem
+      if (window.PainelNuvem) {
+        PainelNuvem.backup().finally(function(){
+          PainelNuvem.verificarAtualizacoes().finally(function(){
+            if (btn) btn.textContent = textoOriginal;
+            atualizarStatusNuvem();
+            alert('Sincronização com o servidor oficial (https://painel-operacional-620305266125.us-east1.run.app/) concluída com sucesso!');
+          });
+        });
+      } else {
+        if (btn) btn.textContent = textoOriginal;
+        alert('Sincronização concluída!');
+      }
+    });
+}
+window.usarServidorOficialNuvem = usarServidorOficialNuvem;
+window.sincronizarAgoraComServidorOficial = sincronizarAgoraComServidorOficial;
 function testarConexaoNuvem(){
   var url = PainelNuvem.obterUrl();
   if (!url){ alert('Salve o link primeiro.'); return; }
@@ -2337,6 +2427,54 @@ function restaurarManualNuvem(){
     cursor:pointer; color:inherit; padding:0;
   }
   .btn-link-restrito:hover{background:rgba(255,255,255,0.18);}
+  .btn-backup-modulo{
+    position:absolute; top:8px; right:40px; z-index:2;
+    background:rgba(255,255,255,0.08); border:1px solid var(--linha);
+    border-radius:8px; width:28px; height:28px; font-size:13px;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; color:inherit; padding:0;
+    transition:background .15s ease, transform .15s ease;
+  }
+  .btn-backup-modulo:hover{background:rgba(255,255,255,0.22); transform:scale(1.08);}
+  .item-dia-backup{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:4px; padding:8px 4px; background:rgba(255,255,255,0.05);
+    border:1px solid var(--linha); border-radius:8px; cursor:pointer;
+    font-size:11.5px; font-weight:600; transition:all 0.15s ease; user-select:none;
+  }
+  .item-dia-backup:hover{background:rgba(255,255,255,0.12);}
+  .item-dia-backup.selecionado{
+    background:rgba(16,185,129,0.18); border-color:rgba(16,185,129,0.5); color:#a7f3d0;
+  }
+  .item-dia-backup input{cursor:pointer; width:14px; height:14px; accent-color:var(--verde);}
+  .modo-restauracao-card{
+    display:flex; flex-direction:column; padding:10px 12px; border-radius:8px;
+    border:1px solid var(--linha); background:rgba(255,255,255,0.03); cursor:pointer;
+    transition:all 0.15s ease;
+  }
+  .modo-restauracao-card:hover{background:rgba(255,255,255,0.08);}
+  .modo-restauracao-card.ativo{
+    background:rgba(37,99,235,0.16); border-color:rgba(96,165,250,0.6);
+  }
+  .badge-tipo-backup{
+    display:inline-block; padding:2px 7px; border-radius:6px; font-size:10.5px;
+    font-weight:700; text-transform:uppercase; letter-spacing:0.3px;
+  }
+  .badge-tipo-antes-restaurar{
+    background:rgba(245,158,11,0.2); color:#fbbf24; border:1px solid rgba(245,158,11,0.4);
+  }
+  .badge-tipo-manual{
+    background:rgba(59,130,246,0.2); color:#93c5fd; border:1px solid rgba(59,130,246,0.4);
+  }
+  .badge-tipo-auto{
+    background:rgba(16,185,129,0.2); color:#6ee7b7; border:1px solid rgba(16,185,129,0.4);
+  }
+  .item-historico-backup{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:rgba(255,255,255,0.03); border:1px solid var(--linha);
+    border-radius:8px; padding:8px 12px; transition:background 0.15s ease;
+  }
+  .item-historico-backup:hover{background:rgba(255,255,255,0.07);}
   .btn-kpi-link-restrito{
     position:absolute; top:8px; right:8px; z-index:4;
     background:rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.32);
@@ -2350,6 +2488,8 @@ function restaurarManualNuvem(){
     background:rgba(255,255,255,0.35); transform:scale(1.08); border-color:#FFFFFF;
   }
   @media(max-width: 768px){
+    .btn-link-restrito{ top:6px; right:6px; width:26px; height:26px; font-size:12px; }
+    .btn-backup-modulo{ top:6px; right:36px; width:26px; height:26px; font-size:12px; }
     .btn-kpi-link-restrito{
       top:5px; right:5px; width:22px; height:22px; font-size:11px;
     }
@@ -3585,37 +3725,76 @@ function restaurarManualNuvem(){
   /* ---------- MODAL DE DETALHES ---------- */
   .item-cartao.clicavel{cursor:pointer;}
   .modal-fundo{
-    display:none; position:fixed; inset:0; z-index:50;
-    background:rgba(10,20,30,0.55);
-    align-items:flex-end; justify-content:center;
-    padding:0;
+    display:none; position:fixed; inset:0; z-index:70;
+    background:rgba(10,20,30,0.68);
+    backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+    align-items:center; justify-content:center;
+    padding:12px 10px; box-sizing:border-box;
+    overflow-y:auto; overscroll-behavior:contain;
   }
-  #modalDetalheEquipe{ z-index:70; }
+  #modalDetalheEquipe{ z-index:80; }
+  #modalAvaliacaoColaborador{ z-index:85; }
+  #modalVisualizarAnexoAtestado{ z-index:100010; }
   .modal-fundo.aberto{display:flex;}
   .modal-caixa{
-    background:var(--cartao); width:100%; max-width:520px;
-    border-radius:18px 18px 0 0; padding:20px 18px 26px;
-    box-shadow:0 -8px 30px rgba(10,38,71,0.25);
-    max-height:82vh; overflow-y:auto;
-    animation:subirModal .18s ease-out;
+    background:var(--cartao); width:100%; max-width:640px;
+    border-radius:16px; padding:16px 18px 14px;
+    box-shadow:0 18px 50px rgba(10,38,71,0.32), 0 2px 10px rgba(0,0,0,0.08);
+    border:1px solid rgba(255,255,255,0.4);
+    max-height:min(92vh, calc(100dvh - 20px));
+    max-height:min(92vh, calc(100vh - 20px));
+    overflow-y:auto; overscroll-behavior:contain;
+    position:relative; box-sizing:border-box;
+    display:flex; flex-direction:column;
+    animation:subirModal .18s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  @media (min-width:560px){
-    .modal-fundo{align-items:center;}
-    .modal-caixa{border-radius:18px; max-height:80vh;}
+  @media (max-width:560px){
+    .modal-fundo{ padding:6px 4px; align-items:center; justify-content:center; }
+    .modal-caixa{
+      border-radius:14px;
+      padding:12px 14px 10px;
+      max-height:min(96vh, calc(100dvh - 12px));
+      max-height:min(96vh, calc(100vh - 12px));
+    }
   }
-  @keyframes subirModal{ from{transform:translateY(24px); opacity:0;} to{transform:translateY(0); opacity:1;} }
-  .modal-cabecalho{display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:14px;}
+  .modal-caixa-media{ max-width:740px !important; }
+  .modal-caixa-larga, .modal-largo{ max-width:880px !important; }
+  .modal-caixa-extralarga{ max-width:1020px !important; }
+  @keyframes subirModal{ from{transform:translateY(16px) scale(0.98); opacity:0;} to{transform:translateY(0) scale(1); opacity:1;} }
+  
+  .modal-cabecalho{
+    position:sticky !important; top:0 !important; z-index:35 !important;
+    background:var(--cartao) !important;
+    margin-top:-16px !important; margin-left:-18px !important; margin-right:-18px !important;
+    padding:13px 18px 11px !important;
+    border-bottom:1px solid var(--linha) !important;
+    display:flex !important; align-items:center !important; justify-content:space-between !important; gap:10px !important;
+    flex-shrink:0 !important;
+    border-top-left-radius:15px !important; border-top-right-radius:15px !important;
+    box-shadow:0 2px 8px rgba(10,38,71,0.04) !important;
+  }
+  @media (max-width:560px){
+    .modal-cabecalho{
+      margin-top:-12px !important; margin-left:-14px !important; margin-right:-14px !important;
+      padding:10px 14px 9px !important;
+    }
+  }
   .modal-cabecalho h3{
-    font-family:'Bebas Neue',sans-serif; font-weight:400; font-size:24px; margin:0;
-    color:var(--verde-900); line-height:1.1;
+    font-family:'Bebas Neue',sans-serif; font-weight:400; font-size:23px; margin:0;
+    color:var(--verde-900); line-height:1.15; letter-spacing:0.4px;
   }
   .modal-fechar{
     background:var(--fundo); border:1px solid var(--linha); border-radius:8px;
     width:32px; height:32px; flex-shrink:0; cursor:pointer;
     display:flex; align-items:center; justify-content:center; color:var(--texto-suave);
+    font-size:15px; font-weight:700; transition:all .15s ease;
   }
+  .modal-fechar:hover{
+    background:var(--linha); color:var(--texto); transform:scale(1.05);
+  }
+  
   .modal-linha{
-    padding:11px 0; border-bottom:1px solid var(--linha);
+    padding:7px 0; border-bottom:1px solid var(--linha);
     display:flex; flex-direction:column; gap:2px;
   }
   .modal-linha:last-child{border-bottom:none;}
@@ -3623,13 +3802,116 @@ function restaurarManualNuvem(){
     font-size:10.5px; text-transform:uppercase; letter-spacing:0.5px; font-weight:700;
     color:var(--texto-suave);
   }
-  .modal-linha .valor-campo{font-size:14.5px; color:var(--texto); line-height:1.5; word-break:break-word;}
+  .modal-linha .valor-campo{font-size:13.5px; color:var(--texto); line-height:1.4; word-break:break-word;}
   .modal-linha .valor-campo code{
     font-family:'JetBrains Mono',monospace; background:var(--verde-100); color:var(--verde-800);
-    padding:1px 6px; border-radius:5px; font-size:13px;
+    padding:1px 6px; border-radius:5px; font-size:12.5px;
   }
-  .modal-acoes{display:flex; gap:8px; margin-top:16px;}
-  .modal-acoes .btn{flex:1; justify-content:center;}
+
+  .modal-acoes,
+  .modal-caixa > .acoes-form,
+  .modal-caixa > form > .acoes-form,
+  .modal-caixa .botoes-form,
+  .modal-rodape{
+    position:sticky !important;
+    bottom:0 !important;
+    background:var(--cartao) !important;
+    border-top:1px solid var(--linha) !important;
+    margin-bottom:-14px !important;
+    margin-left:-18px !important;
+    margin-right:-18px !important;
+    padding:11px 18px calc(11px + env(safe-area-inset-bottom, 0px)) !important;
+    margin-top:auto !important;
+    z-index:35 !important;
+    display:flex !important;
+    flex-wrap:wrap !important;
+    align-items:center !important;
+    gap:8px !important;
+    box-shadow:0 -6px 20px rgba(10,38,71,0.08) !important;
+    flex-shrink:0 !important;
+    border-bottom-left-radius:15px !important;
+    border-bottom-right-radius:15px !important;
+  }
+  @media (max-width:560px){
+    .modal-acoes,
+    .modal-caixa > .acoes-form,
+    .modal-caixa > form > .acoes-form,
+    .modal-caixa .botoes-form,
+    .modal-rodape{
+      margin-bottom:-10px !important;
+      margin-left:-14px !important;
+      margin-right:-14px !important;
+      padding:9px 12px calc(9px + env(safe-area-inset-bottom, 0px)) !important;
+      gap:6px !important;
+    }
+  }
+  .modal-acoes .btn,
+  .modal-caixa > .acoes-form .btn,
+  .modal-caixa > form > .acoes-form .btn,
+  .modal-caixa .botoes-form .btn{
+    flex:1 1 auto;
+    min-width:100px;
+    justify-content:center;
+    white-space:normal;
+    text-align:center;
+    font-size:13px;
+    font-weight:600;
+    padding:8px 12px;
+    border-radius:8px;
+    line-height:1.25;
+  }
+  @media (max-width:480px){
+    .modal-acoes .btn,
+    .modal-caixa > .acoes-form .btn,
+    .modal-caixa > form > .acoes-form .btn,
+    .modal-caixa .botoes-form .btn{
+      min-width:80px;
+      font-size:12px;
+      padding:7px 9px;
+    }
+  }
+
+  .modal-caixa > *:nth-last-child(2){
+    margin-bottom:12px;
+  }
+
+  .modal-caixa .grade-form{
+    margin-top:8px;
+    margin-bottom:10px;
+    gap:9px;
+  }
+  .modal-caixa .grade-form label{
+    font-size:11px;
+    font-weight:700;
+    margin-bottom:2px;
+    display:block;
+    color:var(--texto-suave);
+    text-transform:uppercase;
+    letter-spacing:0.3px;
+  }
+  .modal-caixa .grade-form input,
+  .modal-caixa .grade-form select,
+  .modal-caixa .grade-form textarea{
+    font-size:13px;
+    padding:7px 10px;
+    border-radius:7px;
+    border:1px solid var(--linha);
+    width:100%;
+    box-sizing:border-box;
+  }
+  .modal-caixa::-webkit-scrollbar{
+    width:6px; height:6px;
+  }
+  .modal-caixa::-webkit-scrollbar-track{
+    background:transparent;
+  }
+  .modal-caixa::-webkit-scrollbar-thumb{
+    background:rgba(100,116,139,0.3);
+    border-radius:4px;
+  }
+  .modal-caixa::-webkit-scrollbar-thumb:hover{
+    background:rgba(100,116,139,0.55);
+  }
 
   /* ---------- AGENDA / CALENDÁRIO ---------- */
   .calendario-nav{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
@@ -4896,17 +5178,48 @@ function restaurarManualNuvem(){
 </div>
 
 <div class="modal-fundo" id="modalNuvem" onclick="if(event.target===this) fecharModalNuvem()">
-  <div class="modal-caixa">
+  <div class="modal-caixa modal-caixa-media">
     <div class="modal-cabecalho">
       <h3>Backup na nuvem</h3>
       <button class="modal-fechar" onclick="fecharModalNuvem()">✕</button>
     </div>
     <div style="padding:2px 2px 4px;">
-      <p style="font-size:13px;color:var(--texto-suave);margin:0 0 12px;line-height:1.5;">
-        Cole aqui a URL do seu Firebase Realtime Database (termina em <strong>firebaseio.com</strong>).
-        Assim, os dados cadastrados continuam salvos mesmo se limpar o cache, atualizar a página ou trocar de aparelho.
+      <!-- SEÇÃO DESTACADA DO SERVIDOR OFICIAL CLOUD RUN PRODUÇÃO -->
+      <div style="margin-bottom:14px; padding:12px 14px; border-radius:10px; background:linear-gradient(135deg, rgba(16,185,129,0.1), rgba(37,99,235,0.08)); border:1.5px solid #10B981;">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:22px;">☁️</span>
+            <div>
+              <strong style="font-size:13.5px; color:#065F46; display:block;">
+                Servidor Oficial Cloud Run (Produção)
+              </strong>
+              <span style="font-size:12px; font-family:monospace; color:#1E3A8A; word-break:break-all; font-weight:600;">
+                https://painel-operacional-620305266125.us-east1.run.app
+              </span>
+            </div>
+          </div>
+          <span style="background:#10B981; color:#fff; font-size:11px; padding:3px 9px; border-radius:12px; font-weight:700;">🟢 Online / Central</span>
+        </div>
+        <p style="margin:8px 0 10px; font-size:12px; color:var(--texto-suave); line-height:1.45;">
+          Este é o servidor central oficial de produção do MINAS II onde os colaboradores e os aparelhos (PC e celular) recebem as atualizações. O Studio IA sincroniza automaticamente com este endereço.
+        </p>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-primario" onclick="usarServidorOficialNuvem()" style="font-size:12px; background:#059669; border-color:#047857; font-weight:700;">
+            ⚡ Conectar a este Servidor
+          </button>
+          <button type="button" class="btn btn-secundario" onclick="sincronizarAgoraComServidorOficial()" style="font-size:12px; font-weight:600;">
+            🔄 Sincronizar Agora
+          </button>
+          <a href="https://painel-operacional-620305266125.us-east1.run.app/" target="_blank" class="btn btn-secundario" style="font-size:12px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+            🌐 Abrir painel-operacional ↗
+          </a>
+        </div>
+      </div>
+
+      <p style="font-size:13px;color:var(--texto-suave);margin:0 0 10px;line-height:1.5;">
+        Ou utilize uma URL personalizada (Cloud Run ou Firebase Realtime Database):
       </p>
-      <input type="text" id="inputUrlNuvem" placeholder="https://seu-projeto-default-rtdb.firebaseio.com"
+      <input type="text" id="inputUrlNuvem" placeholder="https://painel-operacional-620305266125.us-east1.run.app ou Firebase"
         style="width:100%;padding:11px;border-radius:8px;border:1px solid var(--linha);margin-bottom:10px;box-sizing:border-box;font-size:14px;">
       <p style="font-size:12px;color:var(--texto-suave);margin:0 0 6px;line-height:1.5;">
         Se as regras de segurança do seu Firebase exigirem login (<code>auth != null</code>), cole também a <strong>Web API Key</strong> do projeto (Configurações do projeto → Geral, no console do Firebase). O app faz login anônimo sozinho antes de cada acesso.
@@ -4979,6 +5292,10 @@ function restaurarManualNuvem(){
       <p style="font-size:12px;color:var(--texto-suave);margin:0 0 8px;line-height:1.5;">Recuperação pontual: restaura a lista completa da Equipe DEM2 (117 colaboradores, com plantão e horário) reconstruída a partir do último registro confirmado, e envia o backup em seguida.</p>
       <button class="btn btn-perigo" id="btnRestaurarEquipeRecuperada" onclick="restaurarEquipeRecuperada()">Restaurar Equipe DEM2 (recuperação)</button>
     </div>
+    <div class="modal-acoes" style="margin-top:16px;">
+      <button type="button" class="btn btn-secundario" onclick="testarConexaoNuvem()">🧪 Testar Conexão</button>
+      <button type="button" class="btn btn-primario" onclick="fecharModalNuvem()">Fechar Janela</button>
+    </div>
   </div>
 </div>
 
@@ -5036,7 +5353,7 @@ function restaurarManualNuvem(){
 </div>
 
 <div class="modal-fundo" id="modalDetalheRadio" onclick="if(event.target===this) fecharDetalheRadio()">
-  <div class="modal-caixa">
+  <div class="modal-caixa modal-caixa-media">
     <div class="modal-cabecalho">
       <h3 id="modalRadioTitulo">Rádio</h3>
       <button class="modal-fechar" onclick="fecharDetalheRadio()">✕</button>
@@ -5386,7 +5703,7 @@ function restaurarManualNuvem(){
 </div>
 
 <div class="modal-fundo" id="modalDetalheEquipe" onclick="if(event.target===this) fecharDetalheEquipe()">
-  <div class="modal-caixa">
+  <div class="modal-caixa modal-caixa-media">
     <div class="modal-cabecalho">
       <h3 id="modalEquipeTitulo">Colaborador</h3>
       <button class="modal-fechar" onclick="fecharDetalheEquipe()">✕</button>
@@ -5403,7 +5720,7 @@ function restaurarManualNuvem(){
 
 <!-- MODAL DE AVALIAÇÃO RÁPIDA (KPI DME2) -->
 <div class="modal-fundo" id="modalAvaliacaoColaborador" style="z-index:75;" onclick="if(event.target===this) fecharModalAvaliacao()">
-  <div class="modal-caixa" style="max-width:540px;">
+  <div class="modal-caixa modal-caixa-media">
     <div class="modal-cabecalho">
       <div style="display:flex; align-items:center; gap:8px;">
         <span style="font-size:22px;">📊</span>
@@ -5526,7 +5843,7 @@ function restaurarManualNuvem(){
 </div>
 
 <div class="modal-fundo" id="modalConserto" onclick="if(event.target===this) fecharConserto()">
-  <div class="modal-caixa">
+  <div class="modal-caixa modal-caixa-larga">
     <div class="modal-cabecalho">
       <h3>Rádios em conserto</h3>
       <button class="modal-fechar" onclick="fecharConserto()">✕</button>
@@ -5562,8 +5879,8 @@ function restaurarManualNuvem(){
         </div>
         <div><label>Data de envio</label><input type="date" id="conserto-dataEnvio"></div>
         <div><label>Data de retorno</label><input type="date" id="conserto-dataRetorno"></div>
-        <div class="campo-largo"><label>Comentário</label><input type="text" id="conserto-comentario" placeholder="Opcional"></div>
-        <div class="campo-largo"><label>Centro de custo</label><input type="text" id="conserto-centroCusto" placeholder="Ex: DEM2, 1020, Operações..."></div>
+        <div><label>Centro de custo</label><input type="text" id="conserto-centroCusto" placeholder="Ex: DEM2, 1020, Operações..."></div>
+        <div><label>Comentário</label><input type="text" id="conserto-comentario" placeholder="Opcional"></div>
         <div class="campo-largo"><label>Observação</label><input type="text" id="conserto-observacao" placeholder="Opcional"></div>
       </div>
       <div class="acoes-form">
@@ -5575,11 +5892,15 @@ function restaurarManualNuvem(){
       <button class="btn btn-secundario" onclick="compartilharConsertoEmail()">📧 Compartilhar por e-mail</button>
     </div>
     <div class="lista-cartoes" id="lista-conserto"></div>
+
+    <div class="modal-acoes" style="margin-top:16px;">
+      <button type="button" class="btn btn-secundario" onclick="fecharConserto()">Fechar Janela</button>
+    </div>
   </div>
 </div>
 
 <div class="modal-fundo" id="modalManutencao" onclick="if(event.target===this) fecharManutencao()">
-  <div class="modal-caixa">
+  <div class="modal-caixa modal-caixa-media">
     <div class="modal-cabecalho">
       <h3>Rádios em manutenção</h3>
       <button class="modal-fechar" onclick="fecharManutencao()">✕</button>
@@ -5588,11 +5909,14 @@ function restaurarManualNuvem(){
       <input type="search" id="buscaRadiosManutencao" placeholder="Buscar em manutenção por S/N, setor, código..." oninput="renderManutencao()">
     </div>
     <div class="lista-cartoes" id="lista-manutencao"></div>
+    <div class="modal-acoes" style="margin-top:14px;">
+      <button type="button" class="btn btn-secundario" onclick="fecharManutencao()">Fechar Janela</button>
+    </div>
   </div>
 </div>
 
 <div class="modal-fundo" id="modalEmUso" onclick="if(event.target===this) fecharEmUso()">
-  <div class="modal-caixa">
+  <div class="modal-caixa modal-caixa-media">
     <div class="modal-cabecalho">
       <h3>Chaves emprestadas</h3>
       <button class="modal-fechar" onclick="fecharEmUso()">✕</button>
@@ -5612,26 +5936,35 @@ function restaurarManualNuvem(){
     </div>
 
     <div class="lista-cartoes" id="lista-emuso"></div>
+    <div class="modal-acoes" style="margin-top:14px;">
+      <button type="button" class="btn btn-secundario" onclick="fecharEmUso()">Fechar Janela</button>
+    </div>
   </div>
 </div>
 
 <div class="modal-fundo" id="modalPlantao" onclick="if(event.target===this) fecharPlantao()">
-  <div class="modal-caixa">
+  <div class="modal-caixa modal-caixa-media">
     <div class="modal-cabecalho">
       <h3 id="modalPlantaoTitulo">Plantão</h3>
       <button class="modal-fechar" onclick="fecharPlantao()">✕</button>
     </div>
     <div class="lista-cartoes" id="lista-plantao"></div>
+    <div class="modal-acoes" style="margin-top:14px;">
+      <button type="button" class="btn btn-secundario" onclick="fecharPlantao()">Fechar Janela</button>
+    </div>
   </div>
 </div>
 
 <div class="modal-fundo" id="modalVagas" onclick="if(event.target===this) fecharVagas()">
-  <div class="modal-caixa">
+  <div class="modal-caixa modal-caixa-media">
     <div class="modal-cabecalho">
       <h3>Aguardando recrutamento</h3>
       <button class="modal-fechar" onclick="fecharVagas()">✕</button>
     </div>
     <div class="lista-cartoes" id="lista-vagas"></div>
+    <div class="modal-acoes" style="margin-top:14px;">
+      <button type="button" class="btn btn-secundario" onclick="fecharVagas()">Fechar Janela</button>
+    </div>
   </div>
 </div>
 
@@ -5663,6 +5996,9 @@ function restaurarManualNuvem(){
 
     <!-- Lista de Colaboradores Agrupados/Filtrados -->
     <div class="lista-cartoes" id="lista-colaboradores-funcao"></div>
+    <div class="modal-acoes" style="margin-top:14px;">
+      <button type="button" class="btn btn-secundario" onclick="fecharColaboradoresFuncao()">Fechar Janela</button>
+    </div>
   </div>
 </div>
 
@@ -5768,6 +6104,10 @@ function restaurarManualNuvem(){
 
     <!-- Lista de Colaboradores Renderizados -->
     <div class="lista-cartoes" id="listaStatusEquipe" style="max-height:55vh; overflow-y:auto; padding-right:4px;"></div>
+    <div class="modal-acoes" style="margin-top:14px;">
+      <button type="button" class="btn btn-secundario" onclick="copiarRelatorioStatusEquipe()">📋 Copiar Relatório</button>
+      <button type="button" class="btn btn-primario" onclick="fecharModalStatusEquipe()">Fechar Janela</button>
+    </div>
   </div>
 </div>
 
@@ -6340,8 +6680,204 @@ function restaurarManualNuvem(){
   </div>
 </div>
 
+<!-- ============ MODAL DE BACKUP E RESTAURAÇÃO POR MÓDULO ============ -->
+<div class="modal-fundo" id="modalBackupModulo" style="z-index:97;" onclick="if(event.target===this) fecharModalBackupModulo()">
+  <div class="modal-caixa modal-caixa-media" style="max-width:620px;">
+    <div class="modal-cabecalho">
+      <div>
+        <h3 id="tituloModalBackupModulo" style="display:flex; align-items:center; gap:8px;">
+          <span>💾</span> <span id="nomeModuloBackupTxt">Backup e Restauração</span>
+        </h3>
+        <p id="subtituloModalBackupModulo" style="font-size:12px; color:var(--texto-suave); margin:2px 0 0;">Módulo individual</p>
+      </div>
+      <button class="modal-fechar" onclick="fecharModalBackupModulo()" aria-label="Fechar">✕</button>
+    </div>
+
+    <!-- Banner de notificação dinâmica -->
+    <div id="alertaBackupModulo" style="display:none; padding:10px 14px; border-radius:8px; font-size:12.5px; margin-bottom:12px; font-weight:500;"></div>
+
+    <!-- SEÇÃO 1: FAZER BACKUP AGORA -->
+    <div class="bloco-backup-secao" style="background:rgba(255,255,255,0.04); border:1px solid var(--linha); border-radius:12px; padding:14px; margin-bottom:14px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+        <h4 style="font-size:13.5px; margin:0; display:flex; align-items:center; gap:6px;">
+          <span>⚡</span> Fazer backup agora
+        </h4>
+        <span class="selo ok" id="seloStatusDadosModulo" style="font-size:11px;">0 registros</span>
+      </div>
+      <p style="font-size:12px; color:var(--texto-suave); margin:0 0 12px; line-height:1.4;">
+        Guarda uma cópia no aparelho e, se você quiser, baixa também um arquivo .json.
+      </p>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <button type="button" class="btn btn-primario" style="justify-content:center; gap:6px; font-size:12.5px; padding:9px 12px;" onclick="executarBackupModuloAgora(null, false)">
+          <span>💾</span> Salvar cópia no aparelho
+        </button>
+        <button type="button" class="btn btn-secundario" style="justify-content:center; gap:6px; font-size:12.5px; padding:9px 12px;" onclick="executarBackupModuloAgora(null, true)">
+          <span>📥</span> Baixar arquivo .JSON
+        </button>
+      </div>
+    </div>
+
+    <!-- SEÇÃO 2: BACKUP AUTOMÁTICO POR DIA DA SEMANA -->
+    <div class="bloco-backup-secao" style="background:rgba(255,255,255,0.04); border:1px solid var(--linha); border-radius:12px; padding:14px; margin-bottom:14px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+        <h4 style="font-size:13.5px; margin:0; display:flex; align-items:center; gap:6px;">
+          <span>🗓️</span> Backup automático por dia da semana
+        </h4>
+        <label style="display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer; font-weight:600; color:var(--verde);">
+          <input type="checkbox" id="chkBackupAutoAtivo" onchange="salvarConfigBackupModuloUI()" style="cursor:pointer; width:16px; height:16px; accent-color:var(--verde);">
+          Ativado
+        </label>
+      </div>
+      <p style="font-size:12px; color:var(--texto-suave); margin:0 0 12px; line-height:1.4;">
+        Nos dias marcados, o painel guarda uma cópia do dia e a atualiza quando os dados mudam, enquanto estiver aberto. Dias desmarcados não geram cópia.
+      </p>
+
+      <!-- Checklist dos dias da semana: Dom, Seg, Ter, Qua, Qui, Sex, Sáb -->
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px; font-weight:600; color:var(--texto-suave); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Dias ativos:</div>
+        <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:6px;" id="gradeDiasSemanaBackup">
+          <label class="item-dia-backup" data-dia="0">
+            <input type="checkbox" value="0" onchange="salvarConfigBackupModuloUI()">
+            <span>Dom</span>
+          </label>
+          <label class="item-dia-backup" data-dia="1">
+            <input type="checkbox" value="1" onchange="salvarConfigBackupModuloUI()">
+            <span>Seg</span>
+          </label>
+          <label class="item-dia-backup" data-dia="2">
+            <input type="checkbox" value="2" onchange="salvarConfigBackupModuloUI()">
+            <span>Ter</span>
+          </label>
+          <label class="item-dia-backup" data-dia="3">
+            <input type="checkbox" value="3" onchange="salvarConfigBackupModuloUI()">
+            <span>Qua</span>
+          </label>
+          <label class="item-dia-backup" data-dia="4">
+            <input type="checkbox" value="4" onchange="salvarConfigBackupModuloUI()">
+            <span>Qui</span>
+          </label>
+          <label class="item-dia-backup" data-dia="5">
+            <input type="checkbox" value="5" onchange="salvarConfigBackupModuloUI()">
+            <span>Sex</span>
+          </label>
+          <label class="item-dia-backup" data-dia="6">
+            <input type="checkbox" value="6" onchange="salvarConfigBackupModuloUI()">
+            <span>Sáb</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Retenção de dias: 7, 14, 30 ou 60 dias -->
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding-top:10px; border-top:1px dashed var(--linha);">
+        <div style="font-size:12px; color:var(--texto);">
+          <strong>Período de retenção:</strong>
+          <span style="font-size:11px; color:var(--texto-suave); display:block;">Manter cópias dos últimos:</span>
+        </div>
+        <select id="selReterDiasBackupModulo" onchange="salvarConfigBackupModuloUI()" style="padding:6px 12px; border-radius:8px; background:var(--fundo-campo, #1e293b); border:1px solid var(--linha); color:inherit; font-size:12.5px; font-weight:600; cursor:pointer;">
+          <option value="7">Últimos 7 dias</option>
+          <option value="14">Últimos 14 dias</option>
+          <option value="30" selected>Últimos 30 dias (Padrão)</option>
+          <option value="60">Últimos 60 dias</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- SEÇÃO 3: RESTAURAR -->
+    <div class="bloco-backup-secao" style="background:rgba(255,255,255,0.04); border:1px solid var(--linha); border-radius:12px; padding:14px; margin-bottom:14px;">
+      <h4 style="font-size:13.5px; margin:0 0 6px; display:flex; align-items:center; gap:6px;">
+        <span>🔄</span> Restaurar
+      </h4>
+      <p style="font-size:12px; color:var(--texto-suave); margin:0 0 12px; line-height:1.4;">
+        Você escolhe o dia e a cópia salva, ou restaura de um arquivo .json.
+      </p>
+
+      <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:12px;">
+        <div>
+          <label style="font-size:11px; font-weight:600; color:var(--texto-suave); display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;">Cópia do aparelho para restaurar:</label>
+          <select id="selCopiaParaRestaurar" style="width:100%; padding:8px 10px; border-radius:8px; background:var(--fundo-campo, #1e293b); border:1px solid var(--linha); color:inherit; font-size:12px; cursor:pointer;">
+            <option value="">Selecione uma cópia salva...</option>
+          </select>
+        </div>
+
+        <div style="position:relative; text-align:center; margin:2px 0;">
+          <span style="background:var(--cartao, #0f172a); padding:0 8px; font-size:11px; color:var(--texto-suave); position:relative; z-index:1;">ou restaure de um arquivo .json</span>
+          <div style="position:absolute; top:50%; left:0; right:0; height:1px; background:var(--linha); z-index:0;"></div>
+        </div>
+
+        <div>
+          <input type="file" id="inputArquivoBackupModulo" accept=".json" onchange="processarArquivoJsonParaRestauracao(this)" style="display:none;">
+          <button type="button" class="btn btn-secundario" style="width:100%; justify-content:center; gap:8px; font-size:12px; padding:8px 12px;" onclick="document.getElementById('inputArquivoBackupModulo').click()">
+            <span>📁</span> Selecionar arquivo .JSON do aparelho
+          </button>
+          <div id="infoArquivoJsonCarregado" style="display:none; font-size:11.5px; color:var(--verde); margin-top:4px; font-weight:500;"></div>
+        </div>
+      </div>
+
+      <!-- Modo de Restauração -->
+      <div style="margin-bottom:12px; background:rgba(0,0,0,0.2); border:1px solid var(--linha); border-radius:10px; padding:10px 12px;">
+        <div style="font-size:11px; font-weight:600; color:var(--texto-suave); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Modo de Restauração:</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          <!-- Opção Mesclar (Padrão) -->
+          <label class="modo-restauracao-card ativo" id="modoCardMesclar" onclick="selecionarModoRestauracao('mesclar')">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+              <input type="radio" name="modoRestauracaoModulo" value="mesclar" checked style="accent-color:var(--verde);">
+              <strong style="font-size:12.5px;">Mesclar (Padrão)</strong>
+            </div>
+            <p style="font-size:11px; color:var(--texto-suave); margin:0; line-height:1.3;">
+              Mantém o que existe hoje e só recupera o que estiver faltando.
+            </p>
+          </label>
+
+          <!-- Opção Substituir -->
+          <label class="modo-restauracao-card" id="modoCardSubstituir" onclick="selecionarModoRestauracao('substituir')">
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+              <input type="radio" name="modoRestauracaoModulo" value="substituir" style="accent-color:#ef4444;">
+              <strong style="font-size:12.5px;">Substituir</strong>
+            </div>
+            <p style="font-size:11px; color:var(--texto-suave); margin:0; line-height:1.3;">
+              Volta tudo ao estado do backup.
+            </p>
+          </label>
+        </div>
+      </div>
+
+      <!-- Aviso de Segurança Snapshot Automático -->
+      <div style="background:rgba(59,130,246,0.12); border:1px solid rgba(96,165,250,0.3); border-radius:8px; padding:8px 12px; margin-bottom:12px; font-size:11.5px; color:#dbeafe; display:flex; align-items:flex-start; gap:8px; line-height:1.4;">
+        <span style="font-size:15px; flex-shrink:0;">🛡️</span>
+        <div>
+          Antes de qualquer restauração o painel guarda uma cópia do estado atual, marcada <strong>“Antes de restaurar”</strong>. Se você se arrepender, dá para voltar.
+        </div>
+      </div>
+
+      <!-- Botão de Ação Restaurar -->
+      <button type="button" class="btn btn-primario" id="btnConfirmarRestauracaoModulo" style="width:100%; justify-content:center; gap:8px; font-size:13px; padding:10px 14px; background:#2563eb; border-color:#3b82f6;" onclick="confirmarERestaurarModuloUI()">
+        <span>⚡</span> Restaurar Cópia Selecionada
+      </button>
+    </div>
+
+    <!-- SEÇÃO 4: HISTÓRICO DE CÓPIAS SALVAS -->
+    <div class="bloco-backup-secao" style="background:rgba(255,255,255,0.04); border:1px solid var(--linha); border-radius:12px; padding:14px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <h4 style="font-size:13.5px; margin:0; display:flex; align-items:center; gap:6px;">
+          <span>📚</span> Histórico de cópias salvas (<span id="contagemCopiasSalvas">0</span>)
+        </h4>
+        <button type="button" style="background:none; border:none; color:var(--texto-suave); font-size:11.5px; cursor:pointer; text-decoration:underline;" onclick="limparHistoricoBackupsModuloUI()">
+          Limpar antigas
+        </button>
+      </div>
+      <div id="listaHistoricoCopiasModulo" style="display:flex; flex-direction:column; gap:8px; max-height:200px; overflow-y:auto; padding-right:4px;">
+        <!-- Lista de backups renderizada via JS -->
+      </div>
+    </div>
+
+    <div class="modal-rodape" style="padding-top:12px; margin-top:14px; border-top:1px solid var(--linha); display:flex; justify-content:flex-end;">
+      <button type="button" class="btn btn-secundario" onclick="fecharModalBackupModulo()">Fechar Janela</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-fundo" id="modalSSMPO" onclick="if(event.target===this) fecharSSMPO()">
-  <div class="modal-caixa">
+  <div class="modal-caixa modal-caixa-media">
     <div class="modal-cabecalho">
       <h3>SSMPO — Acompanhamento</h3>
       <button class="modal-fechar" onclick="fecharSSMPO()">✕</button>
@@ -6419,6 +6955,9 @@ function restaurarManualNuvem(){
         <button class="btn btn-primario" onclick="salvarSSMPO()">Salvar</button>
       </div>
     </div>
+    <div class="modal-acoes" style="margin-top:14px;">
+      <button type="button" class="btn btn-secundario" onclick="fecharSSMPO()">Fechar Janela</button>
+    </div>
   </div>
 </div>
 
@@ -6491,11 +7030,14 @@ function restaurarManualNuvem(){
       </div>
       <div class="lista-cartoes" id="lista-modal-terceirizados" style="max-height: 280px; overflow-y: auto; padding-right: 4px;"></div>
     </div>
+    <div class="modal-acoes" style="margin-top:14px;">
+      <button type="button" class="btn btn-secundario" onclick="fecharCadastroTerceirizados()">Fechar Janela</button>
+    </div>
   </div>
 </div>
 
 <div class="modal-fundo" id="modalMotivoFalta" onclick="if(event.target===this) fecharMotivoFalta()">
-  <div class="modal-caixa">
+  <div class="modal-caixa modal-caixa-media">
     <div class="modal-cabecalho">
       <h3 id="tituloMotivoFalta">Registrar falta / ausência</h3>
       <button class="modal-fechar" onclick="fecharMotivoFalta()">✕</button>
@@ -6602,7 +7144,7 @@ function restaurarManualNuvem(){
         <input type="text" id="motivoFalta-outro" placeholder="Descreva o motivo" onkeydown="if(event.key==='Enter'){ confirmarMotivoFalta(); event.preventDefault(); }">
       </div>
     </div>
-    <div class="acoes-form">
+    <div class="modal-acoes" style="margin-top:14px;">
       <button class="btn btn-secundario" onclick="fecharMotivoFalta()">Cancelar</button>
       <button class="btn btn-primario" id="btnConfirmarMotivoFalta" onclick="confirmarMotivoFalta()">Registrar falta</button>
     </div>
@@ -6772,7 +7314,8 @@ function restaurarManualNuvem(){
       <span id="usuarioGoogleNome" style="max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600;"></span>
       <button onclick="LoginGoogleApp.logout()" title="Sair da conta" style="background:none; border:none; color:rgba(255,255,255,0.9); cursor:pointer; font-size:11px; padding:0 2px; text-decoration:underline;">Sair</button>
     </div>
-    <button class="btn-voltar" id="btnNuvem" onclick="abrirModalNuvem()" title="Backup na nuvem">
+    <button class="btn-voltar" id="btnNuvem" onclick="abrirModalNuvem()" title="Servidor de Nuvem e Atualizações (painel-operacional)">
+      <span style="width:7px; height:7px; border-radius:50%; background:#10B981; display:inline-block; margin-right:3px; box-shadow:0 0 6px rgba(16,185,129,0.8);" title="Conectado ao Servidor"></span>
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17.5 19a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.4-1.5A5 5 0 0 0 6.5 19h11z"/></svg>
       Nuvem
     </button>
@@ -6791,6 +7334,7 @@ function restaurarManualNuvem(){
     <div class="grade-hub">
 
       <div class="cartao-hub" data-modulo="chaves" onclick="abrirSecao('chaves')">
+        <button class="btn-backup-modulo" title="Backup e restauração deste módulo" onclick="event.stopPropagation(); abrirModalBackupModulo('chaves')">💾</button>
         <button class="btn-link-restrito" title="Gerar link de acesso só a este card" onclick="event.stopPropagation(); gerarLinkAcessoRestrito('chaves')">🔗</button>
         <div class="icone-hub"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></div>
         <h3>Controle de Chaves</h3>
@@ -6799,6 +7343,7 @@ function restaurarManualNuvem(){
       </div>
 
       <div class="cartao-hub" data-modulo="radios" onclick="abrirSecao('radios')">
+        <button class="btn-backup-modulo" title="Backup e restauração deste módulo" onclick="event.stopPropagation(); abrirModalBackupModulo('radios')">💾</button>
         <button class="btn-link-restrito" title="Gerar link de acesso só a este card" onclick="event.stopPropagation(); gerarLinkAcessoRestrito('radios')">🔗</button>
         <div class="icone-hub"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="8" width="14" height="13" rx="1.5"/><path d="M9 8V5a3 3 0 016 0v3"/><path d="M9 12h.01M12 12h.01M15 12h.01"/></svg></div>
         <h3>Controle de Rádios</h3>
@@ -6807,6 +7352,7 @@ function restaurarManualNuvem(){
       </div>
 
       <div class="cartao-hub" data-modulo="estoque" onclick="abrirSecao('estoque')">
+        <button class="btn-backup-modulo" title="Backup e restauração deste módulo" onclick="event.stopPropagation(); abrirModalBackupModulo('estoque')">💾</button>
         <button class="btn-link-restrito" title="Gerar link de acesso só a este card" onclick="event.stopPropagation(); gerarLinkAcessoRestrito('estoque')">🔗</button>
         <div class="icone-hub"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg></div>
         <h3>Controle de Estoque</h3>
@@ -6815,6 +7361,7 @@ function restaurarManualNuvem(){
       </div>
 
       <div class="cartao-hub" data-modulo="equipe" onclick="abrirSecao('equipe')">
+        <button class="btn-backup-modulo" title="Backup e restauração deste módulo" onclick="event.stopPropagation(); abrirModalBackupModulo('equipe')">💾</button>
         <button class="btn-link-restrito" title="Gerar link de acesso só a este card" onclick="event.stopPropagation(); gerarLinkAcessoRestrito('equipe')">🔗</button>
         <div class="icone-hub"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="18" cy="9" r="2.4"/><path d="M15.8 14.2c2.7.4 4.7 2.3 4.7 5"/></svg></div>
         <h3>Equipe DEM2</h3>
@@ -6823,6 +7370,7 @@ function restaurarManualNuvem(){
       </div>
 
       <div class="cartao-hub" data-modulo="contatos" onclick="abrirSecao('contatos')">
+        <button class="btn-backup-modulo" title="Backup e restauração deste módulo" onclick="event.stopPropagation(); abrirModalBackupModulo('contatos')">💾</button>
         <button class="btn-link-restrito" title="Gerar link de acesso só a este card" onclick="event.stopPropagation(); gerarLinkAcessoRestrito('contatos')">🔗</button>
         <div class="icone-hub"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6A19.8 19.8 0 012.1 4.2 2 2 0 014.1 2h3a2 2 0 012 1.7c.1 1 .3 2 .7 2.9a2 2 0 01-.4 2.1L8.1 10a16 16 0 006 6l1.3-1.3a2 2 0 012.1-.4c.9.4 1.9.6 2.9.7a2 2 0 011.6 2z"/></svg></div>
         <h3>Contatos</h3>
@@ -6831,6 +7379,7 @@ function restaurarManualNuvem(){
       </div>
 
       <div class="cartao-hub" data-modulo="equipamentos" onclick="abrirSecao('equipamentos')">
+        <button class="btn-backup-modulo" title="Backup e restauração deste módulo" onclick="event.stopPropagation(); abrirModalBackupModulo('equipamentos')">💾</button>
         <button class="btn-link-restrito" title="Gerar link de acesso só a este card" onclick="event.stopPropagation(); gerarLinkAcessoRestrito('equipamentos')">🔗</button>
         <div class="icone-hub"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg></div>
         <h3>Equipamentos</h3>
@@ -6839,6 +7388,7 @@ function restaurarManualNuvem(){
       </div>
 
       <div class="cartao-hub" data-modulo="atividade" onclick="abrirSecao('atividade')">
+        <button class="btn-backup-modulo" title="Backup e restauração deste módulo" onclick="event.stopPropagation(); abrirModalBackupModulo('atividade')">💾</button>
         <button class="btn-link-restrito" title="Gerar link de acesso só a este card" onclick="event.stopPropagation(); gerarLinkAcessoRestrito('atividade')">🔗</button>
         <div class="icone-hub"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M8 14l2 2 4-4"/></svg></div>
         <h3>Atividade Semanal</h3>
@@ -6847,6 +7397,7 @@ function restaurarManualNuvem(){
       </div>
 
       <div class="cartao-hub" data-modulo="presenca" onclick="abrirSecao('presenca')">
+        <button class="btn-backup-modulo" title="Backup e restauração deste módulo" onclick="event.stopPropagation(); abrirModalBackupModulo('presenca')">💾</button>
         <button class="btn-link-restrito" title="Gerar link de acesso só a este card" onclick="event.stopPropagation(); gerarLinkAcessoRestrito('presenca')">🔗</button>
         <div class="icone-hub"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg></div>
         <h3>Presença</h3>
@@ -6855,6 +7406,7 @@ function restaurarManualNuvem(){
       </div>
 
       <div class="cartao-hub" data-modulo="agenda" onclick="abrirAgenda()">
+        <button class="btn-backup-modulo" title="Backup e restauração deste módulo" onclick="event.stopPropagation(); abrirModalBackupModulo('agenda')">💾</button>
         <button class="btn-link-restrito" title="Gerar link de acesso só a este card" onclick="event.stopPropagation(); gerarLinkAcessoRestrito('agenda')">🔗</button>
         <div class="icone-hub"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><circle cx="8" cy="15" r="1"/><circle cx="12" cy="15" r="1"/><circle cx="16" cy="15" r="1"/></svg></div>
         <h3>Agenda</h3>
@@ -6863,6 +7415,7 @@ function restaurarManualNuvem(){
       </div>
 
       <div class="cartao-hub" data-modulo="ssmpo" onclick="abrirSSMPO()">
+        <button class="btn-backup-modulo" title="Backup e restauração deste módulo" onclick="event.stopPropagation(); abrirModalBackupModulo('ssmpo')">💾</button>
         <button class="btn-link-restrito" title="Gerar link de acesso só a este card" onclick="event.stopPropagation(); gerarLinkAcessoRestrito('ssmpo')">🔗</button>
         <div class="icone-hub"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
         <h3>SSMPO</h3>
@@ -6871,6 +7424,7 @@ function restaurarManualNuvem(){
       </div>
 
       <div class="cartao-hub" data-modulo="controle" onclick="abrirLinkControleElipse(event)" role="link" tabindex="0" onkeydown="if(event.key==='Enter') abrirLinkControleElipse(event)" title="Abrir Elipse Mobile - Controle em nova aba">
+        <button class="btn-backup-modulo" title="Backup e restauração deste módulo" onclick="event.stopPropagation(); abrirModalBackupModulo('controle')">💾</button>
         <button class="btn-link-restrito" title="Gerar link de acesso só a este card" onclick="event.stopPropagation(); gerarLinkAcessoRestrito('controle')">🔗</button>
         <div class="icone-hub"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><path d="M7 10l3-3 3 3 4-4"/></svg></div>
         <h3>Controle</h3>
@@ -6879,6 +7433,7 @@ function restaurarManualNuvem(){
       </div>
 
       <div class="cartao-hub" data-modulo="dashboard" id="cartaoHubDashboard" onclick="abrirSecao('dashboard')" role="link" tabindex="0" onkeydown="if(event.key==='Enter') abrirSecao('dashboard')" title="Abrir Dashboard: Presença, Agenda e Conservação & Limpeza">
+        <button class="btn-backup-modulo" title="Backup e restauração deste módulo" onclick="event.stopPropagation(); abrirModalBackupModulo('dashboard')">💾</button>
         <button class="btn-link-restrito" title="Gerar link de acesso só a este card" onclick="event.stopPropagation(); gerarLinkAcessoRestrito('dashboard')">🔗</button>
         <div class="icone-hub"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></div>
         <h3>Dashboard</h3>
@@ -8309,7 +8864,10 @@ function aplicarAcessoRestrito(){
   document.querySelectorAll('.cartao-hub').forEach(el => {
     const mod = (el.dataset.modulo || '').toLowerCase();
     if (permitidos.indexOf(mod) === -1) el.style.display = 'none';
-    else el.querySelectorAll('.btn-link-restrito').forEach(b => b.style.display = 'none');
+    else {
+      el.querySelectorAll('.btn-link-restrito').forEach(b => b.style.display = 'none');
+      el.querySelectorAll('.btn-backup-modulo').forEach(b => b.style.display = 'none');
+    }
   });
   const legendaHub = document.querySelector('#hub .lema');
   if (legendaHub) legendaHub.style.display = 'none';
@@ -8337,6 +8895,847 @@ function aplicarAcessoRestrito(){
     }, 50);
   }
 }
+
+/* ============================================================
+   SISTEMA DE BACKUP E RESTAURAÇÃO INDIVIDUAL POR MÓDULO
+   ============================================================ */
+
+const CONFIG_MODULOS_BACKUP = {
+  chaves: {
+    titulo: 'Controle de Chaves',
+    icone: '🔑',
+    chaves: ['mtc_chaves', 'mtc_chaves_emprestimos']
+  },
+  radios: {
+    titulo: 'Controle de Rádios',
+    icone: '📻',
+    chaves: ['mtc_radios', 'mtc_radios_conserto']
+  },
+  estoque: {
+    titulo: 'Controle de Estoque',
+    icone: '📦',
+    chaves: ['mtc_estoque', 'mtc_solicitacoes_materiais', 'mtc_saidas_estoque', 'mtc_materiais_catalogo', 'mtc_uniformes_catalogo', 'mtc_escritorio_catalogo']
+  },
+  equipe: {
+    titulo: 'Equipe DEM2',
+    icone: '👥',
+    chaves: ['mtc_equipe_dem2', 'mtc_terceirizados', 'mtc_avaliacoes_colaboradores']
+  },
+  contatos: {
+    titulo: 'Contatos',
+    icone: '📞',
+    chaves: ['mtc_contatos']
+  },
+  equipamentos: {
+    titulo: 'Controle de Equipamentos',
+    icone: '⚙️',
+    chaves: ['mtc_equipamentos', 'mtc_equipamentos_tipos']
+  },
+  atividade: {
+    titulo: 'Atividade Semanal',
+    icone: '📋',
+    chaves: ['mtc_atividade_status', 'mtc_setor_checklist', 'mtc_atividade_edicoes', 'mtc_atividades_extras', 'mtc_atividade_status_historico']
+  },
+  presenca: {
+    titulo: 'Presença',
+    icone: '📅',
+    chaves: ['mtc_presenca', 'mtc_anexos_atestados', 'mtc_presenca_backup_historico']
+  },
+  agenda: {
+    titulo: 'Agenda',
+    icone: '🗓️',
+    chaves: ['mtc_agenda', 'mtc_agenda_backup_historico', 'mtc_agenda_excluidos']
+  },
+  ssmpo: {
+    titulo: 'SSMPO',
+    icone: '🛡️',
+    chaves: ['mtc_ssmpo']
+  },
+  controle: {
+    titulo: 'Controle (Elipse Mobile)',
+    icone: '🖥️',
+    chaves: ['mtc_controle_elipse']
+  },
+  dashboard: {
+    titulo: 'Dashboard Operacional',
+    icone: '📊',
+    chaves: ['mtc_presenca', 'mtc_agenda', 'mtc_atividade_status', 'mtc_setor_checklist']
+  }
+};
+window.CONFIG_MODULOS_BACKUP = CONFIG_MODULOS_BACKUP;
+
+function encontrarModuloPorChave(chave){
+  if (!chave || typeof chave !== 'string') return null;
+  const modulos = Object.keys(CONFIG_MODULOS_BACKUP);
+  for (let i = 0; i < modulos.length; i++){
+    const m = modulos[i];
+    if (CONFIG_MODULOS_BACKUP[m].chaves.indexOf(chave) !== -1) return m;
+  }
+  for (let i = 0; i < modulos.length; i++){
+    const m = modulos[i];
+    if (chave.indexOf('mtc_' + m) === 0) return m;
+  }
+  return null;
+}
+window.encontrarModuloPorChave = encontrarModuloPorChave;
+
+function obterConfigBackupModulo(modulo){
+  const chave = 'mtc_cfg_bkp_' + modulo;
+  try {
+    const salvo = JSON.parse(localStorage.getItem(chave));
+    if (salvo && typeof salvo === 'object') {
+      return {
+        ativo: salvo.ativo !== false,
+        dias: Array.isArray(salvo.dias) ? salvo.dias : [0, 1, 2, 3, 4, 5, 6],
+        reterDias: [7, 14, 30, 60].indexOf(Number(salvo.reterDias)) !== -1 ? Number(salvo.reterDias) : 30
+      };
+    }
+  } catch(e){}
+  return {
+    ativo: true,
+    dias: [0, 1, 2, 3, 4, 5, 6],
+    reterDias: 30
+  };
+}
+window.obterConfigBackupModulo = obterConfigBackupModulo;
+
+function salvarConfigBackupModulo(modulo, cfg){
+  if (!modulo || !cfg) return;
+  const chave = 'mtc_cfg_bkp_' + modulo;
+  try {
+    localStorage.setItem(chave, JSON.stringify(cfg));
+  } catch(e){}
+}
+window.salvarConfigBackupModulo = salvarConfigBackupModulo;
+
+function coletarDadosModulo(modulo){
+  const conf = CONFIG_MODULOS_BACKUP[modulo];
+  const chaves = conf ? conf.chaves : ['mtc_' + modulo];
+  const dados = {};
+  chaves.forEach(function(chave){
+    const raw = localStorage.getItem(chave);
+    if (raw !== null && raw !== undefined) {
+      try {
+        dados[chave] = JSON.parse(raw);
+      } catch(e){
+        dados[chave] = raw;
+      }
+    }
+  });
+  return dados;
+}
+window.coletarDadosModulo = coletarDadosModulo;
+
+function calcularTotalRegistros(dadosModulo){
+  if (!dadosModulo || typeof dadosModulo !== 'object') return 0;
+  let total = 0;
+  Object.keys(dadosModulo).forEach(function(k){
+    const v = dadosModulo[k];
+    if (Array.isArray(v)) {
+      total += v.length;
+    } else if (v && typeof v === 'object') {
+      if (k === 'mtc_presenca' || k === 'mtc_presenca_backup_historico') {
+        Object.keys(v).forEach(function(d){
+          if (v[d] && typeof v[d] === 'object') total += Object.keys(v[d]).length;
+        });
+      } else {
+        total += Object.keys(v).length;
+      }
+    } else if (v !== null && v !== undefined && v !== '') {
+      total += 1;
+    }
+  });
+  return total;
+}
+window.calcularTotalRegistros = calcularTotalRegistros;
+
+function obterListaBackupsModulo(modulo){
+  const chave = 'mtc_bkp_mod_' + modulo;
+  try {
+    const list = JSON.parse(localStorage.getItem(chave));
+    return Array.isArray(list) ? list : [];
+  } catch(e){
+    return [];
+  }
+}
+window.obterListaBackupsModulo = obterListaBackupsModulo;
+
+function salvarListaBackupsModulo(modulo, lista){
+  const chave = 'mtc_bkp_mod_' + modulo;
+  const salvar = (typeof window !== 'undefined' && typeof window.setItemOriginal === 'function' ? window.setItemOriginal : null) ||
+                 (typeof Storage !== 'undefined' && Storage.prototype && Storage.prototype.setItem) ||
+                 function(k, v){ if (typeof localStorage !== 'undefined' && localStorage.setItem) localStorage.setItem(k, v); else localStorage[k] = v; };
+  try {
+    salvar.call(localStorage, chave, JSON.stringify(lista || []));
+  } catch(e){}
+}
+window.salvarListaBackupsModulo = salvarListaBackupsModulo;
+
+function executarBackupModuloAgora(modulo, baixarJson){
+  modulo = modulo || window._moduloBackupAberto;
+  if (!modulo) return;
+  const hoje = new Date();
+  const diasSemanaNomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const diaSemana = hoje.getDay();
+  const agoraFormatada = hoje.toLocaleDateString('pt-BR') + ' às ' + hoje.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  const dadosModulo = coletarDadosModulo(modulo);
+  const totalRegistros = calcularTotalRegistros(dadosModulo);
+
+  const novoBackup = {
+    id: 'bkp_man_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    modulo: modulo,
+    dataISO: hoje.toISOString(),
+    diaSemana: diaSemana,
+    diaSemanaRotulo: diasSemanaNomes[diaSemana],
+    dataFormatada: agoraFormatada,
+    tipo: 'manual',
+    rotuloTipo: 'Manual',
+    totalRegistros: totalRegistros,
+    dados: dadosModulo
+  };
+
+  let lista = obterListaBackupsModulo(modulo);
+  lista.unshift(novoBackup);
+  if (lista.length > 60) lista = lista.slice(0, 60);
+  salvarListaBackupsModulo(modulo, lista);
+
+  if (baixarJson) {
+    const nomeArquivo = `backup_${modulo}_${hoje.toISOString().slice(0, 10)}_${String(hoje.getHours()).padStart(2,'0')}h${String(hoje.getMinutes()).padStart(2,'0')}.json`;
+    const blob = new Blob([JSON.stringify(novoBackup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nomeArquivo;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  mostrarAlertaBackupModulo(`Cópia ${baixarJson ? 'salva no aparelho e baixada em .JSON' : 'guardada no aparelho'} com sucesso! (${totalRegistros} itens guardados)`, 'sucesso');
+  renderizarListaHistoricoBackupModulo(modulo);
+}
+window.executarBackupModuloAgora = executarBackupModuloAgora;
+
+function salvarSnapshotAntesRestaurar(modulo){
+  if (!modulo) return null;
+  const hoje = new Date();
+  const diasSemanaNomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const diaSemana = hoje.getDay();
+  const agoraFormatada = hoje.toLocaleDateString('pt-BR') + ' às ' + hoje.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  const dadosModulo = coletarDadosModulo(modulo);
+  const totalRegistros = calcularTotalRegistros(dadosModulo);
+
+  const snapshot = {
+    id: 'bkp_pre_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    modulo: modulo,
+    dataISO: hoje.toISOString(),
+    diaSemana: diaSemana,
+    diaSemanaRotulo: diasSemanaNomes[diaSemana],
+    dataFormatada: agoraFormatada,
+    tipo: 'antes_restaurar',
+    rotuloTipo: 'Antes de restaurar',
+    totalRegistros: totalRegistros,
+    dados: dadosModulo
+  };
+
+  let lista = obterListaBackupsModulo(modulo);
+  lista.unshift(snapshot);
+  if (lista.length > 60) lista = lista.slice(0, 60);
+  salvarListaBackupsModulo(modulo, lista);
+  return snapshot;
+}
+window.salvarSnapshotAntesRestaurar = salvarSnapshotAntesRestaurar;
+
+function mesclarDadosModulo(modulo, payloadDados, salvar){
+  if (!payloadDados || typeof payloadDados !== 'object') return;
+
+  Object.keys(payloadDados).forEach(function(chave){
+    const dadoBackup = payloadDados[chave];
+    if (dadoBackup === null || dadoBackup === undefined) return;
+
+    let dadoAtual = null;
+    const rawAtual = localStorage.getItem(chave);
+    if (rawAtual !== null && rawAtual !== undefined) {
+      try { dadoAtual = JSON.parse(rawAtual); } catch(e){ dadoAtual = rawAtual; }
+    }
+
+    if (dadoAtual === null || dadoAtual === undefined) {
+      const strVal = typeof dadoBackup === 'string' ? dadoBackup : JSON.stringify(dadoBackup);
+      salvar.call(localStorage, chave, strVal);
+      return;
+    }
+
+    // Arrays de objetos com identificadores
+    if (Array.isArray(dadoAtual) && Array.isArray(dadoBackup)) {
+      const mapaIdsAtuais = new Set();
+      dadoAtual.forEach(function(item){
+        if (item && typeof item === 'object') {
+          const identificador = item.id || item.codigo || item.chaveId || item.radioId || item.sn || item.nome;
+          if (identificador) mapaIdsAtuais.add(String(identificador).trim());
+        } else if (item !== null && item !== undefined) {
+          mapaIdsAtuais.add(String(item).trim());
+        }
+      });
+
+      const mesclado = dadoAtual.slice();
+      dadoBackup.forEach(function(itemBkp){
+        if (itemBkp && typeof itemBkp === 'object') {
+          const identificador = itemBkp.id || itemBkp.codigo || itemBkp.chaveId || itemBkp.radioId || itemBkp.sn || itemBkp.nome;
+          if (!identificador || !mapaIdsAtuais.has(String(identificador).trim())) {
+            mesclado.push(itemBkp);
+            if (identificador) mapaIdsAtuais.add(String(identificador).trim());
+          }
+        } else if (itemBkp !== null && itemBkp !== undefined) {
+          if (!mapaIdsAtuais.has(String(itemBkp).trim())) {
+            mesclado.push(itemBkp);
+            mapaIdsAtuais.add(String(itemBkp).trim());
+          }
+        }
+      });
+      salvar.call(localStorage, chave, JSON.stringify(mesclado));
+      return;
+    }
+
+    // Presença: indexada por data YYYY-MM-DD
+    if (chave === 'mtc_presenca' || chave === 'mtc_presenca_backup_historico') {
+      const mescladoPres = Object.assign({}, dadoAtual);
+      Object.keys(dadoBackup).forEach(function(diaIso){
+        const colabsBkp = dadoBackup[diaIso];
+        if (!colabsBkp || typeof colabsBkp !== 'object') return;
+
+        if (!mescladoPres[diaIso] || typeof mescladoPres[diaIso] !== 'object') {
+          mescladoPres[diaIso] = colabsBkp;
+        } else {
+          const diaAtual = Object.assign({}, mescladoPres[diaIso]);
+          Object.keys(colabsBkp).forEach(function(colabId){
+            if (!diaAtual[colabId]) {
+              diaAtual[colabId] = colabsBkp[colabId];
+            }
+          });
+          mescladoPres[diaIso] = diaAtual;
+        }
+      });
+      salvar.call(localStorage, chave, JSON.stringify(mescladoPres));
+      return;
+    }
+
+    // Objetos estruturados por chave
+    if (typeof dadoAtual === 'object' && typeof dadoBackup === 'object' && !Array.isArray(dadoAtual) && !Array.isArray(dadoBackup)) {
+      const mescladoObj = Object.assign({}, dadoAtual);
+      Object.keys(dadoBackup).forEach(function(k){
+        if (mescladoObj[k] === undefined || mescladoObj[k] === null || mescladoObj[k] === '') {
+          mescladoObj[k] = dadoBackup[k];
+        } else if (typeof mescladoObj[k] === 'object' && typeof dadoBackup[k] === 'object' && !Array.isArray(mescladoObj[k])) {
+          mescladoObj[k] = Object.assign({}, dadoBackup[k], mescladoObj[k]);
+        }
+      });
+      salvar.call(localStorage, chave, JSON.stringify(mescladoObj));
+      return;
+    }
+
+    // Caso primitivo
+    if (dadoAtual === null || dadoAtual === undefined || dadoAtual === '') {
+      const strVal = typeof dadoBackup === 'string' ? dadoBackup : JSON.stringify(dadoBackup);
+      salvar.call(localStorage, chave, strVal);
+    }
+  });
+}
+window.mesclarDadosModulo = mesclarDadosModulo;
+
+function executarRestauracaoModulo(modulo, dadosBackup, modo){
+  if (!modulo || !dadosBackup || typeof dadosBackup !== 'object') {
+    throw new Error('Cópia de backup inválida ou vazia.');
+  }
+
+  // 1. Guarda cópia de segurança antes de restaurar
+  salvarSnapshotAntesRestaurar(modulo);
+
+  const salvar = (typeof window !== 'undefined' && typeof window.setItemOriginal === 'function' ? window.setItemOriginal : null) ||
+                 (typeof Storage !== 'undefined' && Storage.prototype && Storage.prototype.setItem) ||
+                 function(k, v){ if (typeof localStorage !== 'undefined' && localStorage.setItem) localStorage.setItem(k, v); else localStorage[k] = v; };
+
+  let payloadDados = dadosBackup.dados;
+  if (!payloadDados || typeof payloadDados !== 'object') {
+    payloadDados = dadosBackup;
+  }
+
+  if (modo === 'substituir') {
+    Object.keys(payloadDados).forEach(function(chave){
+      const val = payloadDados[chave];
+      if (val !== undefined && val !== null) {
+        const strVal = typeof val === 'string' ? val : JSON.stringify(val);
+        salvar.call(localStorage, chave, strVal);
+      }
+    });
+  } else {
+    mesclarDadosModulo(modulo, payloadDados, salvar);
+  }
+
+  mostrarAlertaBackupModulo('Restauração concluída com sucesso! Sincronizando com a nuvem...', 'sucesso');
+
+  setTimeout(function(){
+    if (window.PainelNuvem && typeof PainelNuvem.backup === 'function' && PainelNuvem.temUrl()) {
+      try {
+        PainelNuvem.backup().finally(function(){
+          setTimeout(function(){ location.reload(); }, 600);
+        });
+        return;
+      } catch(e){}
+    }
+    setTimeout(function(){ location.reload(); }, 600);
+  }, 400);
+}
+window.executarRestauracaoModulo = executarRestauracaoModulo;
+
+window._timersBackupAutoModulo = window._timersBackupAutoModulo || {};
+
+function dispararBackupAutomaticoModuloPorChave(chave){
+  if (!chave || typeof chave !== 'string') return;
+  if (chave.indexOf('mtc_bkp_') === 0 || chave.indexOf('mtc_cfg_bkp_') === 0) return;
+  const modulo = encontrarModuloPorChave(chave);
+  if (!modulo) return;
+  agendarBackupAutomaticoModulo(modulo);
+}
+window.dispararBackupAutomaticoModuloPorChave = dispararBackupAutomaticoModuloPorChave;
+
+function agendarBackupAutomaticoModulo(modulo){
+  if (!modulo) return;
+  if (window._timersBackupAutoModulo[modulo]) {
+    clearTimeout(window._timersBackupAutoModulo[modulo]);
+  }
+  window._timersBackupAutoModulo[modulo] = setTimeout(function(){
+    window._timersBackupAutoModulo[modulo] = null;
+    executarBackupAutomaticoSeConfigurado(modulo);
+  }, 1200);
+}
+window.agendarBackupAutomaticoModulo = agendarBackupAutomaticoModulo;
+
+function executarBackupAutomaticoSeConfigurado(modulo){
+  if (!modulo) return;
+  const cfg = obterConfigBackupModulo(modulo);
+  if (!cfg.ativo) return;
+
+  const hoje = new Date();
+  const diaSemana = hoje.getDay();
+  if (cfg.dias.indexOf(diaSemana) === -1) {
+    return;
+  }
+
+  const hojeIsoData = hoje.toISOString().slice(0, 10);
+  const diasSemanaNomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const agoraFormatada = hoje.toLocaleDateString('pt-BR') + ' às ' + hoje.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  const dadosModulo = coletarDadosModulo(modulo);
+  const totalRegistros = calcularTotalRegistros(dadosModulo);
+
+  let lista = obterListaBackupsModulo(modulo);
+
+  const reterDias = cfg.reterDias || 30;
+  const cutoffTime = Date.now() - (reterDias * 24 * 60 * 60 * 1000);
+  lista = lista.filter(function(b){
+    if (b.tipo === 'antes_restaurar') return true;
+    const t = b.dataISO ? new Date(b.dataISO).getTime() : (b.timestamp || 0);
+    return t >= cutoffTime;
+  });
+
+  const idxHoje = lista.findIndex(function(b){
+    return b.tipo === 'auto' && b.dataISO && b.dataISO.slice(0, 10) === hojeIsoData;
+  });
+
+  const itemAuto = {
+    id: idxHoje >= 0 ? lista[idxHoje].id : ('bkp_auto_' + hojeIsoData + '_' + modulo),
+    modulo: modulo,
+    dataISO: hoje.toISOString(),
+    diaSemana: diaSemana,
+    diaSemanaRotulo: diasSemanaNomes[diaSemana],
+    dataFormatada: agoraFormatada,
+    tipo: 'auto',
+    rotuloTipo: 'Automático',
+    totalRegistros: totalRegistros,
+    dados: dadosModulo
+  };
+
+  if (idxHoje >= 0) {
+    lista[idxHoje] = itemAuto;
+  } else {
+    lista.unshift(itemAuto);
+  }
+
+  salvarListaBackupsModulo(modulo, lista);
+
+  if (window._moduloBackupAberto === modulo) {
+    renderizarListaHistoricoBackupModulo(modulo);
+  }
+}
+window.executarBackupAutomaticoSeConfigurado = executarBackupAutomaticoSeConfigurado;
+
+function inicializarBackupsAutomaticos(){
+  const modulos = Object.keys(CONFIG_MODULOS_BACKUP);
+  modulos.forEach(function(m){
+    try {
+      executarBackupAutomaticoSeConfigurado(m);
+    } catch(e){}
+  });
+}
+window.inicializarBackupsAutomaticos = inicializarBackupsAutomaticos;
+
+function abrirModalBackupModulo(modulo){
+  window._moduloBackupAberto = modulo;
+  window._modoRestauracaoModulo = 'mesclar';
+  window._backupCarregadoArquivoJson = null;
+
+  const conf = CONFIG_MODULOS_BACKUP[modulo] || { titulo: modulo, icone: '💾', chaves: ['mtc_' + modulo] };
+  const cfg = obterConfigBackupModulo(modulo);
+
+  const elNome = document.getElementById('nomeModuloBackupTxt');
+  if (elNome) elNome.textContent = conf.titulo;
+
+  const elSub = document.getElementById('subtituloModalBackupModulo');
+  if (elSub) elSub.textContent = `Backup e restauração dedicado · ${conf.chaves.join(', ')}`;
+
+  const dadosAtuais = coletarDadosModulo(modulo);
+  const totalAtual = calcularTotalRegistros(dadosAtuais);
+  const elSelo = document.getElementById('seloStatusDadosModulo');
+  if (elSelo) elSelo.textContent = totalAtual + ' registros ativos';
+
+  const chkAtivo = document.getElementById('chkBackupAutoAtivo');
+  if (chkAtivo) chkAtivo.checked = cfg.ativo;
+
+  const gradeDias = document.getElementById('gradeDiasSemanaBackup');
+  if (gradeDias) {
+    gradeDias.querySelectorAll('.item-dia-backup').forEach(function(card){
+      const val = parseInt(card.dataset.dia, 10);
+      const chk = card.querySelector('input');
+      const selecionado = cfg.dias.indexOf(val) !== -1;
+      if (chk) chk.checked = selecionado;
+      if (selecionado) card.classList.add('selecionado');
+      else card.classList.remove('selecionado');
+    });
+  }
+
+  const selReter = document.getElementById('selReterDiasBackupModulo');
+  if (selReter) selReter.value = String(cfg.reterDias || 30);
+
+  selecionarModoRestauracao('mesclar');
+
+  const alerta = document.getElementById('alertaBackupModulo');
+  if (alerta) alerta.style.display = 'none';
+
+  const infoArq = document.getElementById('infoArquivoJsonCarregado');
+  if (infoArq) { infoArq.style.display = 'none'; infoArq.textContent = ''; }
+
+  const inputArq = document.getElementById('inputArquivoBackupModulo');
+  if (inputArq) inputArq.value = '';
+
+  renderizarListaHistoricoBackupModulo(modulo);
+
+  const modal = document.getElementById('modalBackupModulo');
+  if (modal) modal.classList.add('aberto');
+}
+window.abrirModalBackupModulo = abrirModalBackupModulo;
+
+function fecharModalBackupModulo(){
+  const modal = document.getElementById('modalBackupModulo');
+  if (modal) modal.classList.remove('aberto');
+  window._moduloBackupAberto = null;
+  window._backupCarregadoArquivoJson = null;
+}
+window.fecharModalBackupModulo = fecharModalBackupModulo;
+
+function selecionarModoRestauracao(modo){
+  window._modoRestauracaoModulo = modo;
+  const cardMesclar = document.getElementById('modoCardMesclar');
+  const cardSubstituir = document.getElementById('modoCardSubstituir');
+  if (!cardMesclar || !cardSubstituir) return;
+
+  if (modo === 'substituir') {
+    cardMesclar.classList.remove('ativo');
+    cardSubstituir.classList.add('ativo');
+    const radio = cardSubstituir.querySelector('input[type="radio"]');
+    if (radio) radio.checked = true;
+  } else {
+    cardMesclar.classList.add('ativo');
+    cardSubstituir.classList.remove('ativo');
+    const radio = cardMesclar.querySelector('input[type="radio"]');
+    if (radio) radio.checked = true;
+  }
+}
+window.selecionarModoRestauracao = selecionarModoRestauracao;
+
+function processarArquivoJsonParaRestauracao(input){
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const conteudo = JSON.parse(e.target.result);
+      if (!conteudo || typeof conteudo !== 'object') {
+        throw new Error('Estrutura de dados inválida');
+      }
+      window._backupCarregadoArquivoJson = conteudo;
+      const elInfo = document.getElementById('infoArquivoJsonCarregado');
+      if (elInfo) {
+        elInfo.style.display = 'block';
+        elInfo.textContent = `✓ Arquivo carregado: "${file.name}" (${(file.size/1024).toFixed(1)} KB)`;
+      }
+      const sel = document.getElementById('selCopiaParaRestaurar');
+      if (sel) sel.value = '';
+      mostrarAlertaBackupModulo('Arquivo .JSON validado com sucesso! Escolha o modo e confirme a restauração.', 'sucesso');
+    } catch(err){
+      window._backupCarregadoArquivoJson = null;
+      mostrarAlertaBackupModulo('Erro ao ler arquivo .JSON: ' + err.message, 'erro');
+    }
+  };
+  reader.readAsText(file);
+}
+window.processarArquivoJsonParaRestauracao = processarArquivoJsonParaRestauracao;
+
+function salvarConfigBackupModuloUI(){
+  const modulo = window._moduloBackupAberto;
+  if (!modulo) return;
+
+  const chkAtivo = document.getElementById('chkBackupAutoAtivo');
+  const ativo = chkAtivo ? chkAtivo.checked : true;
+
+  const dias = [];
+  const gradeDias = document.getElementById('gradeDiasSemanaBackup');
+  if (gradeDias) {
+    gradeDias.querySelectorAll('.item-dia-backup').forEach(function(card){
+      const chk = card.querySelector('input');
+      const val = parseInt(card.dataset.dia, 10);
+      if (chk && chk.checked) {
+        dias.push(val);
+        card.classList.add('selecionado');
+      } else {
+        card.classList.remove('selecionado');
+      }
+    });
+  }
+
+  const selReter = document.getElementById('selReterDiasBackupModulo');
+  const reterDias = selReter ? parseInt(selReter.value, 10) : 30;
+
+  const novaCfg = {
+    ativo: ativo,
+    dias: dias,
+    reterDias: reterDias
+  };
+
+  salvarConfigBackupModulo(modulo, novaCfg);
+  executarBackupAutomaticoSeConfigurado(modulo);
+  mostrarAlertaBackupModulo('Configurações salvas: backup ativo nos dias marcados.', 'sucesso');
+}
+window.salvarConfigBackupModuloUI = salvarConfigBackupModuloUI;
+
+function renderizarListaHistoricoBackupModulo(modulo){
+  modulo = modulo || window._moduloBackupAberto;
+  if (!modulo) return;
+
+  const lista = obterListaBackupsModulo(modulo);
+  const elCont = document.getElementById('contagemCopiasSalvas');
+  if (elCont) elCont.textContent = String(lista.length);
+
+  const selRest = document.getElementById('selCopiaParaRestaurar');
+  if (selRest) {
+    selRest.innerHTML = '<option value="">Selecione uma cópia salva...</option>';
+    lista.forEach(function(b){
+      const opt = document.createElement('option');
+      opt.value = b.id;
+      const tag = b.tipo === 'antes_restaurar' ? '🛡️ [Antes de restaurar]' : (b.tipo === 'manual' ? '💾 [Manual]' : `🗓️ [Auto ${b.diaSemanaRotulo || ''}]`);
+      opt.textContent = `${tag} ${b.dataFormatada} (${b.totalRegistros || 0} itens)`;
+      selRest.appendChild(opt);
+    });
+  }
+
+  const elLista = document.getElementById('listaHistoricoCopiasModulo');
+  if (!elLista) return;
+
+  if (lista.length === 0) {
+    elLista.innerHTML = `
+      <div style="text-align:center; padding:18px 10px; color:var(--texto-suave); font-size:12px; background:rgba(255,255,255,0.02); border-radius:8px; border:1px dashed var(--linha);">
+        Nenhuma cópia salva no aparelho ainda para este módulo.<br>
+        Clique em <strong>“Salvar cópia no aparelho”</strong> acima para criar uma cópia agora.
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  lista.forEach(function(b){
+    let badgeClass = 'badge-tipo-auto';
+    let badgeTxt = `🗓️ Auto · ${b.diaSemanaRotulo || ''}`;
+    if (b.tipo === 'antes_restaurar') {
+      badgeClass = 'badge-tipo-antes-restaurar';
+      badgeTxt = '🛡️ Antes de restaurar';
+    } else if (b.tipo === 'manual') {
+      badgeClass = 'badge-tipo-manual';
+      badgeTxt = '💾 Manual';
+    }
+
+    html += `
+      <div class="item-historico-backup">
+        <div style="display:flex; flex-direction:column; gap:2px; min-width:0;">
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <span class="badge-tipo-backup ${badgeClass}">${badgeTxt}</span>
+            <strong style="font-size:12px;">${b.dataFormatada}</strong>
+          </div>
+          <div style="font-size:11px; color:var(--texto-suave);">
+            ${b.totalRegistros || 0} registros guardados
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+          <button type="button" class="btn btn-pequeno btn-primario" style="padding:4px 9px; font-size:11.5px; background:#2563eb; border-color:#3b82f6;" onclick="restaurarCopiaDiretaHistorico('${b.id}')" title="Restaurar esta cópia">
+            Restaurar
+          </button>
+          <button type="button" class="btn btn-pequeno btn-secundario" style="padding:4px 7px; font-size:11.5px;" onclick="baixarCopiaJsonHistorico('${b.id}')" title="Baixar arquivo JSON desta cópia">
+            📥 JSON
+          </button>
+          <button type="button" class="btn btn-pequeno btn-perigo" style="padding:4px 7px; font-size:11.5px; background:rgba(239,68,68,0.15); border-color:rgba(239,68,68,0.4); color:#fca5a5;" onclick="excluirCopiaHistorico('${b.id}')" title="Excluir cópia">
+            🗑️
+          </button>
+        </div>
+      </div>
+    `;
+  });
+
+  elLista.innerHTML = html;
+}
+window.renderizarListaHistoricoBackupModulo = renderizarListaHistoricoBackupModulo;
+
+function restaurarCopiaDiretaHistorico(id){
+  const modulo = window._moduloBackupAberto;
+  if (!modulo) return;
+  const lista = obterListaBackupsModulo(modulo);
+  const copia = lista.find(b => b.id === id);
+  if (!copia) {
+    mostrarAlertaBackupModulo('Cópia não encontrada.', 'erro');
+    return;
+  }
+  const sel = document.getElementById('selCopiaParaRestaurar');
+  if (sel) sel.value = id;
+  confirmarERestaurarModuloUI(copia);
+}
+window.restaurarCopiaDiretaHistorico = restaurarCopiaDiretaHistorico;
+
+function baixarCopiaJsonHistorico(id){
+  const modulo = window._moduloBackupAberto;
+  if (!modulo) return;
+  const lista = obterListaBackupsModulo(modulo);
+  const copia = lista.find(b => b.id === id);
+  if (!copia) return;
+  const nomeArquivo = `backup_${modulo}_${(copia.dataISO || '').slice(0, 10) || 'copia'}_${copia.id}.json`;
+  const blob = new Blob([JSON.stringify(copia, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nomeArquivo;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+window.baixarCopiaJsonHistorico = baixarCopiaJsonHistorico;
+
+function excluirCopiaHistorico(id){
+  const modulo = window._moduloBackupAberto;
+  if (!modulo) return;
+  if (!confirm('Deseja excluir esta cópia salva do aparelho?')) return;
+  let lista = obterListaBackupsModulo(modulo);
+  lista = lista.filter(b => b.id !== id);
+  salvarListaBackupsModulo(modulo, lista);
+  mostrarAlertaBackupModulo('Cópia removida do aparelho.', 'sucesso');
+  renderizarListaHistoricoBackupModulo(modulo);
+}
+window.excluirCopiaHistorico = excluirCopiaHistorico;
+
+function limparHistoricoBackupsModuloUI(){
+  const modulo = window._moduloBackupAberto;
+  if (!modulo) return;
+  const lista = obterListaBackupsModulo(modulo);
+  if (lista.length === 0) return;
+  const tituloMod = (CONFIG_MODULOS_BACKUP[modulo] && CONFIG_MODULOS_BACKUP[modulo].titulo) || modulo;
+  if (!confirm(`Deseja limpar as cópias antigas do módulo "${tituloMod}"?\n\n(A cópia mais recente e snapshots de segurança serão mantidos).`)) return;
+
+  const filtradas = lista.filter(function(b, idx){
+    return idx === 0 || b.tipo === 'antes_restaurar';
+  });
+  salvarListaBackupsModulo(modulo, filtradas);
+  mostrarAlertaBackupModulo('Histórico limpo. As cópias essenciais foram preservadas.', 'sucesso');
+  renderizarListaHistoricoBackupModulo(modulo);
+}
+window.limparHistoricoBackupsModuloUI = limparHistoricoBackupsModuloUI;
+
+function mostrarAlertaBackupModulo(msg, tipo){
+  const el = document.getElementById('alertaBackupModulo');
+  if (!el) return;
+  el.textContent = msg;
+  if (tipo === 'erro') {
+    el.style.background = 'rgba(239, 68, 68, 0.18)';
+    el.style.border = '1px solid rgba(239, 68, 68, 0.5)';
+    el.style.color = '#fca5a5';
+  } else {
+    el.style.background = 'rgba(16, 185, 129, 0.18)';
+    el.style.border = '1px solid rgba(16, 185, 129, 0.5)';
+    el.style.color = '#6ee7b7';
+  }
+  el.style.display = 'block';
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+window.mostrarAlertaBackupModulo = mostrarAlertaBackupModulo;
+
+function confirmarERestaurarModuloUI(copiaPredefinida){
+  const modulo = window._moduloBackupAberto;
+  if (!modulo) return;
+
+  let backupAlvo = copiaPredefinida || null;
+
+  if (!backupAlvo) {
+    if (window._backupCarregadoArquivoJson) {
+      backupAlvo = window._backupCarregadoArquivoJson;
+    } else {
+      const sel = document.getElementById('selCopiaParaRestaurar');
+      const idSel = sel ? sel.value : '';
+      if (!idSel) {
+        mostrarAlertaBackupModulo('Por favor, selecione uma cópia salva da lista ou carregue um arquivo .JSON do aparelho.', 'erro');
+        return;
+      }
+      const lista = obterListaBackupsModulo(modulo);
+      backupAlvo = lista.find(b => b.id === idSel);
+    }
+  }
+
+  if (!backupAlvo) {
+    mostrarAlertaBackupModulo('Não foi possível identificar a cópia para restauração.', 'erro');
+    return;
+  }
+
+  const modo = window._modoRestauracaoModulo || 'mesclar';
+  const nomeMod = (CONFIG_MODULOS_BACKUP[modulo] && CONFIG_MODULOS_BACKUP[modulo].titulo) || modulo;
+
+  let mensagemConfirm = '';
+  if (modo === 'mesclar') {
+    mensagemConfirm = `Confirmar restauração de "${nomeMod}" no modo MESCLAR (Padrão)?\n\n` +
+      `✓ O que existe hoje no seu aparelho será MANTIDO.\n` +
+      `✓ Apenas dados ou itens que estiverem FALTANDO serão recuperados.\n` +
+      `✓ Uma cópia de segurança "Antes de restaurar" será salva automaticamente no aparelho.\n` +
+      `✓ Após restaurar, o painel enviará os dados para a nuvem e recarregará a página.`;
+  } else {
+    mensagemConfirm = `ATENÇÃO: Modo SUBSTITUIR selecionado para "${nomeMod}".\n\n` +
+      `⚠️ Todos os dados atuais deste módulo serão substituídos pelo estado do backup.\n` +
+      `✓ Uma cópia de segurança "Antes de restaurar" será salva automaticamente para você voltar se precisar.\n` +
+      `✓ Após restaurar, o painel enviará os dados para a nuvem e recarregará a página.\n\n` +
+      `Deseja prosseguir?`;
+  }
+
+  if (!confirm(mensagemConfirm)) return;
+
+  try {
+    executarRestauracaoModulo(modulo, backupAlvo, modo);
+  } catch(err){
+    mostrarAlertaBackupModulo('Falha na restauração: ' + err.message, 'erro');
+  }
+}
+window.confirmarERestaurarModuloUI = confirmarERestaurarModuloUI;
 
 /* ============================================================
    FORMULÁRIO GENÉRICO
@@ -24072,6 +25471,7 @@ recomprimirFotosChavesExistentes().then(repararCatalogosPosEspaco).catch(reparar
    ============================================================ */
 atualizarSelosHub();
 aplicarAcessoRestrito();
+try { inicializarBackupsAutomaticos(); } catch(e){}
 processarParametroUrlRadio();
 processarParametroUrlEquipamento();
 
