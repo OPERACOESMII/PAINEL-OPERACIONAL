@@ -2,11 +2,13 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import zlib from 'zlib';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DATA_FILE = path.join(__dirname, 'painel_minas_ii_dados.json');
 const HISTORICO_DIAS_FILE = path.join(__dirname, 'painel_minas_ii_historico_dias.json');
+const INDEX_HTML_FILE = path.join(__dirname, 'index.html');
 
 const app = express();
 const PORT = 3000;
@@ -25,16 +27,96 @@ app.use((req, res, next) => {
   next();
 });
 
+// Middleware leve de compressão Gzip para respostas JSON grandes (mobile performance)
+app.use((req, res, next) => {
+  const acceptEnc = String(req.headers['accept-encoding'] || '');
+  if (!acceptEnc.includes('gzip')) return next();
+  const origJson = res.json.bind(res);
+  res.json = (body) => {
+    try {
+      const str = JSON.stringify(body);
+      if (str.length > 2048) {
+        const gz = zlib.gzipSync(str, { level: 6 });
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Content-Encoding', 'gzip');
+        res.setHeader('Vary', 'Accept-Encoding');
+        return res.send(gz);
+      }
+    } catch(e) {}
+    return origJson(body);
+  };
+  next();
+});
+
+// Remove chaves exclusivamente locais que não devem trafegar nem inflar o sync em nuvem
+function limparChavesLocaisDosDados(dados) {
+  if (!dados || typeof dados !== 'object') return dados;
+  let alterado = false;
+  Object.keys(dados).forEach(k => {
+    if (
+      k.startsWith('mtc_bkp_mod_') ||
+      k.startsWith('mtc_cfg_bkp_') ||
+      k === 'mtc_presenca_perfis' ||
+      k === 'mtc_presenca_sessao_id'
+    ) {
+      delete dados[k];
+      alterado = true;
+    }
+  });
+  return alterado;
+}
+
+// Cache pré-serializado e pré-comprimido de /painel_minas_ii.json (sem .kpis redundante) e index.html
+let cacheNuvemJsonStr = JSON.stringify({ dados: {}, enviadoEm: '' });
+let cacheNuvemGzip = zlib.gzipSync(cacheNuvemJsonStr, { level: 6 });
+let cacheNuvemPutSseMsg = `event: put\ndata: ${JSON.stringify({ path: '/', data: { dados: {}, enviadoEm: '' } })}\n\n`;
+let cacheIndexHtml = { mtimeMs: 0, raw: null, gzip: null };
+
+function atualizarCacheNuvemLocal() {
+  try {
+    const payloadLimpo = {
+      dados: (dadosNuvemLocal && dadosNuvemLocal.dados) || {},
+      enviadoEm: (dadosNuvemLocal && dadosNuvemLocal.enviadoEm) || ''
+    };
+    cacheNuvemJsonStr = JSON.stringify(payloadLimpo);
+    cacheNuvemGzip = zlib.gzipSync(cacheNuvemJsonStr, { level: 6 });
+    cacheNuvemPutSseMsg = `event: put\ndata: ${JSON.stringify({ path: '/', data: payloadLimpo })}\n\n`;
+  } catch(e) {}
+}
+
+function obterCacheIndexHtml() {
+  try {
+    const stat = fs.statSync(INDEX_HTML_FILE);
+    if (!cacheIndexHtml.raw || stat.mtimeMs !== cacheIndexHtml.mtimeMs) {
+      const raw = fs.readFileSync(INDEX_HTML_FILE);
+      cacheIndexHtml = {
+        mtimeMs: stat.mtimeMs,
+        raw,
+        gzip: zlib.gzipSync(raw, { level: 6 })
+      };
+    }
+    return cacheIndexHtml;
+  } catch(e) {
+    return null;
+  }
+}
+
 // Sync store in memory, disk persistence and SSE subscribers
 let dadosNuvemLocal = null;
 try {
   if (fs.existsSync(DATA_FILE)) {
     const raw = fs.readFileSync(DATA_FILE, 'utf8');
-    if (raw && raw.trim()) dadosNuvemLocal = JSON.parse(raw);
+    if (raw && raw.trim()) {
+      dadosNuvemLocal = JSON.parse(raw);
+      if (dadosNuvemLocal && dadosNuvemLocal.dados) {
+        limparChavesLocaisDosDados(dadosNuvemLocal.dados);
+      }
+    }
   }
 } catch(err) {
   console.warn('Could not read existing DATA_FILE:', err);
 }
+atualizarCacheNuvemLocal();
 
 // Configuração do Servidor Oficial de Produção Cloud Run (painel-operacional)
 const SERVIDOR_OFICIAL_URL = 'https://painel-operacional-620305266125.us-east1.run.app';
@@ -92,16 +174,18 @@ async function sincronizarComServidorOficial() {
       console.log(`[Server] Servidor oficial mais recente (${remoto.enviadoEm} > ${dadosNuvemLocal?.enviadoEm}). Mesclando...`);
       if (!dadosNuvemLocal) dadosNuvemLocal = { dados: {}, enviadoEm: '' };
       dadosNuvemLocal.dados = Object.assign({}, dadosNuvemLocal.dados, remoto.dados);
+      limparChavesLocaisDosDados(dadosNuvemLocal.dados);
       dadosNuvemLocal.enviadoEm = remoto.enviadoEm;
       if (typeof gerarEstruturaKpis === 'function') {
         dadosNuvemLocal.kpis = gerarEstruturaKpis(dadosNuvemLocal.dados);
       }
+      atualizarCacheNuvemLocal();
       try {
         fs.writeFileSync(DATA_FILE, JSON.stringify(dadosNuvemLocal, null, 2), 'utf8');
       } catch(e){}
       clientesSse.forEach(c => {
         try {
-          c.write(`event: put\ndata: ${JSON.stringify({ path: '/', data: dadosNuvemLocal })}\n\n`);
+          c.write(cacheNuvemPutSseMsg);
         } catch(e){}
       });
     } else if (tsLocal > tsRemoto) {
@@ -291,7 +375,9 @@ function gerarEstruturaKpis(dadosBrutos) {
 }
 
 if (dadosNuvemLocal && dadosNuvemLocal.dados) {
+  limparChavesLocaisDosDados(dadosNuvemLocal.dados);
   dadosNuvemLocal.kpis = gerarEstruturaKpis(dadosNuvemLocal.dados);
+  atualizarCacheNuvemLocal();
 }
 
 let clientesSse = [];
@@ -424,6 +510,12 @@ setInterval(() => {
   }
 }, 30000);
 
+// Endpoint ultraleve (~50 bytes) para checagem rápida de versão sem baixar o JSON completo
+app.get('/api/nuvem/versao', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ ok: true, enviadoEm: (dadosNuvemLocal && dadosNuvemLocal.enviadoEm) || '' });
+});
+
 // Endpoint principal de sincronização em nuvem e SSE
 app.all(['/painel_minas_ii.json', '/api/backup-nuvem'], (req, res) => {
   if (req.method === 'GET') {
@@ -432,7 +524,7 @@ app.all(['/painel_minas_ii.json', '/api/backup-nuvem'], (req, res) => {
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
       res.flushHeaders?.();
-      res.write(`event: put\ndata: ${JSON.stringify({ path: '/', data: dadosNuvemLocal || {} })}\n\n`);
+      res.write(cacheNuvemPutSseMsg);
       res.write(`event: presenca\ndata: ${JSON.stringify(obterListaPresenca())}\n\n`);
       clientesSse.push(res);
       req.on('close', () => {
@@ -440,7 +532,15 @@ app.all(['/painel_minas_ii.json', '/api/backup-nuvem'], (req, res) => {
       });
       return;
     }
-    return res.json(dadosNuvemLocal || { dados: {}, enviadoEm: '' });
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    const acceptEnc = String(req.headers['accept-encoding'] || '');
+    if (acceptEnc.includes('gzip') && cacheNuvemGzip) {
+      res.setHeader('Content-Encoding', 'gzip');
+      res.setHeader('Vary', 'Accept-Encoding');
+      return res.send(cacheNuvemGzip);
+    }
+    return res.send(cacheNuvemJsonStr);
   }
 
   if (req.method === 'PUT' || req.method === 'POST') {
@@ -450,6 +550,7 @@ app.all(['/painel_minas_ii.json', '/api/backup-nuvem'], (req, res) => {
     }
 
     if (payload && payload.dados) {
+      limparChavesLocaisDosDados(payload.dados);
       if (!dadosNuvemLocal) dadosNuvemLocal = { dados: {}, enviadoEm: '' };
       if (!dadosNuvemLocal.dados) dadosNuvemLocal.dados = {};
 
@@ -878,12 +979,15 @@ app.all(['/painel_minas_ii.json', '/api/backup-nuvem'], (req, res) => {
 
       // 7. Mesclagem de todos os outros módulos (não descarta chaves existentes)
       dadosNuvemLocal.dados = Object.assign({}, dadosNuvemLocal.dados, payload.dados);
+      limparChavesLocaisDosDados(dadosNuvemLocal.dados);
       dadosNuvemLocal.enviadoEm = payload.enviadoEm || new Date().toISOString();
     } else if (payload) {
       dadosNuvemLocal = payload;
+      if (dadosNuvemLocal.dados) limparChavesLocaisDosDados(dadosNuvemLocal.dados);
     }
 
     dadosNuvemLocal.kpis = gerarEstruturaKpis(dadosNuvemLocal.dados);
+    atualizarCacheNuvemLocal();
 
     try {
       fs.writeFileSync(DATA_FILE, JSON.stringify(dadosNuvemLocal, null, 2), 'utf8');
@@ -898,10 +1002,10 @@ app.all(['/painel_minas_ii.json', '/api/backup-nuvem'], (req, res) => {
 
     clientesSse.forEach(c => {
       try {
-        c.write(`event: put\ndata: ${JSON.stringify({ path: '/', data: dadosNuvemLocal })}\n\n`);
+        c.write(cacheNuvemPutSseMsg);
       } catch(e){}
     });
-    return res.json(dadosNuvemLocal || { ok: true });
+    return res.json({ ok: true, enviadoEm: dadosNuvemLocal?.enviadoEm || '' });
   }
 
   res.sendStatus(405);
@@ -1013,6 +1117,8 @@ app.post('/api/nuvem/restaurar-dia', (req, res) => {
     }
 
     dadosNuvemLocal.enviadoEm = new Date().toISOString();
+    dadosNuvemLocal.kpis = gerarEstruturaKpis(dadosNuvemLocal.dados);
+    atualizarCacheNuvemLocal();
 
     fs.writeFileSync(DATA_FILE, JSON.stringify(dadosNuvemLocal, null, 2), 'utf8');
     espelharParaServidorOficial(dadosNuvemLocal);
@@ -1020,11 +1126,10 @@ app.post('/api/nuvem/restaurar-dia', (req, res) => {
     // Transmite a restauração via SSE para todos os dispositivos conectados
     clientesSse.forEach(c => {
       try {
-        c.write(`event: put\ndata: ${JSON.stringify({ path: '/', data: dadosNuvemLocal })}\n\n`);
+        c.write(cacheNuvemPutSseMsg);
       } catch(e){}
     });
 
-    dadosNuvemLocal.kpis = gerarEstruturaKpis(dadosNuvemLocal.dados);
     console.log(`[Backup Nuvem] Dia ${diaAlvo} restaurado com sucesso e propagado via SSE.`);
     return res.json({
       ok: true,
@@ -1187,13 +1292,14 @@ app.post('/api/nuvem/restaurar-kpi', (req, res) => {
 
     dadosNuvemLocal.enviadoEm = new Date().toISOString();
     dadosNuvemLocal.kpis = gerarEstruturaKpis(dadosNuvemLocal.dados);
+    atualizarCacheNuvemLocal();
 
     fs.writeFileSync(DATA_FILE, JSON.stringify(dadosNuvemLocal, null, 2), 'utf8');
     espelharParaServidorOficial(dadosNuvemLocal);
 
     clientesSse.forEach(c => {
       try {
-        c.write(`event: put\ndata: ${JSON.stringify({ path: '/', data: dadosNuvemLocal })}\n\n`);
+        c.write(cacheNuvemPutSseMsg);
       } catch(e){}
     });
 
@@ -1314,13 +1420,28 @@ app.all('/api/*', (req, res) => {
   res.status(404).json({ ok: false, error: `Endpoint de API não encontrado: ${req.method} ${req.path}` });
 });
 
+// Serve index.html com cache e compressão Gzip (~3.3MB -> ~450KB no celular)
+function servirIndexComprimido(req, res) {
+  const cached = obterCacheIndexHtml();
+  if (!cached) return res.sendFile(INDEX_HTML_FILE);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache');
+  const acceptEnc = String(req.headers['accept-encoding'] || '');
+  if (acceptEnc.includes('gzip') && cached.gzip) {
+    res.setHeader('Content-Encoding', 'gzip');
+    res.setHeader('Vary', 'Accept-Encoding');
+    return res.send(cached.gzip);
+  }
+  return res.send(cached.raw);
+}
+
+app.get(['/', '/index.html'], servirIndexComprimido);
+
 // Serve static assets from project root
 app.use(express.static(__dirname));
 
 // Fallback to index.html for SPA/Static site routing (apenas para páginas do app, não para APIs)
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
+app.get('*', servirIndexComprimido);
 
 // Tratamento global de erros
 app.use((err, req, res, next) => {

@@ -306,23 +306,7 @@ window._setItemOriginal = setItemOriginal;
     }
   };
 
-  // No app empacotado ou navegador, envia imediatamente ao sair/minimizar e busca atualizações ao focar
-  document.addEventListener('visibilitychange', function(){
-    if (document.hidden){
-      if (window.PainelNuvem && PainelNuvem.temUrl()) PainelNuvem.backup();
-    } else if (window.PainelNuvem && PainelNuvem.temUrl()){
-      PainelNuvem.verificarAtualizacoes().then(function(r){
-        if (r && r.ok && r.mudou && typeof window.aplicarAtualizacaoNaUI === 'function') window.aplicarAtualizacaoNaUI();
-      });
-    }
-  });
-  window.addEventListener('focus', function(){
-    if (window.PainelNuvem && PainelNuvem.temUrl()){
-      PainelNuvem.verificarAtualizacoes().then(function(r){
-        if (r && r.ok && r.mudou && typeof window.aplicarAtualizacaoNaUI === 'function') window.aplicarAtualizacaoNaUI();
-      });
-    }
-  });
+  // No app empacotado ou navegador, envia imediatamente ao sair/minimizar (visibilidade e foco são tratados no bloco de agendamento)
   window.addEventListener('pagehide', function(){
     if (window.PainelNuvem && PainelNuvem.temUrl()) PainelNuvem.backup();
   });
@@ -330,11 +314,20 @@ window._setItemOriginal = setItemOriginal;
     if (window.PainelNuvem && PainelNuvem.temUrl()) PainelNuvem.backup();
   });
 
+  function ehChaveExclusivaLocal(chave){
+    return (
+      chave.indexOf('mtc_bkp_mod_') === 0 ||
+      chave.indexOf('mtc_cfg_bkp_') === 0 ||
+      chave === 'mtc_presenca_perfis' ||
+      chave === 'mtc_presenca_sessao_id'
+    );
+  }
+
   function coletarDados(){
     var dados = {};
     for (var i=0; i<localStorage.length; i++){
       var chave = localStorage.key(i);
-      if (chave && chave.indexOf('mtc_') === 0){
+      if (chave && chave.indexOf('mtc_') === 0 && !ehChaveExclusivaLocal(chave)){
         dados[chave] = localStorage.getItem(chave);
       }
     }
@@ -601,18 +594,22 @@ window._setItemOriginal = setItemOriginal;
         estaEnviandoBackup = true;
         var agoraIso = new Date().toISOString();
         var dadosLocais = coletarDados();
-        var kpisOrganizados = organizarDadosPorKPIs(dadosLocais);
-        var corpo = JSON.stringify({dados: dadosLocais, kpis: kpisOrganizados, enviadoEm: agoraIso});
+        var ehFirebase = baseUrl().indexOf('firebaseio.com') !== -1;
+        var kpisOrganizados = ehFirebase ? organizarDadosPorKPIs(dadosLocais) : null;
+        var corpo = JSON.stringify(
+          ehFirebase
+            ? {dados: dadosLocais, kpis: kpisOrganizados, enviadoEm: agoraIso}
+            : {dados: dadosLocais, enviadoEm: agoraIso}
+        );
         // Marca o próprio envio como já visto para evitar que esta aba re-importe seu próprio backup
         setItemOriginal.call(localStorage, CHAVE_VISTO, agoraIso);
-        registrarLogNuvem('Backup: enviando (estruturado por KPIs)...');
-        var ehFirebase = baseUrl().indexOf('firebaseio.com') !== -1;
+        registrarLogNuvem('Backup: enviando...');
         var opcoes = ehFirebase
           ? {method:'PUT', headers:{'Content-Type':'application/json'}, body: corpo, cache:'no-store'}
           : {method:'POST', headers:{'Content-Type':'application/json'}, body: corpo, cache:'no-store'};
 
         // Se for Firebase Realtime Database, grava também a pasta separada /kpis.json na raiz do banco
-        if (ehFirebase) {
+        if (ehFirebase && kpisOrganizados) {
           try {
             var authParam = apiKeyConfigurada() ? '?auth=' + encodeURIComponent(localStorage.getItem(CHAVE_AUTH_TOKEN)||'') : '';
             fetch(baseUrl() + '/kpis.json' + authParam, {
@@ -664,24 +661,41 @@ window._setItemOriginal = setItemOriginal;
           });
       });
     },
-    restaurar: function(){
-      return urlDadosAutenticada().then(function(url){
+    restaurar: function(forcarDownload){
+      if (!forcarDownload && promessaRestaurarAtual) return promessaRestaurarAtual;
+      var p = urlDadosAutenticada().then(function(url){
         if (!url) return {ok:false, motivo:'sem_url'};
-        registrarLogNuvem('Restauração: buscando dados da nuvem...');
-        return fetch(url, {cache:'no-store'})
-          .catch(function(errRede){
-            if (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http')) {
-              var urlLocal = window.location.origin + '/' + CAMINHO + '?_cb=' + Date.now();
-              if (url !== urlLocal) {
-                return fetch(urlLocal, {cache:'no-store'});
+        var visto = localStorage.getItem(CHAVE_VISTO) || '';
+        var radiosLoc = localStorage.getItem('mtc_radios');
+        var presencaLoc = localStorage.getItem('mtc_presenca');
+        var precisaPreencher = (!radiosLoc || radiosLoc === '[]') || (!presencaLoc || presencaLoc === '{}');
+        var checarVersaoAntes = (!forcarDownload && !ehFirebaseUrl() && visto && !precisaPreencher)
+          ? fetch(baseUrl() + '/api/nuvem/versao?_cb=' + Date.now(), {cache:'no-store'})
+              .then(function(r){ return r.ok ? r.json() : null; })
+              .catch(function(){ return null; })
+          : Promise.resolve(null);
+
+        return checarVersaoAntes.then(function(v){
+          if (v && v.ok && v.enviadoEm && v.enviadoEm === visto){
+            window._sincronizacaoInicialConcluida = true;
+            window._ultimoMomentoPresencaLocal = 0;
+            return {ok:true, enviadoEm: visto, emCache: true};
+          }
+          registrarLogNuvem('Restauração: buscando dados da nuvem...');
+          return fetch(url, {cache:'no-store'})
+            .catch(function(errRede){
+              if (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http')) {
+                var urlLocal = window.location.origin + '/' + CAMINHO + '?_cb=' + Date.now();
+                if (url !== urlLocal) {
+                  return fetch(urlLocal, {cache:'no-store'});
+                }
               }
-            }
-            throw errRede;
-          })
-          .then(function(r){ return r.text(); })
-          .then(function(texto){
-          var obj;
-          try { obj = JSON.parse(texto); } catch(e) { obj = null; }
+              throw errRede;
+            })
+            .then(function(r){ return r.text(); })
+            .then(function(texto){
+            var obj;
+            try { obj = JSON.parse(texto); } catch(e) { obj = null; }
           if (!obj || !obj.dados){
             registrarLogNuvem('Restauração: nenhum backup encontrado na nuvem.');
             window._sincronizacaoInicialConcluida = true;
@@ -940,7 +954,12 @@ window._setItemOriginal = setItemOriginal;
           registrarLogNuvem('Restauração: servidor temporariamente inacessível.');
           return {ok:false, motivo:'erro', erro:err};
         });
+        });
+      }).finally(function(){
+        promessaRestaurarAtual = null;
       });
+      if (!forcarDownload) promessaRestaurarAtual = p;
+      return p;
     },
     backupImediato: function(){
       if (temporizador){
@@ -975,34 +994,45 @@ window._setItemOriginal = setItemOriginal;
       }
       if (this.haAlgumFormularioAberto()) return Promise.resolve({ok:false, motivo:'form_aberto'});
       estaVerificandoNuvem = true;
-      return urlDadosAutenticada().then(function(url){
-        if (!url) {
-          estaVerificandoNuvem = false;
-          return {ok:false, motivo:'sem_url'};
+      var visto = localStorage.getItem(CHAVE_VISTO) || '';
+      var radiosLoc = localStorage.getItem('mtc_radios');
+      var presencaLoc = localStorage.getItem('mtc_presenca');
+      var precisaPreencher = (!radiosLoc || radiosLoc === '[]') || (!presencaLoc || presencaLoc === '{}');
+      var checarVersao = (!ehFirebaseUrl() && visto && !precisaPreencher)
+        ? fetch(baseUrl() + '/api/nuvem/versao?_cb=' + Date.now(), {cache:'no-store'})
+            .then(function(r){ return r.ok ? r.json() : null; })
+            .catch(function(){ return null; })
+        : Promise.resolve(null);
+
+      return checarVersao.then(function(v){
+        if (v && v.ok && v.enviadoEm && v.enviadoEm === visto){
+          return {ok:true, mudou:false};
         }
-        return fetch(url, {cache:'no-store'})
-          .catch(function(errRede){
-            if (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http')) {
-              var urlLocal = window.location.origin + '/' + CAMINHO + '?_cb=' + Date.now();
-              if (url !== urlLocal) {
-                return fetch(urlLocal, {cache:'no-store'});
+        return urlDadosAutenticada().then(function(url){
+          if (!url) {
+            return {ok:false, motivo:'sem_url'};
+          }
+          return fetch(url, {cache:'no-store'})
+            .catch(function(errRede){
+              if (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http')) {
+                var urlLocal = window.location.origin + '/' + CAMINHO + '?_cb=' + Date.now();
+                if (url !== urlLocal) {
+                  return fetch(urlLocal, {cache:'no-store'});
+                }
               }
-            }
-            throw errRede;
-          })
-          .then(function(r){ return r.text(); })
-          .then(function(texto){
-          var obj;
-          try { obj = JSON.parse(texto); } catch(e) { obj = null; }
-          return processarDadosRecebidos(obj);
-        }).catch(function(err){
-          return {ok:false, motivo:'erro', erro:err};
-        }).finally(function(){
-          estaVerificandoNuvem = false;
+              throw errRede;
+            })
+            .then(function(r){ return r.text(); })
+            .then(function(texto){
+            var obj;
+            try { obj = JSON.parse(texto); } catch(e) { obj = null; }
+            return processarDadosRecebidos(obj);
+          });
         });
-      }).catch(function(){
+      }).catch(function(err){
+        return {ok:false, motivo:'erro', erro:err};
+      }).finally(function(){
         estaVerificandoNuvem = false;
-        return {ok:false, motivo:'erro'};
       });
     },
     ultimaAtualizacao: function(){ return localStorage.getItem(CHAVE_ULTIMA_ATUALIZACAO) || ''; },
@@ -1010,11 +1040,13 @@ window._setItemOriginal = setItemOriginal;
     urlAutenticadaParaTeste: function(){ return urlDadosAutenticada(); }
   };
 
+  var promessaRestaurarAtual = null;
+
   // Dispara restauração imediatamente no início da carga do script para preencher o localStorage antes da execução de seeds
   try {
     if (window.PainelNuvem && window.PainelNuvem.temUrl()) {
       window.PainelNuvem.restaurar().then(function(r){
-        if (r && r.ok && typeof window.aplicarAtualizacaoNaUI === 'function') {
+        if (r && r.ok && !r.emCache && typeof window.aplicarAtualizacaoNaUI === 'function') {
           window.aplicarAtualizacaoNaUI();
         }
       });
@@ -1349,44 +1381,69 @@ window._setItemOriginal = setItemOriginal;
   }
 
   function aplicarAtualizacaoNaUI(){
-    try { if (typeof renderAtividadeSemanal === 'function') renderAtividadeSemanal(); } catch(e){}
-    try { if (typeof renderAbasDiasSemana === 'function') renderAbasDiasSemana(); } catch(e){}
-    try { if (typeof renderDashboard === 'function') renderDashboard(); } catch(e){}
-    try { if (typeof atualizarSeloDashboard === 'function') atualizarSeloDashboard(); } catch(e){}
-    try { if (typeof renderSetor === 'function') renderSetor(); } catch(e){}
-    try { if (typeof renderAbasSetores === 'function') renderAbasSetores(); } catch(e){}
     try {
-      var modP = document.getElementById('modalPendentesHoje');
-      if (modP && modP.classList.contains('aberto') && typeof renderPendentesHoje === 'function') {
-        renderPendentesHoje();
+      var secaoAtiva = document.querySelector('.secao.ativa');
+      var idAtiva = secaoAtiva ? secaoAtiva.id : '';
+
+      if (idAtiva === 'secao-atividade') {
+        try { if (typeof renderAtividadeSemanal === 'function') renderAtividadeSemanal(); } catch(e){}
+        try { if (typeof renderAbasDiasSemana === 'function') renderAbasDiasSemana(); } catch(e){}
+        try { if (typeof renderSetor === 'function') renderSetor(); } catch(e){}
+        try { if (typeof renderAbasSetores === 'function') renderAbasSetores(); } catch(e){}
+        try { if (typeof atualizarInfoProximoLembrete === 'function') atualizarInfoProximoLembrete(); } catch(e){}
+      } else if (idAtiva === 'secao-dashboard') {
+        try { if (typeof renderDashboard === 'function') renderDashboard(); } catch(e){}
+      } else if (idAtiva === 'secao-presenca') {
+        try { if (typeof renderPresenca === 'function') renderPresenca(); } catch(e){}
+      } else if (idAtiva === 'secao-equipe') {
+        try { if (typeof renderEquipe === 'function') renderEquipe(); } catch(e){}
+      } else if (idAtiva === 'secao-chaves') {
+        try { if (typeof renderChaves === 'function') renderChaves(); } catch(e){}
+      } else if (idAtiva === 'secao-radios') {
+        try { if (typeof renderRadios === 'function') renderRadios(); } catch(e){}
+        try { if (typeof renderConserto === 'function') renderConserto(); } catch(e){}
+      } else if (idAtiva === 'secao-estoque') {
+        try { if (typeof renderEstoque === 'function') renderEstoque(); } catch(e){}
+      } else if (idAtiva === 'secao-contatos') {
+        try { if (typeof renderContatos === 'function') renderContatos(); } catch(e){}
+      } else if (idAtiva === 'secao-equipamentos') {
+        try { if (typeof renderEquipamentos === 'function') renderEquipamentos(); } catch(e){}
+      } else if (idAtiva === 'hub') {
+        try { if (typeof atualizarSelosHubRapido === 'function') atualizarSelosHubRapido(); } catch(e){}
       }
+
+      try {
+        var modP = document.getElementById('modalPendentesHoje');
+        if (modP && modP.classList.contains('aberto') && typeof renderPendentesHoje === 'function') renderPendentesHoje();
+      } catch(e){}
+      try {
+        var modC = document.getElementById('modalConcluidasHoje');
+        if (modC && modC.classList.contains('aberto') && typeof renderConcluidasHoje === 'function') renderConcluidasHoje();
+      } catch(e){}
+      try {
+        var modCat = document.getElementById('modalCategoriaAtividades');
+        if (modCat && modCat.classList.contains('aberto') && typeof renderCategoriaAtividades === 'function') renderCategoriaAtividades();
+      } catch(e){}
+      try {
+        var modAg = document.getElementById('modalAgenda');
+        if (modAg && modAg.classList.contains('aberto') && typeof renderCalendarioAgenda === 'function') renderCalendarioAgenda();
+        var modDiaAg = document.getElementById('modalDiaAgenda');
+        if (modDiaAg && modDiaAg.classList.contains('aberto') && typeof renderListaDiaAgenda === 'function') renderListaDiaAgenda();
+      } catch(e){}
+      try {
+        var modSsmpo = document.getElementById('modalSSMPO');
+        if (modSsmpo && modSsmpo.classList.contains('aberto') && typeof renderSSMPO === 'function') renderSSMPO();
+      } catch(e){}
+      try {
+        var modHistEq = document.getElementById('modalHistoricoBackupsEquipe');
+        if (modHistEq && modHistEq.classList.contains('aberto') && typeof renderizarHistoricoBackupsEquipe === 'function') renderizarHistoricoBackupsEquipe();
+      } catch(e){}
+
+      try { if (typeof atualizarSeloDashboard === 'function') atualizarSeloDashboard(); } catch(e){}
+      try { if (typeof atualizarKpiAgenda === 'function') atualizarKpiAgenda(); } catch(e){}
+      try { if (typeof atualizarKpiSSMPO === 'function') atualizarKpiSSMPO(); } catch(e){}
+      try { if (typeof atualizarCartaoMeuPerfil === 'function') atualizarCartaoMeuPerfil(); } catch(e){}
     } catch(e){}
-    try {
-      var modC = document.getElementById('modalConcluidasHoje');
-      if (modC && modC.classList.contains('aberto') && typeof renderConcluidasHoje === 'function') {
-        renderConcluidasHoje();
-      }
-    } catch(e){}
-    try {
-      var modCat = document.getElementById('modalCategoriaAtividades');
-      if (modCat && modCat.classList.contains('aberto') && typeof renderCategoriaAtividades === 'function') {
-        renderCategoriaAtividades();
-      }
-    } catch(e){}
-    try { if (typeof atualizarInfoProximoLembrete === 'function') atualizarInfoProximoLembrete(); } catch(e){}
-    try { if (typeof renderPresenca === 'function') renderPresenca(); } catch(e){}
-    try { if (typeof renderEquipe === 'function') renderEquipe(); } catch(e){}
-    try { if (typeof renderChaves === 'function') renderChaves(); } catch(e){}
-    try { if (typeof renderRadios === 'function') renderRadios(); } catch(e){}
-    try { if (typeof renderConserto === 'function') renderConserto(); } catch(e){}
-    try { if (typeof renderEstoque === 'function') renderEstoque(); } catch(e){}
-    try { if (typeof renderContatos === 'function') renderContatos(); } catch(e){}
-    try { if (typeof renderEquipamentos === 'function') renderEquipamentos(); } catch(e){}
-    try { if (typeof renderCalendarioAgenda === 'function') renderCalendarioAgenda(); } catch(e){}
-    try { if (typeof atualizarKpiAgenda === 'function') atualizarKpiAgenda(); } catch(e){}
-    try { if (typeof atualizarKpiSSMPO === 'function') atualizarKpiSSMPO(); } catch(e){}
-    try { if (typeof renderizarHistoricoBackupsEquipe === 'function') renderizarHistoricoBackupsEquipe(); } catch(e){}
-    try { if (typeof atualizarCartaoMeuPerfil === 'function') atualizarCartaoMeuPerfil(); } catch(e){}
   }
   window.aplicarAtualizacaoNaUI = aplicarAtualizacaoNaUI;
 
@@ -1401,8 +1458,10 @@ window._setItemOriginal = setItemOriginal;
   });
 
   var fonteEventosNuvem = null;
+  var sseConectado = false;
   function iniciarStreamNuvem(){
     if (fonteEventosNuvem){
+      if (fonteEventosNuvem.readyState === 1 || fonteEventosNuvem.readyState === 0) return;
       try { fonteEventosNuvem.close(); } catch(e){}
       fonteEventosNuvem = null;
     }
@@ -1413,7 +1472,11 @@ window._setItemOriginal = setItemOriginal;
         ? (b + '/' + CAMINHO + (apiKeyConfigurada() ? '?auth=' + encodeURIComponent(localStorage.getItem(CHAVE_AUTH_TOKEN)||'') : ''))
         : (b + '/' + CAMINHO);
       fonteEventosNuvem = new EventSource(streamUrl);
+      fonteEventosNuvem.onopen = function(){
+        sseConectado = true;
+      };
       var lidarComEvento = function(e){
+        sseConectado = true;
         if (!e || !e.data) return;
         try {
           var payload = JSON.parse(e.data);
@@ -1434,6 +1497,7 @@ window._setItemOriginal = setItemOriginal;
       fonteEventosNuvem.addEventListener('patch', lidarComEvento);
       fonteEventosNuvem.addEventListener('message', lidarComEvento);
       fonteEventosNuvem.addEventListener('presenca', function(ev){
+        sseConectado = true;
         try {
           var dados = JSON.parse(ev.data);
           if (window.GerenciadorPresenca && typeof GerenciadorPresenca.atualizarPerfisServidor === 'function'){
@@ -1442,9 +1506,10 @@ window._setItemOriginal = setItemOriginal;
         } catch(err){}
       });
       fonteEventosNuvem.onerror = function(){
+        sseConectado = false;
         try { if (fonteEventosNuvem) fonteEventosNuvem.close(); } catch(e){}
         fonteEventosNuvem = null;
-        setTimeout(iniciarStreamNuvem, 3000);
+        setTimeout(iniciarStreamNuvem, 4000);
       };
     } catch(e){}
   }
@@ -1455,10 +1520,11 @@ window._setItemOriginal = setItemOriginal;
     if (intervaloVerificacao) clearInterval(intervaloVerificacao);
     if (!PainelNuvem.temUrl()) return;
     iniciarStreamNuvem();
-    // Resposta rápida a cada 1.5s na tela ativa para sincronização instantânea entre celular e PC
-    // Em segundo plano (aba minimizada/celular bloqueado), relaxa para 15s
-    var ms = document.hidden ? 15000 : 1500;
+    // Com SSE ativo, usa checagem leve de versão (/api/nuvem/versao) a cada 20s como segurança;
+    // se SSE cair, checa a cada 6s; em segundo plano, a cada 45s.
+    var ms = document.hidden ? 45000 : (sseConectado ? 20000 : 6000);
     intervaloVerificacao = setInterval(function(){
+      if (document.hidden) return;
       ultimoTempoVerificacao = Date.now();
       PainelNuvem.verificarAtualizacoes();
     }, ms);
@@ -1466,7 +1532,7 @@ window._setItemOriginal = setItemOriginal;
 
   function verificarAoFocar(){
     if (!PainelNuvem.temUrl()) return;
-    if (Date.now() - ultimoTempoVerificacao < 600) return;
+    if (Date.now() - ultimoTempoVerificacao < 1500) return;
     ultimoTempoVerificacao = Date.now();
     PainelNuvem.verificarAtualizacoes();
     iniciarStreamNuvem();
@@ -1494,21 +1560,16 @@ window._setItemOriginal = setItemOriginal;
     if (PainelNuvem.temUrl()){
       registrarLogNuvem('Restaurando dados da nuvem na abertura do app...');
       PainelNuvem.restaurar().then(function(r){
-        if (r && r.ok){
+        if (r && r.ok && !r.emCache){
           aplicarAtualizacaoNaUI();
-          try { if (typeof renderTudo === 'function') renderTudo(); } catch(e){}
         }
       });
       agendarVerificacao();
       iniciarStreamNuvem();
-      // Sincronização periódica inteligente (verifica atualizações ou envia se houver alteração local pendente)
+      // Envia alterações locais pendentes em segundo plano sem duplicar polling
       setInterval(function(){
-        if (!estaAplicandoDadosNuvem) {
-          if (Date.now() - ultimoMomentoAlteracaoLocal < 35000 && ultimoMomentoAlteracaoLocal > 0) {
-            PainelNuvem.backup();
-          } else {
-            PainelNuvem.verificarAtualizacoes();
-          }
+        if (!estaAplicandoDadosNuvem && Date.now() - ultimoMomentoAlteracaoLocal < 35000 && ultimoMomentoAlteracaoLocal > 0) {
+          PainelNuvem.backup();
         }
       }, 15000);
     }
@@ -2492,6 +2553,9 @@ function restaurarManualNuvem(){
     .btn-backup-modulo{ top:6px; right:36px; width:26px; height:26px; font-size:12px; }
     .btn-kpi-link-restrito{
       top:5px; right:5px; width:22px; height:22px; font-size:11px;
+    }
+    *, .btn-kpi-link-restrito, .tela-login-google{
+      backdrop-filter:none !important; -webkit-backdrop-filter:none !important;
     }
   }
   .cartao-hub::before{
@@ -3732,7 +3796,9 @@ function restaurarManualNuvem(){
     padding:12px 10px; box-sizing:border-box;
     overflow-y:auto; overscroll-behavior:contain;
   }
+  #modalAgenda{ z-index:70; }
   #modalDetalheEquipe{ z-index:80; }
+  #modalDiaAgenda{ z-index:82; }
   #modalAvaliacaoColaborador{ z-index:85; }
   #modalVisualizarAnexoAtestado{ z-index:100010; }
   .modal-fundo.aberto{display:flex;}
@@ -3889,6 +3955,17 @@ function restaurarManualNuvem(){
     text-transform:uppercase;
     letter-spacing:0.3px;
   }
+  .modal-caixa .grade-form label.btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    font-size:13px;
+    font-weight:700;
+    margin-bottom:0;
+    color:var(--texto);
+    text-transform:none;
+    letter-spacing:normal;
+  }
   .modal-caixa .grade-form input,
   .modal-caixa .grade-form select,
   .modal-caixa .grade-form textarea{
@@ -3914,6 +3991,9 @@ function restaurarManualNuvem(){
   }
 
   /* ---------- AGENDA / CALENDÁRIO ---------- */
+  #modalAgenda .modal-caixa > *,
+  #modalDiaAgenda .modal-caixa > *,
+  #lista-agenda-dia > *{ flex-shrink:0; }
   .calendario-nav{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
   .calendario-nav strong{font-family:'Bebas Neue',sans-serif; font-weight:400; font-size:17px; color:var(--verde-900); text-transform:capitalize;}
   .calendario-semana{display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-size:10.5px; font-weight:700; color:var(--texto-suave); text-transform:uppercase; margin-bottom:4px;}
@@ -3930,6 +4010,221 @@ function restaurarManualNuvem(){
     position:absolute; bottom:4px; width:5px; height:5px; border-radius:50%; background:var(--verde-700);
   }
   .dia-agenda.selecionado .ponto-evento{background:#fff;}
+
+  /* ---------- RETORNO DO CONSERTO DE RÁDIOS ---------- */
+  #modalRetornoConserto{ z-index:84; }
+  #modalRetornoConserto .modal-caixa > *{ flex-shrink:0; }
+  #modalFotoRetornoConserto{ z-index:100015; }
+  .retorno-situacao-grid{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:8px;
+    margin-top:4px;
+  }
+  @media (max-width:520px){
+    .retorno-situacao-grid{ grid-template-columns:1fr; }
+  }
+  .btn-situacao-retorno{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+    padding:10px 12px;
+    border-radius:10px;
+    border:1.5px solid var(--linha);
+    background:var(--cartao);
+    color:var(--texto);
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+    text-align:center;
+    transition:all .15s ease;
+  }
+  .btn-situacao-retorno:hover{
+    border-color:var(--verde-700);
+    background:var(--fundo);
+  }
+  .btn-situacao-retorno.ativo[data-situacao="Consertado e funcionando"]{
+    border-color:#15803D;
+    background:#DCFCE7;
+    color:#14532D;
+    box-shadow:0 0 0 2px rgba(21,128,61,0.14);
+  }
+  .btn-situacao-retorno.ativo[data-situacao="Devolvido sem conserto"]{
+    border-color:#B45309;
+    background:#FEF3C7;
+    color:#78350F;
+    box-shadow:0 0 0 2px rgba(180,83,9,0.14);
+  }
+  .retorno-datahora-row{
+    display:grid;
+    grid-template-columns:1fr 1fr auto;
+    gap:8px;
+    align-items:end;
+  }
+  @media (max-width:520px){
+    .retorno-datahora-row{
+      grid-template-columns:1fr 1fr;
+    }
+    .retorno-datahora-row .btn-agora-retorno{
+      grid-column:1 / -1;
+      width:100%;
+    }
+  }
+  .retorno-foto-preview-wrap{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    margin-top:10px;
+    padding:10px;
+    border:1px dashed var(--linha);
+    border-radius:12px;
+    background:var(--fundo);
+  }
+  .retorno-foto-preview-1x1{
+    width:180px;
+    max-width:100%;
+    aspect-ratio:1/1;
+    object-fit:cover;
+    border-radius:12px;
+    border:2px solid var(--linha);
+    background:#0F172A;
+    display:block;
+  }
+  .miniatura-foto-retorno-wrap{
+    margin-top:8px;
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    padding:6px 10px 6px 6px;
+    border:1px solid var(--linha);
+    border-radius:10px;
+    background:var(--fundo);
+    cursor:pointer;
+  }
+  .miniatura-foto-retorno-wrap:hover{
+    border-color:var(--verde-700);
+  }
+  .miniatura-foto-retorno{
+    width:56px;
+    height:56px;
+    aspect-ratio:1/1;
+    object-fit:cover;
+    border-radius:8px;
+    border:1px solid var(--linha);
+    display:block;
+    flex-shrink:0;
+  }
+
+  /* ---------- FOTOS NO ENVIO PARA CONSERTO (3+ FOTOS) ---------- */
+  #modalEnvioConsertoRapido .modal-caixa > *,
+  #modalConserto .modal-caixa > *{ flex-shrink:0; }
+  .envio-fotos-grade{
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0, 1fr));
+    gap:8px;
+    margin-top:8px;
+  }
+  .envio-foto-slot,
+  .modal-caixa .grade-form label.envio-foto-slot{
+    position:relative;
+    aspect-ratio:1/1;
+    border-radius:10px;
+    border:1.5px dashed var(--linha);
+    background:var(--fundo);
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:4px;
+    cursor:pointer;
+    text-align:center;
+    text-transform:none;
+    letter-spacing:normal;
+    margin-bottom:0;
+    padding:6px;
+    color:var(--texto-suave);
+    font-size:11.5px;
+    font-weight:700;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .envio-foto-slot:hover{
+    border-color:var(--verde-700);
+    color:var(--verde-900);
+  }
+  .envio-foto-slot.preenchido{
+    border-style:solid;
+    border-color:var(--verde-700);
+    padding:0;
+    background:#0F172A;
+  }
+  .envio-foto-slot img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    display:block;
+  }
+  .envio-foto-badge{
+    position:absolute;
+    top:5px;
+    left:5px;
+    background:rgba(15,23,42,0.78);
+    color:#fff;
+    font-size:10px;
+    font-weight:800;
+    padding:2px 6px;
+    border-radius:999px;
+    line-height:1.2;
+    pointer-events:none;
+  }
+  .envio-foto-remover{
+    position:absolute;
+    top:4px;
+    right:4px;
+    width:22px;
+    height:22px;
+    border-radius:999px;
+    border:none;
+    background:rgba(220,38,38,0.92);
+    color:#fff;
+    font-size:12px;
+    font-weight:800;
+    line-height:1;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 1px 4px rgba(0,0,0,0.35);
+  }
+  .miniaturas-fotos-envio-bloco{
+    margin-top:8px;
+    padding:7px 9px;
+    border:1px solid var(--linha);
+    border-radius:10px;
+    background:var(--fundo);
+  }
+  .miniaturas-fotos-envio-lista{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-top:5px;
+  }
+  .miniatura-foto-envio{
+    width:48px;
+    height:48px;
+    aspect-ratio:1/1;
+    object-fit:cover;
+    border-radius:7px;
+    border:1px solid var(--linha);
+    cursor:pointer;
+    display:block;
+  }
+  .miniatura-foto-envio:hover{
+    border-color:var(--verde-700);
+    transform:scale(1.03);
+  }
 
   /* ---------- TELA DE LOGIN GOOGLE ---------- */
   .tela-login-google {
@@ -5830,6 +6125,19 @@ function restaurarManualNuvem(){
         <label>Observação</label>
         <input type="text" id="envioRapido-observacao" placeholder="Opcional">
       </div>
+      <div class="campo-largo">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;">
+          <label style="margin:0;">Fotos do envio (opcional · até 3 ou mais fotos)</label>
+          <span id="envioRapido-fotosContador" style="font-size:11.5px; font-weight:700; color:var(--texto-suave);">0/3 fotos</span>
+        </div>
+        <input type="file" accept="image/*" capture="environment" id="envioRapido-foto-camera" onchange="capturarFotosConserto(event, 'rapido')" style="position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0;">
+        <input type="file" accept="image/*" multiple id="envioRapido-foto-galeria" onchange="capturarFotosConserto(event, 'rapido')" style="position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <label for="envioRapido-foto-camera" class="btn btn-secundario" style="flex:1; min-width:130px; justify-content:center; margin:0; cursor:pointer;">📷 Tirar foto</label>
+          <label for="envioRapido-foto-galeria" class="btn btn-secundario" style="flex:1; min-width:130px; justify-content:center; margin:0; cursor:pointer;">🖼️ Escolher da galeria</label>
+        </div>
+        <div id="envioRapido-fotosGrade" class="envio-fotos-grade"></div>
+      </div>
     </div>
 
     <div class="modal-acoes" style="margin-top:16px;">
@@ -5838,6 +6146,101 @@ function restaurarManualNuvem(){
       <button class="btn btn-primario" onclick="confirmarEnvioConsertoRapido()" style="background:#DC2626; border-color:#DC2626;">
         🚀 Confirmar Envio para Conserto
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: RETORNO DO CONSERTO DE RÁDIO -->
+<div class="modal-fundo" id="modalRetornoConserto" onclick="if(event.target===this) fecharJanelaRetornoConserto()">
+  <div class="modal-caixa modal-caixa-media">
+    <div class="modal-cabecalho">
+      <div>
+        <h3 style="margin:0; font-size:18px;">✅ Retorno do Conserto</h3>
+        <p style="font-size:12px; color:var(--texto-suave); margin:3px 0 0;">Registre a devolução do aparelho pela assistência técnica</p>
+      </div>
+      <button class="modal-fechar" onclick="fecharJanelaRetornoConserto()">✕</button>
+    </div>
+
+    <div id="retornoConserto-infoRadio" style="margin-bottom:12px; background:var(--fundo); border:1px solid var(--linha); border-radius:10px; padding:12px 14px;">
+      <!-- Preenchido dinamicamente via JavaScript -->
+    </div>
+
+    <input type="hidden" id="retornoConserto-consertoId">
+    <input type="hidden" id="retornoConserto-radioId">
+    <input type="hidden" id="retornoConserto-situacao" value="Consertado e funcionando">
+    <input type="hidden" id="retornoConserto-fotoData" value="">
+
+    <div class="grade-form">
+      <div class="campo-largo">
+        <label style="font-weight:700;">Situação no retorno *</label>
+        <div class="retorno-situacao-grid">
+          <button type="button" class="btn-situacao-retorno ativo" data-situacao="Consertado e funcionando" onclick="selecionarSituacaoRetorno('Consertado e funcionando')">
+            <span>✅</span>
+            <span>Consertado e funcionando</span>
+          </button>
+          <button type="button" class="btn-situacao-retorno" data-situacao="Devolvido sem conserto" onclick="selecionarSituacaoRetorno('Devolvido sem conserto')">
+            <span>⚠️</span>
+            <span>Devolvido sem conserto</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="campo-largo">
+        <div class="retorno-datahora-row">
+          <div>
+            <label style="font-weight:700;">Data de retorno *</label>
+            <input type="date" id="retornoConserto-data">
+          </div>
+          <div>
+            <label style="font-weight:700;">Hora do retorno *</label>
+            <input type="time" id="retornoConserto-hora">
+          </div>
+          <button type="button" class="btn btn-secundario btn-agora-retorno" onclick="preencherAgoraRetornoConserto()" style="height:36px; white-space:nowrap;">🕒 Agora</button>
+        </div>
+      </div>
+
+      <div class="campo-largo">
+        <label>Observação (opcional)</label>
+        <textarea id="retornoConserto-observacao" rows="2" placeholder="Detalhes da devolução, peças trocadas ou estado do aparelho..."></textarea>
+      </div>
+
+      <div class="campo-largo">
+        <label>Foto 1×1 do retorno (opcional)</label>
+        <input type="file" accept="image/*" capture="environment" id="retornoConserto-foto-camera" onchange="capturarFotoRetornoConserto(event)" style="position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0;">
+        <input type="file" accept="image/*" id="retornoConserto-foto-galeria" onchange="capturarFotoRetornoConserto(event)" style="position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <label for="retornoConserto-foto-camera" class="btn btn-secundario" style="flex:1; min-width:140px; justify-content:center; margin:0; cursor:pointer;">📷 Tirar foto</label>
+          <label for="retornoConserto-foto-galeria" class="btn btn-secundario" style="flex:1; min-width:140px; justify-content:center; margin:0; cursor:pointer;">🖼️ Escolher da galeria</label>
+        </div>
+        <div id="retornoConserto-previewBox" class="retorno-foto-preview-wrap" style="display:none;">
+          <img id="retornoConserto-previewImg" class="retorno-foto-preview-1x1" alt="Prévia da foto 1×1 do retorno">
+          <button type="button" class="btn btn-secundario" onclick="removerFotoRetornoConserto()" style="font-size:12px;">🗑️ Remover foto</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-acoes" style="margin-top:16px;">
+      <button type="button" class="btn btn-secundario" onclick="fecharJanelaRetornoConserto()">Cancelar</button>
+      <button type="button" class="btn btn-primario" onclick="confirmarRetornoConserto()">✓ Registrar Retorno</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: VISUALIZAÇÃO AMPLIADA DA FOTO DE RETORNO -->
+<div class="modal-fundo" id="modalFotoRetornoConserto" onclick="if(event.target===this) fecharFotoRetornoConserto()">
+  <div class="modal-caixa" style="max-width:540px; padding:16px;">
+    <div class="modal-cabecalho">
+      <div>
+        <h3 id="fotoAmpliadaRetornoTitulo" style="margin:0; font-size:16px;">📷 Foto do Retorno do Conserto</h3>
+        <div id="fotoAmpliadaRetornoInfo" style="font-size:12px; color:var(--texto-suave); margin-top:2px;"></div>
+      </div>
+      <button type="button" class="modal-fechar" onclick="fecharFotoRetornoConserto()">✕</button>
+    </div>
+    <div style="text-align:center; background:#0F172A; border-radius:10px; padding:10px;">
+      <img id="fotoAmpliadaRetornoImg" style="width:100%; max-width:460px; aspect-ratio:1/1; object-fit:cover; border-radius:8px; display:block; margin:0 auto;" alt="Foto ampliada do retorno do conserto">
+    </div>
+    <div class="modal-acoes" style="margin-top:12px;">
+      <button type="button" class="btn btn-secundario" onclick="fecharFotoRetornoConserto()">Fechar</button>
     </div>
   </div>
 </div>
@@ -5882,6 +6285,19 @@ function restaurarManualNuvem(){
         <div><label>Centro de custo</label><input type="text" id="conserto-centroCusto" placeholder="Ex: DEM2, 1020, Operações..."></div>
         <div><label>Comentário</label><input type="text" id="conserto-comentario" placeholder="Opcional"></div>
         <div class="campo-largo"><label>Observação</label><input type="text" id="conserto-observacao" placeholder="Opcional"></div>
+        <div class="campo-largo">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;">
+            <label style="margin:0;">Fotos do envio (opcional · até 3 ou mais fotos)</label>
+            <span id="conserto-fotosContador" style="font-size:11.5px; font-weight:700; color:var(--texto-suave);">0/3 fotos</span>
+          </div>
+          <input type="file" accept="image/*" capture="environment" id="conserto-foto-camera" onchange="capturarFotosConserto(event, 'form')" style="position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0;">
+          <input type="file" accept="image/*" multiple id="conserto-foto-galeria" onchange="capturarFotosConserto(event, 'form')" style="position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0;">
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <label for="conserto-foto-camera" class="btn btn-secundario" style="flex:1; min-width:130px; justify-content:center; margin:0; cursor:pointer;">📷 Tirar foto</label>
+            <label for="conserto-foto-galeria" class="btn btn-secundario" style="flex:1; min-width:130px; justify-content:center; margin:0; cursor:pointer;">🖼️ Escolher da galeria</label>
+          </div>
+          <div id="conserto-fotosGrade" class="envio-fotos-grade"></div>
+        </div>
       </div>
       <div class="acoes-form">
         <button class="btn btn-primario" onclick="salvarConserto()">Registrar envio</button>
@@ -6609,7 +7025,7 @@ function restaurarManualNuvem(){
   </div>
 </div>
 
-<div class="modal-fundo" id="modalDiaAgenda" style="z-index:60;" onclick="if(event.target===this) fecharModalDiaAgenda()">
+<div class="modal-fundo" id="modalDiaAgenda" style="z-index:82;" onclick="if(event.target===this) fecharModalDiaAgenda()">
   <div class="modal-caixa">
     <div class="modal-cabecalho">
       <h3 id="tituloDiaAgenda">Compromissos</h3>
@@ -8939,7 +9355,7 @@ const CONFIG_MODULOS_BACKUP = {
   presenca: {
     titulo: 'Presença',
     icone: '📅',
-    chaves: ['mtc_presenca', 'mtc_anexos_atestados', 'mtc_presenca_backup_historico']
+    chaves: ['mtc_presenca', 'mtc_anexos_atestados']
   },
   agenda: {
     titulo: 'Agenda',
@@ -9065,9 +9481,23 @@ function salvarListaBackupsModulo(modulo, lista){
   const salvar = (typeof window !== 'undefined' && typeof window.setItemOriginal === 'function' ? window.setItemOriginal : null) ||
                  (typeof Storage !== 'undefined' && Storage.prototype && Storage.prototype.setItem) ||
                  function(k, v){ if (typeof localStorage !== 'undefined' && localStorage.setItem) localStorage.setItem(k, v); else localStorage[k] = v; };
-  try {
-    salvar.call(localStorage, chave, JSON.stringify(lista || []));
-  } catch(e){}
+  let copia = Array.isArray(lista) ? lista.slice() : [];
+  for (let tentativa = 0; tentativa < 6; tentativa++) {
+    try {
+      salvar.call(localStorage, chave, JSON.stringify(copia));
+      return;
+    } catch(e) {
+      // Se estourar cota no celular, remove o backup automático mais antigo e tenta novamente
+      const idxAntigo = copia.map(b => b && b.tipo === 'auto').lastIndexOf(true);
+      if (idxAntigo >= 0) {
+        copia.splice(idxAntigo, 1);
+      } else if (copia.length > 1) {
+        copia.pop();
+      } else {
+        break;
+      }
+    }
+  }
 }
 window.salvarListaBackupsModulo = salvarListaBackupsModulo;
 
@@ -9266,10 +9696,15 @@ function executarRestauracaoModulo(modulo, dadosBackup, modo){
       if (val !== undefined && val !== null) {
         const strVal = typeof val === 'string' ? val : JSON.stringify(val);
         salvar.call(localStorage, chave, strVal);
+        if (chave === 'mtc_presenca') salvar.call(localStorage, 'mtc_presenca_backup_historico', strVal);
       }
     });
   } else {
     mesclarDadosModulo(modulo, payloadDados, salvar);
+    if (payloadDados.mtc_presenca) {
+      const pAtual = localStorage.getItem('mtc_presenca');
+      if (pAtual) salvar.call(localStorage, 'mtc_presenca_backup_historico', pAtual);
+    }
   }
 
   mostrarAlertaBackupModulo('Restauração concluída com sucesso! Sincronizando com a nuvem...', 'sucesso');
@@ -9311,6 +9746,23 @@ function agendarBackupAutomaticoModulo(modulo){
 }
 window.agendarBackupAutomaticoModulo = agendarBackupAutomaticoModulo;
 
+function calcularAssinaturaRawModulo(modulo){
+  const conf = CONFIG_MODULOS_BACKUP[modulo];
+  const chaves = conf ? conf.chaves : ['mtc_' + modulo];
+  let acc = '';
+  for (let i = 0; i < chaves.length; i++) {
+    const raw = localStorage.getItem(chaves[i]) || '';
+    const len = raw.length;
+    acc += chaves[i] + ':' + len + ':' + (len > 240 ? (raw.slice(0, 80) + '|' + raw.slice(Math.floor(len / 2) - 40, Math.floor(len / 2) + 40) + '|' + raw.slice(-80)) : raw) + ';';
+  }
+  let h = 2166136261;
+  for (let i = 0; i < acc.length; i++) {
+    h ^= acc.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(36) + '_' + acc.length;
+}
+
 function executarBackupAutomaticoSeConfigurado(modulo){
   if (!modulo) return;
   const cfg = obterConfigBackupModulo(modulo);
@@ -9323,15 +9775,12 @@ function executarBackupAutomaticoSeConfigurado(modulo){
   }
 
   const hojeIsoData = hoje.toISOString().slice(0, 10);
-  const diasSemanaNomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-  const agoraFormatada = hoje.toLocaleDateString('pt-BR') + ' às ' + hoje.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-  const dadosModulo = coletarDadosModulo(modulo);
-  const totalRegistros = calcularTotalRegistros(dadosModulo);
-
+  const assinaturaAtual = calcularAssinaturaRawModulo(modulo);
   let lista = obterListaBackupsModulo(modulo);
 
   const reterDias = cfg.reterDias || 30;
   const cutoffTime = Date.now() - (reterDias * 24 * 60 * 60 * 1000);
+  const tamanhoAntes = lista.length;
   lista = lista.filter(function(b){
     if (b.tipo === 'antes_restaurar') return true;
     const t = b.dataISO ? new Date(b.dataISO).getTime() : (b.timestamp || 0);
@@ -9341,6 +9790,16 @@ function executarBackupAutomaticoSeConfigurado(modulo){
   const idxHoje = lista.findIndex(function(b){
     return b.tipo === 'auto' && b.dataISO && b.dataISO.slice(0, 10) === hojeIsoData;
   });
+
+  // Se o backup automático de hoje já existe com os mesmos dados e nada expirou, evita JSON.parse/stringify/setItem pesados
+  if (idxHoje >= 0 && lista.length === tamanhoAntes && lista[idxHoje]._hash === assinaturaAtual) {
+    return;
+  }
+
+  const diasSemanaNomes = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const agoraFormatada = hoje.toLocaleDateString('pt-BR') + ' às ' + hoje.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  const dadosModulo = coletarDadosModulo(modulo);
+  const totalRegistros = calcularTotalRegistros(dadosModulo);
 
   const itemAuto = {
     id: idxHoje >= 0 ? lista[idxHoje].id : ('bkp_auto_' + hojeIsoData + '_' + modulo),
@@ -9352,6 +9811,7 @@ function executarBackupAutomaticoSeConfigurado(modulo){
     tipo: 'auto',
     rotuloTipo: 'Automático',
     totalRegistros: totalRegistros,
+    _hash: assinaturaAtual,
     dados: dadosModulo
   };
 
@@ -9371,10 +9831,12 @@ window.executarBackupAutomaticoSeConfigurado = executarBackupAutomaticoSeConfigu
 
 function inicializarBackupsAutomaticos(){
   const modulos = Object.keys(CONFIG_MODULOS_BACKUP);
-  modulos.forEach(function(m){
-    try {
-      executarBackupAutomaticoSeConfigurado(m);
-    } catch(e){}
+  modulos.forEach(function(m, idx){
+    setTimeout(function(){
+      try {
+        executarBackupAutomaticoSeConfigurado(m);
+      } catch(e){}
+    }, idx * 120);
   });
 }
 window.inicializarBackupsAutomaticos = inicializarBackupsAutomaticos;
@@ -10748,7 +11210,7 @@ function renderRadios(){
   if(filtroKpiRadioAtivo === 'manutencao'){
     baseLista = emManutencaoLista;
   } else if(filtroKpiRadioAtivo === 'conserto'){
-    baseLista = consertoLista.length > 0 ? consertoLista : lista.filter(i => conserto.some(c => c.radioId === i.id));
+    baseLista = consertoLista;
   } else if(filtroKpiRadioAtivo === 'todos'){
     baseLista = lista;
   } else {
@@ -10866,7 +11328,7 @@ function renderRadios(){
     } else if(filtroKpiRadioAtivo === 'conserto'){
       if(indIcone) indIcone.textContent = '🔧';
       indTitulo.textContent = `Exibindo: Rádios em Conserto (${filtrada.length} ${filtrada.length === 1 ? 'rádio' : 'rádios'})`;
-      if(indSub) indSub.textContent = 'Rádios com registro de assistência técnica externa';
+      if(indSub) indSub.textContent = 'Toque em um rádio em conserto para registrar o retorno';
       if(btnAcaoExtra){
         btnAcaoExtra.style.display = 'inline-flex';
         btnAcaoExtra.textContent = 'Ordens de Reparo';
@@ -10945,7 +11407,7 @@ function renderRadios(){
          onpointermove="moverPressaoConsertoRadio(event, '${i.id}')"
          oncontextmenu="if(window._pressaoConsertoAtiva){ event.preventDefault(); return false; }"
          onclick="tratarCliqueCartaoRadio(event, '${i.id}')"
-         title="Toque rápido para ver detalhes · Pressione por 2s para enviar a conserto">
+         title="${(filtroKpiRadioAtivo === 'conserto' && temConsertoAtivo) ? 'Toque para registrar retorno do conserto · Pressione por 2s para novo envio' : 'Toque rápido para ver detalhes · Pressione por 2s para enviar a conserto'}">
       <div class="coluna-numero-chave" title="Código do rádio: ${escapeHtml(i.codigo || '—')}">
         <span class="prefixo-n">CÓD</span>
         <span class="valor-numero-chave ${((i.codigo||'').length > 5) ? 'codigo-longo' : ''}">${htmlCodigo}</span>
@@ -11090,6 +11552,13 @@ function tratarCliqueCartaoRadio(event, radioId){
     window._bloquearCliqueRadio = false;
     return;
   }
+  if(filtroKpiRadioAtivo === 'conserto'){
+    const temConsertoAberto = carregar('radiosConserto').some(c => c.radioId === radioId && !c.dataRetorno);
+    if(temConsertoAberto){
+      abrirJanelaRetornoConserto(radioId);
+      return;
+    }
+  }
   abrirDetalheRadio(radioId);
 }
 
@@ -11111,7 +11580,7 @@ function abrirJanelaEnvioConserto(radioId){
   const consertoAberto = reparos.find(c => !c.dataRetorno);
 
   document.getElementById('envioRapido-radioId').value = radioId;
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = obterDataHoraLocalAtual().data;
   document.getElementById('envioRapido-dataEnvio').value = hoje;
   document.getElementById('envioRapido-dataRetorno').value = '';
   document.getElementById('envioRapido-avaria').value = 'Falha na comunicação';
@@ -11120,6 +11589,8 @@ function abrirJanelaEnvioConserto(radioId){
   document.getElementById('envioRapido-comentario').value = '';
   document.getElementById('envioRapido-centroCusto').value = '';
   document.getElementById('envioRapido-observacao').value = '';
+  window._fotosEnvioRapido = [];
+  if(typeof renderGradeFotosEnvio === 'function') renderGradeFotosEnvio('rapido');
 
   const infoEl = document.getElementById('envioRapido-infoRadio');
   const rotulo = (radio.setor && radio.setor !== '(Sem setor definido)') ? radio.setor : 'Rádio reserva';
@@ -11197,6 +11668,7 @@ function confirmarEnvioConsertoRapido(){
   const elRet = document.getElementById('envioRapido-dataRetorno');
 
   const agoraIso = new Date().toISOString();
+  const fotosEnvio = Array.isArray(window._fotosEnvioRapido) ? window._fotosEnvioRapido.slice() : [];
   const dados = {
     id: gerarId(),
     radioId,
@@ -11207,6 +11679,7 @@ function confirmarEnvioConsertoRapido(){
     comentario: elCom ? elCom.value.trim() : '',
     centroCusto: elCc ? elCc.value.trim() : '',
     observacao: elObs ? elObs.value.trim() : '',
+    fotosEnvio,
     criadoEm: agoraIso,
     atualizadoEm: agoraIso
   };
@@ -11242,7 +11715,7 @@ function abrirDetalheRadio(id){
   const reparos = carregar('radiosConserto').filter(c => c.radioId === id);
   const historicoTexto = reparos.length
     ? reparos.sort((a,b)=>(b.dataEnvio||'').localeCompare(a.dataEnvio||''))
-        .map(r => `${formatarDataSimples(r.dataEnvio)}: ${r.avaria}${r.centroCusto ? ' [CC: ' + r.centroCusto + ']' : ''}${r.dataRetorno ? ' (retorno ' + formatarDataSimples(r.dataRetorno) + ')' : ' (em conserto)'}`)
+        .map(r => `${formatarDataSimples(r.dataEnvio)}: ${r.avaria}${r.centroCusto ? ' [CC: ' + r.centroCusto + ']' : ''}${r.dataRetorno ? ' (retorno ' + formatarDataSimples(r.dataRetorno) + (r.horaRetorno ? ' às ' + r.horaRetorno : '') + (r.situacaoRetorno ? ' — ' + r.situacaoRetorno : '') + ')' : ' (em conserto)'}`)
         .join('; ')
     : '';
 
@@ -11290,11 +11763,14 @@ function compartilharRadioEmail(){
     texto += 'Nenhum reparo registrado.\n';
   } else {
     reparos.forEach(r => {
-      const status = r.dataRetorno ? ('Retornado em ' + formatarDataSimples(r.dataRetorno)) : 'AINDA EM CONSERTO';
+      const status = r.dataRetorno
+        ? ('Retornado em ' + formatarDataSimples(r.dataRetorno) + (r.horaRetorno ? ' às ' + r.horaRetorno : '') + (r.situacaoRetorno ? ' (' + r.situacaoRetorno + ')' : ''))
+        : 'AINDA EM CONSERTO';
       texto += `• ${formatarDataSimples(r.dataEnvio)} — ${r.avaria || '—'} — ${status}\n`;
       if(r.comentario) texto += `  Comentário: ${r.comentario}\n`;
       if(r.centroCusto) texto += `  Centro de custo: ${r.centroCusto}\n`;
       if(r.observacao) texto += `  Observação: ${r.observacao}\n`;
+      if(r.observacaoRetorno) texto += `  Observação no retorno: ${r.observacaoRetorno}\n`;
     });
   }
 
@@ -11346,6 +11822,8 @@ function limparFormConserto(){
   if(elCcLimpar) elCcLimpar.value = '';
   const elObsLimpar = document.getElementById('conserto-observacao');
   if(elObsLimpar) elObsLimpar.value = '';
+  window._fotosEnvioForm = [];
+  if(typeof renderGradeFotosEnvio === 'function') renderGradeFotosEnvio('form');
 }
 function abrirConserto(radioIdPredefinido){
   popularSelectRadios();
@@ -11354,7 +11832,7 @@ function abrirConserto(radioIdPredefinido){
     const sel = document.getElementById('conserto-radioId');
     if(sel) sel.value = radioIdPredefinido;
     const dt = document.getElementById('conserto-dataEnvio');
-    if(dt && !dt.value) dt.value = new Date().toISOString().slice(0, 10);
+    if(dt && !dt.value) dt.value = obterDataHoraLocalAtual().data;
   }
   renderConserto();
   document.getElementById('modalConserto').classList.add('aberto');
@@ -11363,30 +11841,447 @@ function fecharConserto(){
   document.getElementById('modalConserto').classList.remove('aberto');
   renderRadios();
 }
+/* ============================================================
+   JANELA DE RETORNO DO CONSERTO DE RÁDIO (KPI EM CONSERTO)
+   ============================================================ */
+function obterDataHoraLocalAtual(){
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  return {
+    data: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    hora: `${pad(d.getHours())}:${pad(d.getMinutes())}`
+  };
+}
+
+function preencherAgoraRetornoConserto(){
+  const agora = obterDataHoraLocalAtual();
+  const elData = document.getElementById('retornoConserto-data');
+  const elHora = document.getElementById('retornoConserto-hora');
+  if(elData) elData.value = agora.data;
+  if(elHora) elHora.value = agora.hora;
+}
+
+function selecionarSituacaoRetorno(valor){
+  const campo = document.getElementById('retornoConserto-situacao');
+  if(campo) campo.value = valor;
+  document.querySelectorAll('#modalRetornoConserto .btn-situacao-retorno').forEach(btn => {
+    btn.classList.toggle('ativo', btn.getAttribute('data-situacao') === valor);
+  });
+}
+
+function removerFotoRetornoConserto(){
+  const elFoto = document.getElementById('retornoConserto-fotoData');
+  const elCam = document.getElementById('retornoConserto-foto-camera');
+  const elGal = document.getElementById('retornoConserto-foto-galeria');
+  const elImg = document.getElementById('retornoConserto-previewImg');
+  const elBox = document.getElementById('retornoConserto-previewBox');
+  if(elFoto) elFoto.value = '';
+  if(elCam) elCam.value = '';
+  if(elGal) elGal.value = '';
+  if(elImg) elImg.src = '';
+  if(elBox) elBox.style.display = 'none';
+}
+
+function capturarFotoRetornoConserto(event){
+  const input = event && event.target;
+  const arquivo = input && input.files && input.files[0];
+  if(!arquivo) return;
+  const leitor = new FileReader();
+  leitor.onload = function(e){
+    const img = new Image();
+    img.onload = function(){
+      const ladoOrigem = Math.min(img.width, img.height);
+      const sx = Math.max(0, Math.floor((img.width - ladoOrigem) / 2));
+      const sy = Math.max(0, Math.floor((img.height - ladoOrigem) / 2));
+      const ladoDestino = Math.min(ladoOrigem, 640);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = ladoDestino;
+      canvas.height = ladoDestino;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, sx, sy, ladoOrigem, ladoOrigem, 0, 0, ladoDestino, ladoDestino);
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.78);
+      const elFoto = document.getElementById('retornoConserto-fotoData');
+      const elImg = document.getElementById('retornoConserto-previewImg');
+      const elBox = document.getElementById('retornoConserto-previewBox');
+      if(elFoto) elFoto.value = dataUrl;
+      if(elImg) elImg.src = dataUrl;
+      if(elBox) elBox.style.display = 'flex';
+      if(input) input.value = '';
+    };
+    img.src = e.target.result;
+  };
+  leitor.readAsDataURL(arquivo);
+}
+
+function abrirJanelaRetornoConserto(radioId, consertoIdOpcional){
+  const radios = carregar('radios');
+  const radio = radios.find(r => r.id === radioId);
+  const listaConserto = carregar('radiosConserto');
+  let registro = null;
+
+  if(consertoIdOpcional){
+    registro = listaConserto.find(c => c.id === consertoIdOpcional);
+  }
+  if(!registro){
+    const abertos = listaConserto
+      .filter(c => c.radioId === radioId && !c.dataRetorno)
+      .sort((a,b) => (b.dataEnvio || '').localeCompare(a.dataEnvio || '') || (b.criadoEm || '').localeCompare(a.criadoEm || ''));
+    registro = abertos[0] || null;
+  }
+
+  if(!registro){
+    if(radioId) abrirDetalheRadio(radioId);
+    return;
+  }
+
+  const elConsertoId = document.getElementById('retornoConserto-consertoId');
+  const elRadioId = document.getElementById('retornoConserto-radioId');
+  const elObs = document.getElementById('retornoConserto-observacao');
+  if(elConsertoId) elConsertoId.value = registro.id;
+  if(elRadioId) elRadioId.value = radio ? radio.id : (registro.radioId || '');
+  if(elObs) elObs.value = '';
+
+  selecionarSituacaoRetorno('Consertado e funcionando');
+  preencherAgoraRetornoConserto();
+  removerFotoRetornoConserto();
+
+  const elData = document.getElementById('retornoConserto-data');
+  if(elData){
+    if(registro.dataEnvio){
+      elData.setAttribute('min', registro.dataEnvio);
+    } else {
+      elData.removeAttribute('min');
+    }
+  }
+
+  const setor = radio
+    ? ((radio.setor && radio.setor !== '(Sem setor definido)') ? radio.setor : 'Rádio reserva')
+    : (registro.setor || 'Rádio');
+  const codigo = radio ? (radio.codigo || '—') : '—';
+  const modelo = radio ? (radio.modelo || '—') : '—';
+  const sn = radio ? (radio.sn || '—') : '—';
+
+  const fotosEnvio = Array.isArray(registro.fotosEnvio) ? registro.fotosEnvio : [];
+  const htmlFotosEnvio = fotosEnvio.length > 0
+    ? `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--linha);">
+         <div style="font-size:11.5px; font-weight:700; color:var(--texto-suave);">Fotos registradas no envio (${fotosEnvio.length}):</div>
+         <div class="miniaturas-fotos-envio-lista">
+           ${fotosEnvio.map((src, idx) => `<img src="${src}" class="miniatura-foto-envio" onclick="ampliarFotoEnvioConserto('${registro.id}', ${idx})" title="Foto ${idx + 1} do envio · toque para ampliar" alt="Foto ${idx + 1} do envio">`).join('')}
+         </div>
+       </div>`
+    : '';
+
+  const infoEl = document.getElementById('retornoConserto-infoRadio');
+  if(infoEl){
+    infoEl.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+        <div>
+          <div style="font-size:16px; font-weight:800; color:var(--verde-900);">${escapeHtml(setor)}</div>
+          <div style="font-size:13px; color:var(--texto); margin-top:3px;">
+            <strong>Código:</strong> <code style="font-weight:700;">${escapeHtml(codigo)}</code> ·
+            <strong>Modelo:</strong> <code>${escapeHtml(modelo)}</code> ·
+            <strong>S/N:</strong> <code style="font-weight:700;">${escapeHtml(sn)}</code>
+          </div>
+        </div>
+        <span class="tag-status alerta">Em conserto</span>
+      </div>
+      <div style="margin-top:9px; padding-top:8px; border-top:1px dashed var(--linha); font-size:12.5px; color:var(--texto);">
+        <div><strong>Data de envio:</strong> ${formatarDataSimples(registro.dataEnvio)}</div>
+        <div style="margin-top:2px;"><strong>Avaria registrada:</strong> ${escapeHtml(registro.avaria || '—')}</div>
+      </div>
+      ${htmlFotosEnvio}
+    `;
+  }
+
+  const modal = document.getElementById('modalRetornoConserto');
+  if(modal) modal.classList.add('aberto');
+}
+
+function fecharJanelaRetornoConserto(){
+  const modal = document.getElementById('modalRetornoConserto');
+  if(modal) modal.classList.remove('aberto');
+}
+
+function confirmarRetornoConserto(){
+  const consertoId = document.getElementById('retornoConserto-consertoId').value;
+  const radioId = document.getElementById('retornoConserto-radioId').value;
+  const situacaoRetorno = document.getElementById('retornoConserto-situacao').value || 'Consertado e funcionando';
+  const dataRetorno = document.getElementById('retornoConserto-data').value;
+  const horaRetorno = document.getElementById('retornoConserto-hora').value;
+  const observacaoRetorno = document.getElementById('retornoConserto-observacao').value.trim();
+  const fotoRetorno = document.getElementById('retornoConserto-fotoData').value || '';
+
+  if(!dataRetorno){
+    alert('Por favor, informe a data de retorno.');
+    const elData = document.getElementById('retornoConserto-data');
+    if(elData) elData.focus();
+    return;
+  }
+  if(!horaRetorno){
+    alert('Por favor, informe a hora do retorno.');
+    const elHora = document.getElementById('retornoConserto-hora');
+    if(elHora) elHora.focus();
+    return;
+  }
+
+  let lista = carregar('radiosConserto');
+  const registro = lista.find(c => c.id === consertoId);
+  if(!registro){
+    alert('Registro de conserto não encontrado.');
+    fecharJanelaRetornoConserto();
+    return;
+  }
+
+  if(registro.dataEnvio && dataRetorno < registro.dataEnvio){
+    alert(`A data de retorno (${formatarDataSimples(dataRetorno)}) não pode ser anterior à data de envio (${formatarDataSimples(registro.dataEnvio)}).`);
+    const elData = document.getElementById('retornoConserto-data');
+    if(elData) elData.focus();
+    return;
+  }
+
+  const agoraIso = new Date().toISOString();
+  lista = lista.map(item => {
+    if(item.id !== consertoId) return item;
+    return {
+      ...item,
+      dataRetorno,
+      horaRetorno,
+      situacaoRetorno,
+      observacaoRetorno,
+      fotoRetorno,
+      atualizadoEm: agoraIso
+    };
+  });
+
+  try { ultimoMomentoAlteracaoLocal = Date.now(); } catch(e){}
+  salvarLista('radiosConserto', lista);
+  fecharJanelaRetornoConserto();
+  renderRadios();
+  if(typeof renderConserto === 'function') renderConserto();
+
+  const radio = carregar('radios').find(r => r.id === (radioId || registro.radioId));
+  const rotulo = radio ? (radio.setor || radio.codigo || '') : (registro.setor || '');
+  if(typeof mostrarNotificacaoFlutuante === 'function'){
+    mostrarNotificacaoFlutuante(`Retorno do rádio ${rotulo ? rotulo + ' ' : ''}registrado (${situacaoRetorno})!`, 'ok');
+  } else {
+    alert('Retorno do rádio registrado com sucesso!');
+  }
+}
+
+function ampliarFotoRetornoConserto(consertoId){
+  const item = carregar('radiosConserto').find(c => c.id === consertoId);
+  if(!item || !item.fotoRetorno) return;
+  const radio = carregar('radios').find(r => r.id === item.radioId);
+  const tituloEl = document.getElementById('fotoAmpliadaRetornoTitulo');
+  const imgEl = document.getElementById('fotoAmpliadaRetornoImg');
+  const infoEl = document.getElementById('fotoAmpliadaRetornoInfo');
+  if(tituloEl) tituloEl.textContent = '📷 Foto do Retorno do Conserto';
+  if(imgEl) imgEl.src = item.fotoRetorno;
+  if(infoEl){
+    const setor = radio ? (radio.setor || 'Rádio') : (item.setor || 'Rádio');
+    const cod = radio && radio.codigo ? `Cód. ${radio.codigo}` : '';
+    const dt = item.dataRetorno ? `${formatarDataSimples(item.dataRetorno)}${item.horaRetorno ? ' às ' + item.horaRetorno : ''}` : '';
+    infoEl.textContent = [setor, cod, item.situacaoRetorno, dt].filter(Boolean).join(' · ');
+  }
+  const modal = document.getElementById('modalFotoRetornoConserto');
+  if(modal) modal.classList.add('aberto');
+}
+
+function ampliarFotoEnvioConserto(consertoId, index){
+  const item = carregar('radiosConserto').find(c => c.id === consertoId);
+  const fotos = item && Array.isArray(item.fotosEnvio) ? item.fotosEnvio : [];
+  const src = fotos[index];
+  if(!src) return;
+  const radio = carregar('radios').find(r => r.id === item.radioId);
+  const tituloEl = document.getElementById('fotoAmpliadaRetornoTitulo');
+  const imgEl = document.getElementById('fotoAmpliadaRetornoImg');
+  const infoEl = document.getElementById('fotoAmpliadaRetornoInfo');
+  if(tituloEl) tituloEl.textContent = `📷 Foto ${index + 1} do Envio para Conserto`;
+  if(imgEl) imgEl.src = src;
+  if(infoEl){
+    const setor = radio ? (radio.setor || 'Rádio') : (item.setor || 'Rádio');
+    const cod = radio && radio.codigo ? `Cód. ${radio.codigo}` : '';
+    const dt = item.dataEnvio ? `Enviado em ${formatarDataSimples(item.dataEnvio)}` : '';
+    infoEl.textContent = [setor, cod, item.avaria, dt].filter(Boolean).join(' · ');
+  }
+  const modal = document.getElementById('modalFotoRetornoConserto');
+  if(modal) modal.classList.add('aberto');
+}
+
+function ampliarFotoEnvioPreview(modo, index){
+  const lista = modo === 'rapido' ? (window._fotosEnvioRapido || []) : (window._fotosEnvioForm || []);
+  const src = lista[index];
+  if(!src) return;
+  const tituloEl = document.getElementById('fotoAmpliadaRetornoTitulo');
+  const imgEl = document.getElementById('fotoAmpliadaRetornoImg');
+  const infoEl = document.getElementById('fotoAmpliadaRetornoInfo');
+  if(tituloEl) tituloEl.textContent = `📷 Prévia da Foto ${index + 1} do Envio`;
+  if(imgEl) imgEl.src = src;
+  if(infoEl) infoEl.textContent = 'Foto recortada em 1×1 pronta para envio';
+  const modal = document.getElementById('modalFotoRetornoConserto');
+  if(modal) modal.classList.add('aberto');
+}
+
+function fecharFotoRetornoConserto(){
+  const modal = document.getElementById('modalFotoRetornoConserto');
+  if(modal) modal.classList.remove('aberto');
+}
+
+window._fotosEnvioRapido = [];
+window._fotosEnvioForm = [];
+
+function renderGradeFotosEnvio(modo){
+  const isRapido = modo === 'rapido';
+  const fotos = isRapido
+    ? (Array.isArray(window._fotosEnvioRapido) ? window._fotosEnvioRapido : [])
+    : (Array.isArray(window._fotosEnvioForm) ? window._fotosEnvioForm : []);
+  const grade = document.getElementById(isRapido ? 'envioRapido-fotosGrade' : 'conserto-fotosGrade');
+  const contador = document.getElementById(isRapido ? 'envioRapido-fotosContador' : 'conserto-fotosContador');
+  if(contador){
+    const qtd = fotos.length;
+    contador.textContent = qtd >= 3 ? `✅ ${qtd} fotos anexadas` : `${qtd}/3 fotos`;
+    contador.style.color = qtd >= 3 ? '#15803D' : 'var(--texto-suave)';
+  }
+  if(!grade) return;
+
+  const MAX_FOTOS_ENVIO = 10;
+  const totalSlots = Math.max(3, fotos.length < MAX_FOTOS_ENVIO ? fotos.length + (fotos.length >= 3 ? 1 : 0) : fotos.length);
+  const inputCameraId = isRapido ? 'envioRapido-foto-camera' : 'conserto-foto-camera';
+
+  let html = '';
+  for(let idx = 0; idx < totalSlots; idx++){
+    const src = fotos[idx];
+    if(src){
+      html += `
+        <div class="envio-foto-slot preenchido" onclick="ampliarFotoEnvioPreview('${modo}', ${idx})" title="Toque para ampliar a foto ${idx + 1}">
+          <img src="${src}" alt="Foto ${idx + 1} do envio">
+          <span class="envio-foto-badge">${idx + 1}</span>
+          <button type="button" class="envio-foto-remover" onclick="event.stopPropagation(); removerFotoEnvioConserto('${modo}', ${idx})" title="Remover foto ${idx + 1}">✕</button>
+        </div>`;
+    } else {
+      const textoSlot = idx >= 3 ? '+ Mais foto' : `Foto ${idx + 1}`;
+      html += `
+        <label for="${inputCameraId}" class="envio-foto-slot" title="Tirar ou adicionar ${textoSlot}">
+          <span class="envio-foto-badge">${idx + 1}</span>
+          <span style="font-size:20px; line-height:1;">📷</span>
+          <span>${textoSlot}</span>
+        </label>`;
+    }
+  }
+  grade.innerHTML = html;
+}
+
+function removerFotoEnvioConserto(modo, index){
+  const isRapido = modo === 'rapido';
+  const arr = isRapido ? window._fotosEnvioRapido : window._fotosEnvioForm;
+  if(Array.isArray(arr) && index >= 0 && index < arr.length){
+    arr.splice(index, 1);
+  }
+  renderGradeFotosEnvio(modo);
+}
+
+function capturarFotosConserto(event, modo){
+  const isRapido = modo === 'rapido';
+  const input = event && event.target;
+  const arquivos = input && input.files ? Array.from(input.files) : [];
+  if(arquivos.length === 0) return;
+
+  if(isRapido && !Array.isArray(window._fotosEnvioRapido)) window._fotosEnvioRapido = [];
+  if(!isRapido && !Array.isArray(window._fotosEnvioForm)) window._fotosEnvioForm = [];
+  const destino = isRapido ? window._fotosEnvioRapido : window._fotosEnvioForm;
+  const MAX_FOTOS_ENVIO = 10;
+
+  const disponivel = MAX_FOTOS_ENVIO - destino.length;
+  if(disponivel <= 0){
+    alert(`Limite máximo de ${MAX_FOTOS_ENVIO} fotos por envio atingido.`);
+    if(input) input.value = '';
+    return;
+  }
+
+  const selecionados = arquivos.slice(0, disponivel);
+  let pendentes = selecionados.length;
+
+  selecionados.forEach(arquivo => {
+    const leitor = new FileReader();
+    leitor.onload = function(e){
+      const img = new Image();
+      img.onload = function(){
+        const ladoOrigem = Math.min(img.width, img.height);
+        const sx = Math.max(0, Math.floor((img.width - ladoOrigem) / 2));
+        const sy = Math.max(0, Math.floor((img.height - ladoOrigem) / 2));
+        const ladoDestino = Math.min(ladoOrigem, 560);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = ladoDestino;
+        canvas.height = ladoDestino;
+        canvas.getContext('2d').drawImage(img, sx, sy, ladoOrigem, ladoOrigem, 0, 0, ladoDestino, ladoDestino);
+
+        destino.push(canvas.toDataURL('image/jpeg', 0.74));
+        pendentes--;
+        if(pendentes <= 0){
+          renderGradeFotosEnvio(modo);
+        }
+      };
+      img.onerror = function(){
+        pendentes--;
+        if(pendentes <= 0) renderGradeFotosEnvio(modo);
+      };
+      img.src = e.target.result;
+    };
+    leitor.onerror = function(){
+      pendentes--;
+      if(pendentes <= 0) renderGradeFotosEnvio(modo);
+    };
+    leitor.readAsDataURL(arquivo);
+  });
+
+  if(input) input.value = '';
+}
+
 function salvarConserto(){
   const idAtual = document.getElementById('id-conserto').value;
   const radioId = document.getElementById('conserto-radioId').value;
   const selecaoAvaria = document.getElementById('conserto-avaria').value;
   const avaria = selecaoAvaria === 'Outro' ? document.getElementById('conserto-avaria-outro').value.trim() : selecaoAvaria;
   if(!radioId || !avaria){ alert('Selecione o rádio e informe a avaria.'); return; }
+  const dataEnvio = document.getElementById('conserto-dataEnvio').value;
+  const dataRetorno = document.getElementById('conserto-dataRetorno').value;
+  if(dataEnvio && dataRetorno && dataRetorno < dataEnvio){
+    alert(`A data de retorno (${formatarDataSimples(dataRetorno)}) não pode ser anterior à data de envio (${formatarDataSimples(dataEnvio)}).`);
+    return;
+  }
   const radio = carregar('radios').find(r => r.id === radioId);
   const elCc = document.getElementById('conserto-centroCusto');
   const elObs = document.getElementById('conserto-observacao');
   const agoraIso = new Date().toISOString();
+  const fotosEnvio = Array.isArray(window._fotosEnvioForm) ? window._fotosEnvioForm.slice() : [];
   const dados = {
     radioId,
     setor: radio ? radio.setor : '',
     avaria,
-    dataEnvio: document.getElementById('conserto-dataEnvio').value,
-    dataRetorno: document.getElementById('conserto-dataRetorno').value,
+    dataEnvio,
+    dataRetorno,
     comentario: document.getElementById('conserto-comentario').value.trim(),
     centroCusto: elCc ? elCc.value.trim() : '',
     observacao: elObs ? elObs.value.trim() : '',
+    fotosEnvio,
     atualizadoEm: agoraIso
   };
   let lista = carregar('radiosConserto');
   if(idAtual){
-    lista = lista.map(i => i.id === idAtual ? {...i, ...dados} : i);
+    lista = lista.map(i => {
+      if(i.id !== idAtual) return i;
+      const atualizado = { ...i, ...dados };
+      if(!dataRetorno){
+        delete atualizado.horaRetorno;
+        delete atualizado.situacaoRetorno;
+        delete atualizado.observacaoRetorno;
+        delete atualizado.fotoRetorno;
+      }
+      return atualizado;
+    });
   } else {
     dados.id = gerarId();
     dados.criadoEm = agoraIso;
@@ -11424,6 +12319,8 @@ function editarConserto(id){
   if(elCc) elCc.value = item.centroCusto || '';
   const elObs = document.getElementById('conserto-observacao');
   if(elObs) elObs.value = item.observacao || '';
+  window._fotosEnvioForm = Array.isArray(item.fotosEnvio) ? item.fotosEnvio.slice() : [];
+  renderGradeFotosEnvio('form');
 }
 function excluirConserto(id){
   if(!confirm('Excluir este registro de conserto?')) return;
@@ -11441,9 +12338,20 @@ function excluirConserto(id){
 }
 function marcarRetorno(id){
   let lista = carregar('radiosConserto');
-  const hojeIso = new Date().toISOString().slice(0,10);
+  const item = lista.find(i => i.id === id);
+  if(!item) return;
+  const agoraLocal = obterDataHoraLocalAtual();
+  if(item.dataEnvio && agoraLocal.data < item.dataEnvio){
+    alert(`A data de retorno (${formatarDataSimples(agoraLocal.data)}) não pode ser anterior à data de envio (${formatarDataSimples(item.dataEnvio)}).`);
+    return;
+  }
   const agoraIso = new Date().toISOString();
-  lista = lista.map(i => i.id === id ? {...i, dataRetorno: hojeIso, atualizadoEm: agoraIso} : i);
+  lista = lista.map(i => i.id === id ? {
+    ...i,
+    dataRetorno: agoraLocal.data,
+    horaRetorno: agoraLocal.hora,
+    atualizadoEm: agoraIso
+  } : i);
   try { ultimoMomentoAlteracaoLocal = Date.now(); } catch(e){}
   salvarLista('radiosConserto', lista);
   renderConserto();
@@ -11452,9 +12360,38 @@ function marcarRetorno(id){
 function renderConserto(){
   const lista = carregar('radiosConserto').slice().sort((a,b) => (b.dataEnvio||'').localeCompare(a.dataEnvio||''));
   const cont = document.getElementById('lista-conserto');
+  if(!cont) return;
   if(lista.length === 0){ cont.innerHTML = telaVazia('Nenhum rádio enviado para conserto ainda.'); return; }
   cont.innerHTML = lista.map(i => {
     const aberto = !i.dataRetorno;
+    const textoRetorno = i.dataRetorno
+      ? (formatarDataSimples(i.dataRetorno) + (i.horaRetorno ? ` às ${escapeHtml(i.horaRetorno)}` : ''))
+      : '—';
+    const classeSituacao = i.situacaoRetorno === 'Devolvido sem conserto' ? 'alerta' : 'ok';
+    const htmlSituacao = i.situacaoRetorno
+      ? `<br>Situação no retorno: <span class="tag-status ${classeSituacao}" style="font-size:11px; padding:2px 7px;">${escapeHtml(i.situacaoRetorno)}</span>`
+      : '';
+    const htmlObsRetorno = i.observacaoRetorno
+      ? `<br>Obs. retorno: ${escapeHtml(i.observacaoRetorno)}`
+      : '';
+    const fotosEnvio = Array.isArray(i.fotosEnvio) ? i.fotosEnvio : [];
+    const htmlFotosEnvio = fotosEnvio.length > 0
+      ? `<div class="miniaturas-fotos-envio-bloco">
+           <div style="font-size:11.5px; font-weight:700; color:var(--texto);">Fotos do envio (${fotosEnvio.length}) · toque para ampliar</div>
+           <div class="miniaturas-fotos-envio-lista">
+             ${fotosEnvio.map((src, idx) => `<img src="${src}" class="miniatura-foto-envio" onclick="ampliarFotoEnvioConserto('${i.id}', ${idx})" title="Foto ${idx + 1} do envio · toque para ampliar" alt="Foto ${idx + 1} do envio">`).join('')}
+           </div>
+         </div>`
+      : '';
+    const htmlFoto = i.fotoRetorno
+      ? `<div class="miniatura-foto-retorno-wrap" onclick="ampliarFotoRetornoConserto('${i.id}')" title="Toque para ampliar a foto 1×1">
+           <img src="${i.fotoRetorno}" class="miniatura-foto-retorno" alt="Foto 1×1 do retorno">
+           <div style="font-size:11.5px; color:var(--texto-suave); line-height:1.25;">
+             <strong style="color:var(--texto); display:block;">Foto do retorno (1×1)</strong>
+             Toque para ampliar
+           </div>
+         </div>`
+      : '';
     return `
     <div class="item-cartao ${aberto ? 'alerta' : 'ok'}">
       <div class="franja"></div>
@@ -11465,12 +12402,17 @@ function renderConserto(){
         </div>
         <div class="item-meta">
           Avaria: ${escapeHtml(i.avaria||'—')}<br>
-          Envio: ${formatarDataSimples(i.dataEnvio)} · Retorno: ${formatarDataSimples(i.dataRetorno)}
+          Envio: ${formatarDataSimples(i.dataEnvio)} · Retorno: ${textoRetorno}
+          ${htmlSituacao}
           ${i.comentario ? '<br>Coment.: ' + escapeHtml(i.comentario) : ''}
           ${i.centroCusto ? '<br>Centro de custo: ' + escapeHtml(i.centroCusto) : ''}
           ${i.observacao ? '<br>Obs.: ' + escapeHtml(i.observacao) : ''}
+          ${htmlObsRetorno}
+          ${htmlFotosEnvio}
+          ${htmlFoto}
         </div>
         <div class="item-acoes">
+          ${aberto ? `<button onclick="abrirJanelaRetornoConserto('${i.radioId}', '${i.id}')" style="color:var(--verde-900); border-color:var(--verde-700);">Registrar retorno</button>` : ''}
           ${aberto ? `<button onclick="marcarRetorno('${i.id}')" style="color:var(--ok); border-color:var(--ok-bg);">Marcar como retornado</button>` : ''}
           <button onclick="editarConserto('${i.id}')">Editar</button>
           <button class="excluir" onclick="excluirConserto('${i.id}')">Excluir</button>
@@ -11479,6 +12421,21 @@ function renderConserto(){
     </div>`;
   }).join('');
 }
+
+window.abrirJanelaRetornoConserto = abrirJanelaRetornoConserto;
+window.fecharJanelaRetornoConserto = fecharJanelaRetornoConserto;
+window.confirmarRetornoConserto = confirmarRetornoConserto;
+window.preencherAgoraRetornoConserto = preencherAgoraRetornoConserto;
+window.selecionarSituacaoRetorno = selecionarSituacaoRetorno;
+window.capturarFotoRetornoConserto = capturarFotoRetornoConserto;
+window.removerFotoRetornoConserto = removerFotoRetornoConserto;
+window.ampliarFotoRetornoConserto = ampliarFotoRetornoConserto;
+window.ampliarFotoEnvioConserto = ampliarFotoEnvioConserto;
+window.ampliarFotoEnvioPreview = ampliarFotoEnvioPreview;
+window.fecharFotoRetornoConserto = fecharFotoRetornoConserto;
+window.capturarFotosConserto = capturarFotosConserto;
+window.removerFotoEnvioConserto = removerFotoEnvioConserto;
+window.renderGradeFotosEnvio = renderGradeFotosEnvio;
 
 /* ============================================================
    SISTEMA DE QR CODE E IMPRESSÃO DE ETIQUETAS DE RÁDIOS
@@ -17513,13 +18470,15 @@ function atualizarInfoProximoLembrete(){
 // Inicializa verificação contínua e status da interface
 if(!window.loopAtividadesIniciado){
   window.loopAtividadesIniciado = true;
-  setInterval(checarLembretesAtividadesHoje, 10000);
+  setInterval(function(){
+    if (!document.hidden) checarLembretesAtividadesHoje();
+  }, 30000);
   setTimeout(() => {
     verificarEExecutarCicloDiarioAtividades(false);
     atualizarStatusInterfaceNotificacoes();
     atualizarBotaoSomLembrete();
     atualizarInfoProximoLembrete();
-  }, 1000);
+  }, 1500);
 }
 
 let filtroCategoriaAtividadeAtiva = 'todas';
@@ -21191,7 +22150,7 @@ function renderDashboard(){
   // 2. AGENDA DE EVENTOS & NOVO GRÁFICO DE TIMELINE POR PERÍODO
   // -------------------------------------------------------------------------
   const eventosDoDia = carregarAgenda()
-    .filter(e => e.data === dataAlvo)
+    .filter(e => (typeof normalizarDataAgendaISO === 'function' ? normalizarDataAgendaISO(e.data) : e.data) === dataAlvo)
     .sort((a,b) => (a.hora||'').localeCompare(b.hora||''));
 
   const elAgendaNum = document.getElementById('kpiDashAgendaNum');
@@ -21704,8 +22663,96 @@ function escapeHtml(str){
 function telaVazia(msg){
   return `<div class="vazio"><div class="icone-vazio">◇</div>${msg}</div>`;
 }
-function renderTudo(){
-  renderChaves(); renderRadios(); renderEstoque(); renderEquipe(); renderContatos(); renderEquipamentos(); renderAtividadeSemanal(); renderPresenca(); atualizarKpiAgenda(); atualizarKpiSSMPO(); renderDashboard(); atualizarSeloDashboard();
+function atualizarSelosHubRapido(){
+  try {
+    const chaves = carregar('chaves');
+    const emUsoCh = chaves.filter(i => i.retirada && !i.devolucao).length;
+    const elSeloCh = document.getElementById('seloChaves');
+    if(elSeloCh){ elSeloCh.textContent = emUsoCh + ' em uso'; elSeloCh.className = 'selo ' + (emUsoCh > 0 ? 'alerta' : 'ok'); }
+
+    const radios = carregar('radios');
+    const elSeloRad = document.getElementById('seloRadios');
+    if(elSeloRad){ elSeloRad.textContent = radios.length + ' cadastrados'; elSeloRad.className = 'selo ok'; }
+
+    const solicitacoes = carregar('solicitacoes').length;
+    const elSeloEst = document.getElementById('seloEstoque');
+    if(elSeloEst){ elSeloEst.textContent = solicitacoes + ' pendente(s)'; elSeloEst.className = 'selo ' + (solicitacoes > 0 ? 'alerta' : 'ok'); }
+
+    const equipe = carregar('equipe');
+    const elSeloEq = document.getElementById('seloEquipe');
+    if(elSeloEq){ elSeloEq.textContent = equipe.length + ' membros'; elSeloEq.className = 'selo ok'; }
+
+    const contatos = carregar('contatos');
+    const elSeloCont = document.getElementById('seloContatos');
+    if(elSeloCont){ elSeloCont.textContent = contatos.length + ' contatos'; elSeloCont.className = 'selo ok'; }
+
+    const equip = carregar('equipamentos');
+    const manut = equip.filter(i => i.status === 'Manutenção').length;
+    const elSeloEquip = document.getElementById('seloEquipamentos');
+    if(elSeloEquip){ elSeloEquip.textContent = manut + ' em manut.'; elSeloEquip.className = 'selo ' + (manut > 0 ? 'alerta' : 'ok'); }
+
+    const elSeloPres = document.getElementById('seloPresenca');
+    if(elSeloPres){
+      const hoje = dataHojeISO();
+      const regHoje = (carregarPresenca()[hoje]) || {};
+      let presG = 0, faltG = 0, ferG = 0, inssG = 0;
+      colaboradoresValidos().forEach(c => {
+        const st = obterStatusColaborador(regHoje, c.id, c.nome);
+        if(st === 'Presente') presG++;
+        else if(st === 'Falta') faltG++;
+        else if(st === 'Férias') ferG++;
+        else if(st === 'Afastado INSS') inssG++;
+      });
+      const extras = [];
+      if(faltG > 0) extras.push(faltG + ' faltas');
+      if(ferG > 0) extras.push(ferG + ' férias');
+      if(inssG > 0) extras.push(inssG + ' afast. INSS');
+      elSeloPres.textContent = presG + ' presentes' + (extras.length > 0 ? ' · ' + extras.join(' · ') : '');
+      elSeloPres.className = 'selo ok';
+    }
+
+    const elSeloAtiv = document.getElementById('seloAtividade');
+    if(elSeloAtiv){
+      const removidas = new Set(carregarAtividadesRemovidas());
+      const extrasTodas = carregarAtividadesExtras();
+      let totalSem = 0;
+      DIAS_SEMANA.forEach(d => {
+        const base = (ATIVIDADE_SEMANAL_SEED[d.chave] || []).filter((_, idx) => !removidas.has(d.chave + '_' + idx)).length;
+        const ext = (extrasTodas[d.chave] || []).length;
+        totalSem += base + ext;
+      });
+      elSeloAtiv.textContent = totalSem + ' atividades';
+      elSeloAtiv.className = 'selo ok';
+    }
+
+    if (typeof atualizarKpiAgenda === 'function') atualizarKpiAgenda();
+    if (typeof atualizarKpiSSMPO === 'function') atualizarKpiSSMPO();
+    if (typeof atualizarSeloDashboard === 'function') atualizarSeloDashboard();
+  } catch(e){}
+}
+window.atualizarSelosHubRapido = atualizarSelosHubRapido;
+
+function renderTudo(forcarTodos){
+  if (forcarTodos === true) {
+    renderChaves(); renderRadios(); renderEstoque(); renderEquipe(); renderContatos(); renderEquipamentos(); renderAtividadeSemanal(); renderPresenca(); atualizarKpiAgenda(); atualizarKpiSSMPO(); renderDashboard(); atualizarSeloDashboard();
+    return;
+  }
+  const secaoAtiva = document.querySelector('.secao.ativa');
+  const idAtiva = secaoAtiva ? secaoAtiva.id : '';
+  if (idAtiva === 'secao-chaves') renderChaves();
+  else if (idAtiva === 'secao-radios') { renderRadios(); try { if (typeof renderConserto === 'function') renderConserto(); } catch(e){} }
+  else if (idAtiva === 'secao-estoque') renderEstoque();
+  else if (idAtiva === 'secao-equipe') renderEquipe();
+  else if (idAtiva === 'secao-contatos') renderContatos();
+  else if (idAtiva === 'secao-equipamentos') renderEquipamentos();
+  else if (idAtiva === 'secao-atividade') { renderAtividadeSemanal(); try { if (typeof renderSetor === 'function') renderSetor(); } catch(e){} }
+  else if (idAtiva === 'secao-presenca') renderPresenca();
+  else if (idAtiva === 'secao-dashboard') renderDashboard();
+  else if (idAtiva === 'hub') atualizarSelosHubRapido();
+
+  atualizarKpiAgenda();
+  atualizarKpiSSMPO();
+  atualizarSeloDashboard();
 }
 
 /* ============================================================
@@ -21793,9 +22840,40 @@ function salvarAgenda(lista){
 }
 window.salvarAgenda = salvarAgenda;
 
+function normalizarDataAgendaISO(val){
+  const s = String(val || '').trim();
+  if(!s) return '';
+  const mIso = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if(mIso) return mIso[1];
+  const mBr = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if(mBr) return mBr[3] + '-' + mBr[2] + '-' + mBr[1];
+  return s;
+}
+window.normalizarDataAgendaISO = normalizarDataAgendaISO;
+
+function garantirMesAgendaValido(isoReferencia){
+  if(isoReferencia){
+    const iso = normalizarDataAgendaISO(isoReferencia);
+    const partes = iso.split('-');
+    if(partes.length === 3){
+      const a = parseInt(partes[0], 10);
+      const m = parseInt(partes[1], 10) - 1;
+      if(!isNaN(a) && !isNaN(m)){
+        mesAgendaAtual = new Date(a, m, 1);
+        return mesAgendaAtual;
+      }
+    }
+  }
+  if(!(mesAgendaAtual instanceof Date) || isNaN(mesAgendaAtual.getTime())){
+    const hoje = new Date();
+    mesAgendaAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  }
+  return mesAgendaAtual;
+}
+
 function atualizarKpiAgenda(){
   const hoje = dataHojeISO();
-  const total = carregarAgenda().filter(e => e.data === hoje).length;
+  const total = carregarAgenda().filter(e => normalizarDataAgendaISO(e.data) === hoje).length;
   const elKpi = document.getElementById('kpiAgendaHoje');
   if(elKpi) elKpi.textContent = total;
   const elSelo = document.getElementById('seloAgenda');
@@ -21809,17 +22887,24 @@ function abrirAgenda(){
   diaAgendaSelecionado = null;
   renderCalendarioAgenda();
   fecharModalDiaAgenda();
-  document.getElementById('modalAgenda').classList.add('aberto');
+  const modal = document.getElementById('modalAgenda');
+  if(modal){
+    modal.classList.add('aberto');
+    const caixa = modal.querySelector('.modal-caixa');
+    if(caixa) caixa.scrollTop = 0;
+  }
 }
 window.abrirAgenda = abrirAgenda;
 
 function fecharAgenda(){
-  document.getElementById('modalAgenda').classList.remove('aberto');
+  const modal = document.getElementById('modalAgenda');
+  if(modal) modal.classList.remove('aberto');
   fecharModalDiaAgenda();
 }
 window.fecharAgenda = fecharAgenda;
 
 function mudarMesAgenda(delta){
+  garantirMesAgendaValido();
   mesAgendaAtual = new Date(mesAgendaAtual.getFullYear(), mesAgendaAtual.getMonth()+delta, 1);
   renderCalendarioAgenda();
 }
@@ -21831,14 +22916,17 @@ function dataParaISO(ano, mes, dia){
 window.dataParaISO = dataParaISO;
 
 function renderCalendarioAgenda(){
+  garantirMesAgendaValido();
   const ano = mesAgendaAtual.getFullYear();
   const mes = mesAgendaAtual.getMonth();
   const hoje = dataHojeISO();
   const eventos = carregarAgenda();
-  const diasComEvento = new Set(eventos.map(e => e.data));
+  const diasComEvento = new Set(eventos.map(e => normalizarDataAgendaISO(e.data)).filter(Boolean));
 
-  document.getElementById('calendarioMesAno').textContent =
-    mesAgendaAtual.toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+  const elMesAno = document.getElementById('calendarioMesAno');
+  if(elMesAno){
+    elMesAno.textContent = mesAgendaAtual.toLocaleDateString('pt-BR', {month:'long', year:'numeric'});
+  }
 
   const primeiroDiaSemana = new Date(ano, mes, 1).getDay();
   const totalDiasMes = new Date(ano, mes+1, 0).getDate();
@@ -21856,20 +22944,25 @@ function renderCalendarioAgenda(){
   }
 
   const grade = document.getElementById('calendarioGrade');
-  grade.innerHTML = celulas.map(c => {
-    if(c.fora) return `<div class="dia-agenda fora">${c.dia}</div>`;
-    const classes = ['dia-agenda'];
-    if(c.iso === hoje) classes.push('hoje');
-    if(c.iso === diaAgendaSelecionado) classes.push('selecionado');
-    return `<div class="${classes.join(' ')}" onclick="selecionarDiaAgenda('${c.iso}')">${c.dia}${diasComEvento.has(c.iso) ? '<span class="ponto-evento"></span>' : ''}</div>`;
-  }).join('');
+  if(grade){
+    grade.innerHTML = celulas.map(c => {
+      if(c.fora) return `<div class="dia-agenda fora">${c.dia}</div>`;
+      const classes = ['dia-agenda'];
+      if(c.iso === hoje) classes.push('hoje');
+      if(c.iso === diaAgendaSelecionado) classes.push('selecionado');
+      return `<div class="${classes.join(' ')}" onclick="selecionarDiaAgenda('${c.iso}')">${c.dia}${diasComEvento.has(c.iso) ? '<span class="ponto-evento"></span>' : ''}</div>`;
+    }).join('');
+  }
 
-  renderListaDiaAgenda();
+  if(diaAgendaSelecionado){
+    renderListaDiaAgenda();
+  }
 }
 window.renderCalendarioAgenda = renderCalendarioAgenda;
 
 function selecionarDiaAgenda(iso){
-  diaAgendaSelecionado = iso;
+  diaAgendaSelecionado = normalizarDataAgendaISO(iso) || dataHojeISO();
+  garantirMesAgendaValido(diaAgendaSelecionado);
   renderCalendarioAgenda();
   abrirModalDiaAgenda();
 }
@@ -21888,9 +22981,7 @@ function navegarDiaAgendaRelativo(delta){
     d.setDate(d.getDate() + delta);
     const novoIso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
     diaAgendaSelecionado = novoIso;
-    if (mesAgendaAtual) {
-      mesAgendaAtual = new Date(d.getFullYear(), d.getMonth(), 1);
-    }
+    mesAgendaAtual = new Date(d.getFullYear(), d.getMonth(), 1);
     renderCalendarioAgenda();
     renderListaDiaAgenda();
     if (typeof renderDashboard === 'function') renderDashboard();
@@ -21903,7 +22994,12 @@ window.navegarDiaAgendaRelativo = navegarDiaAgendaRelativo;
 function abrirModalDiaAgenda(){
   fecharFormAgenda();
   renderListaDiaAgenda();
-  document.getElementById('modalDiaAgenda').classList.add('aberto');
+  const modal = document.getElementById('modalDiaAgenda');
+  if(modal){
+    modal.classList.add('aberto');
+    const caixa = modal.querySelector('.modal-caixa');
+    if(caixa) caixa.scrollTop = 0;
+  }
 }
 window.abrirModalDiaAgenda = abrirModalDiaAgenda;
 
@@ -21915,12 +23011,13 @@ function fecharModalDiaAgenda(){
 window.fecharModalDiaAgenda = fecharModalDiaAgenda;
 
 function renderListaDiaAgenda(){
-  const dataFormatada = diaAgendaSelecionado ? new Date(diaAgendaSelecionado+'T12:00:00').toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'2-digit', year:'numeric'}) : '';
+  const isoSel = normalizarDataAgendaISO(diaAgendaSelecionado);
+  const dataFormatada = isoSel ? new Date(isoSel+'T12:00:00').toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'2-digit', year:'numeric'}) : '';
   const elTitulo = document.getElementById('tituloDiaAgenda');
   if(elTitulo) elTitulo.textContent = 'Compromissos — ' + dataFormatada;
 
   const eventos = carregarAgenda()
-    .filter(e => e.data === diaAgendaSelecionado)
+    .filter(e => normalizarDataAgendaISO(e.data) === isoSel)
     .sort((a,b) => (a.hora||'').localeCompare(b.hora||''));
   const cont = document.getElementById('lista-agenda-dia');
   if(!cont) return;
@@ -22509,7 +23606,7 @@ function atualizarKpiSSMPO(){
 }
 
 function atualizarSelosHub(){
-  renderTudo();
+  atualizarSelosHubRapido();
 }
 
 /* ============================================================
@@ -22553,13 +23650,16 @@ function compartilharConsertoEmail(){
       const radio = acharRadio(c.radioId);
       const setor = radio ? radio.setor : (c.setor || '—');
       const codigo = radio ? radio.codigo : '';
-      const status = c.dataRetorno ? ('Retornado em ' + formatarDataSimples(c.dataRetorno)) : 'AINDA EM CONSERTO';
+      const status = c.dataRetorno
+        ? ('Retornado em ' + formatarDataSimples(c.dataRetorno) + (c.horaRetorno ? ' às ' + c.horaRetorno : '') + (c.situacaoRetorno ? ' (' + c.situacaoRetorno + ')' : ''))
+        : 'AINDA EM CONSERTO';
       texto += `• ${setor}${codigo ? ' (Código ' + codigo + ')' : ''}\n`;
       texto += `  Avaria: ${c.avaria || '—'}\n`;
       texto += `  Enviado em: ${c.dataEnvio ? formatarDataSimples(c.dataEnvio) : '—'} — ${status}\n`;
       if(c.comentario) texto += `  Comentário: ${c.comentario}\n`;
       if(c.centroCusto) texto += `  Centro de custo: ${c.centroCusto}\n`;
       if(c.observacao) texto += `  Observação: ${c.observacao}\n`;
+      if(c.observacaoRetorno) texto += `  Observação no retorno: ${c.observacaoRetorno}\n`;
       texto += '\n';
     });
   }
@@ -25443,35 +26543,40 @@ function fecharModalHistoricoEquipe(){
 window.fecharModalHistoricoEquipe = fecharModalHistoricoEquipe;
 
 function repararCatalogosPosEspaco(){
+  let alterado = false;
   const atuaisUni = carregar('uniformesCatalogo');
   const codUni = new Set(atuaisUni.map(u => u.codigo));
   const faltUni = UNIFORMES_SEED.filter(u => !codUni.has(u.codigo));
-  if(faltUni.length > 0){ salvarLista('uniformesCatalogo', [...atuaisUni, ...faltUni]); }
+  if(faltUni.length > 0){ salvarLista('uniformesCatalogo', [...atuaisUni, ...faltUni]); alterado = true; }
 
   const atuaisEsc = carregar('escritorioCatalogo');
   const codEsc = new Set(atuaisEsc.map(e => e.codigo));
   const faltEsc = ESCRITORIO_SEED.filter(e => !codEsc.has(e.codigo));
-  if(faltEsc.length > 0){ salvarLista('escritorioCatalogo', [...atuaisEsc, ...faltEsc]); }
+  if(faltEsc.length > 0){ salvarLista('escritorioCatalogo', [...atuaisEsc, ...faltEsc]); alterado = true; }
 
   const atuaisMat = carregar('materiaisCatalogo');
   const codMat = new Set(atuaisMat.map(m => m.codigo));
   const faltMat = MATERIAIS_SEED.filter(m => !codMat.has(m.codigo));
-  if(faltMat.length > 0){ salvarLista('materiaisCatalogo', [...atuaisMat, ...faltMat]); }
+  if(faltMat.length > 0){ salvarLista('materiaisCatalogo', [...atuaisMat, ...faltMat]); alterado = true; }
 
   const atuaisChaves = carregar('chaves');
-  if(atuaisChaves.length === 0){ salvarLista('chaves', CHAVES_SEED); }
+  if(atuaisChaves.length === 0){ salvarLista('chaves', CHAVES_SEED); alterado = true; }
   garantirCatalogoChavesCompleto();
 
-  renderTudo();
+  if (alterado) renderTudo();
 }
-recomprimirFotosChavesExistentes().then(repararCatalogosPosEspaco).catch(repararCatalogosPosEspaco);
+setTimeout(function(){
+  recomprimirFotosChavesExistentes().then(repararCatalogosPosEspaco).catch(repararCatalogosPosEspaco);
+}, 1800);
 
 /* ============================================================
    INICIALIZAÇÃO
    ============================================================ */
 atualizarSelosHub();
 aplicarAcessoRestrito();
-try { inicializarBackupsAutomaticos(); } catch(e){}
+setTimeout(function(){
+  try { inicializarBackupsAutomaticos(); } catch(e){}
+}, 3000);
 processarParametroUrlRadio();
 processarParametroUrlEquipamento();
 
@@ -26125,6 +27230,36 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
       }
 
       function renderizarLista() {
+        const modalPerfis = document.getElementById('modalPerfisConectados');
+        const modalAberto = !!(modalPerfis && modalPerfis.style.display === 'flex');
+
+        // Se o modal estiver fechado, atualiza apenas o contador leve do topo e evita montar 117+ cards ocultos
+        if (!modalAberto) {
+          const agoraLeve = Date.now();
+          const fontesLeves = [...perfisServidor, ...obterPerfisLocais()];
+          const sessoesVistas = new Set();
+          let qtdOnlineLeve = 1; // meu próprio perfil sempre online
+          const meuId = obterSessaoId();
+          fontesLeves.forEach(p => {
+            if (!p || !p.nome) return;
+            const k = p.sessaoId || p.uid || p.nome;
+            if (k === meuId || sessoesVistas.has(k)) return;
+            sessoesVistas.add(k);
+            if (p.online !== false && (agoraLeve - (p.ultimaAtividade || 0)) < LIMITE_ONLINE_MS) {
+              qtdOnlineLeve++;
+            }
+          });
+          const elTxtQtd = document.getElementById('txtQtdOnlineTopo');
+          const elBadge = document.getElementById('badgePerfisOnlineTotal');
+          if (elTxtQtd) elTxtQtd.textContent = `${qtdOnlineLeve} Online`;
+          if (elBadge) {
+            elBadge.style.background = qtdOnlineLeve > 0 ? '#DCFCE7' : '#F1F5F9';
+            elBadge.style.color = qtdOnlineLeve > 0 ? '#15803D' : '#64748B';
+            elBadge.style.borderColor = qtdOnlineLeve > 0 ? '#86EFAC' : '#CBD5E1';
+          }
+          return;
+        }
+
         const container = document.getElementById('listaPerfisConectadosContainer');
         if (!container) return;
 
